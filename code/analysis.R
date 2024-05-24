@@ -39,7 +39,7 @@ fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 fields_def$cu_system_sites
 
 #
-# Figures ------
+# Figures DRAFT ------
 
 #'* Number of survey per years (all) *
 
@@ -563,29 +563,61 @@ for(rg in regions){
   legend("topright",rg, col = "black", bty = "n")
 }
 
+#
+# Figures SELECTED ------------
 
-#' Wide format
-coef <- 1.5
+#'* 1st, order regions and species by abundance *
+
+regions <- unique(nuseds$region)
+species <- unique(nuseds$SPECIES)
+
+# Still retain the order of the most surveyed regions at the global scale:
+x_max <- sapply(regions, function(reg){
+  cond <- nuseds$region == reg
+  nuseds_cut <- nuseds[cond,]
+  nuseds_cut_surveyYear <- nuseds_cut %>%
+    group_by(Year) %>%
+    summarise(count = n()) %>%
+    arrange(Year)
+  return(max(nuseds_cut_surveyYear$count))
+})
+
+regions <- regions[rev(order(x_max))]
+
+# same for the species:
+x_max <- sapply(species, function(sp){
+  cond <- nuseds$SPECIES == sp
+  nuseds_cut <- nuseds[cond,]
+  nuseds_cut_surveyYear <- nuseds_cut %>%
+    group_by(Year) %>%
+    summarise(count = n()) %>%
+    arrange(Year)
+  return(max(nuseds_cut_surveyYear$count))
+})
+
+species <- species[rev(order(x_max))]
+colours_sp <- species_cols_light[species]
+
+#'* Total nb populations/yr + per refion ; Wide format *
+#' 
+figures_print <- T
+
+coef <- 0.8
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_surveys_perYear_total_Regions_species.jpeg"),
        width = 21.59 * coef, height = 27.94 * coef, units = 'cm', res = 300)
 }
 m <- matrix(c(1,1,1:(length(regions)+1)), ncol = 3, byrow = T)
-widths <- c(1.12,1,1)
-heights <- c(1.75,1,1,1.14)
-side1_1 <- 4.5
-xaxt_1 <- 's'
-xlab_1 <- "Year"
-layout(m, widths = widths, heights = heights)
+layout(m, widths =  c(1.25,1,1), heights = c(1.75,1,1,1.29))
 #' Total nb of population surveyed per year:
 nuseds_surveyYear <- nuseds %>%
   group_by(Year) %>%
   summarise(count = n()) %>%
   arrange(Year)
 
-par(mar = c(side1_1,4.5,1,.5))
+par(mar = c(4.5,4.5,1,.5))
 plot(x = nuseds_surveyYear$Year, y = nuseds_surveyYear$count, type = "l", lwd = 2,
-     ylab = "Number of populations", xlab =  xlab_1, xaxt = xaxt_1)
+     ylab = "Number of populations", xlab =  "Year")
 legend("topleft","Total", col = "black", lwd = 2, bty = "n")
 
 # Nb of population surveyed per year for each region:
@@ -608,22 +640,102 @@ for(rg in regions){
     ylab <- "Number of populations"
     yaxt <- "s"
   }
-  if(i == 1){
+  if(i == 4){
     legend_show <- T
   }
   cond <- nuseds$region == rg
   plot_countsYear_oneVar_fun(dataset = nuseds[cond,], varCount = "SPECIES", varX = "Year",
                              xlab = xlab, xaxt = xaxt, ylab = ylab, yaxt = yaxt,
-                             colours = species_cols_dark, legend_show = legend_show,
+                             colours = colours_sp, legend_show = legend_show,
                              side1 = side1, side2 = side2, side3 = .5, side4 = .5,
-                             main = "", y_max = 370)
+                             main = "", y_max = 400, legend_imposed = T)
   legend("topright",rg, col = "black", bty = "n")
-  
-
 }
 if(figures_print){
   dev.off()
 }
+
+#
+#'* Nb of populations surveyed per year species > regions *
+#'
+
+# Define the colours of the regions
+colours_rg <- c("clay3",
+                "tidal3",
+                "soil2",
+                "stone3",
+                "seafoam2", # "lichen1"
+                "stone1",
+                "clay1",
+                "tidal2",
+                "soil1")
+colours_rg <- SWP_cols[colours_rg]
+
+# Or rainbow
+colours_rg <- rainbow(n = length(regions))
+
+# Or hand made 
+# colours_rg <- colorRampPalette(colors = c("firebrick3","cadetblue3","aquamarine3","darkslategray4","bisque4","goldenrod3","gray40","deeppink3","darkorchid3"))
+colours_rg <- c("firebrick3","goldenrod3","darkslategray4","bisque4","darkorchid3",
+                "cadetblue3","gray40","aquamarine3","deeppink3")
+
+names(colours_rg) <- regions
+
+figures_print <- T
+
+coef <- .9
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Number_surveys_perYear_Species_Regions.jpeg"),
+       width = 21.59 * coef, height = 14 * coef, units = 'cm', res = 300)
+}
+m <- matrix(1:(length(species) + 1), ncol = 3, byrow = T)
+layout(m, widths =  c(1.22,1,1), heights = c(1,1.24))
+for(sp in species){
+  # sp <- species[1]
+  i <- which(sp == species)
+  side1 <- .5
+  side2 <- .5
+  xlab <- ""
+  xaxt <- "n"
+  yaxt <- "n"
+  legend_show <- F
+  if(i %in% 4:6){
+    side1 <- 4.5
+    xlab <- "Year"
+    xaxt <- "s"
+  }
+  if(i %in% 3){
+    xlab <- "Year"
+    xaxt <- "s"
+  }
+  if(i %in% c(1,4)){
+    side2 <- 4.5
+    ylab <- "Number of populations"
+    yaxt <- "s"
+  }
+  cond <- nuseds$SPECIES == sp
+  plot_countsYear_oneVar_fun(dataset = nuseds[cond,], varCount = "region", varX = "Year",
+                             xlab = xlab, xaxt = xaxt, ylab = ylab, yaxt = yaxt,
+                             colours = colours_rg, legend_show = F,
+                             side1 = side1, side2 = side2, side3 = .5, side4 = .5,
+                             main = "", y_max = 350, legend_imposed = T)
+  legend("topright",sp, col = "black", bty = "n")
+  
+}
+plot.new()
+mtext("Year", side = 3, line = -2.7, cex = .7)
+legend("bottom",names(colours_rg), col = colours_rg, lwd = 2, bty = "n")
+if(figures_print){
+  dev.off()
+}
+
+
+
+nuseds$region
+
+
+
+
 
 
 

@@ -49,6 +49,7 @@ plot_countsYear_oneVar_fun <- function(dataset, varCount, varX, figure_print = F
                                    xaxt = "s", yaxt = "s", 
                                    colours = NA, y_max = NA,
                                    wd_figures, figure_name = NA, 
+                                   legend_imposed = T, # the legend is imposed by the vector colours
                                    legend_show = T){
 
   varCount_values <- unique(dataset[,varCount])
@@ -115,19 +116,21 @@ plot_countsYear_oneVar_fun <- function(dataset, varCount, varX, figure_print = F
   if(is.na(colours)[1]){
     colours <- rainbow(n = length(varCount_values))
     names(colours) <- varCount_values
-  }else{
-    colours <- colours[varCount_values]
   }
   
   for(i in 1:length(varCount_values)){
     v <- varCount_values[i]
     lines(x = dataset_varCount_l[[v]][,varX], y = dataset_varCount_l[[v]]$count, 
-          pch = 16, col = colours[i], lwd = lwd)
+          pch = 16, col = colours[v], lwd = lwd)
     # points(x = nuseds_cut_surveyYear$Year, y = nuseds_cut_surveyYear$count,
     #        pch = 16, col = colours[i])
   }
   if(legend_show){
-    legend("topleft",varCount_values, col = colours, lwd = lwd, bty = "n")
+    if(legend_imposed & !is.na(colours)[1]){
+      legend("topleft",names(colours), col = colours, lwd = lwd, bty = "n")
+    }else{
+      legend("topleft",varCount_values, col = colours, lwd = lwd, bty = "n")
+    }
   }
   if(figure_print){
     dev.off()
