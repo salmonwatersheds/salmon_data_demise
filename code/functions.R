@@ -47,7 +47,8 @@ plot_countsYear_oneVar_fun <- function(dataset, varCount, varX, figure_print = F
                                    ylab = "Count", xlab = "xlab", main = "",
                                    side1 = 4.5, side2 = 4.5, side3 = 3, side4 = .5,
                                    xaxt = "s", yaxt = "s", 
-                                   colours = NA, y_max = NA,
+                                   add_linesVertical = T, lwd_vertical = 1,
+                                   colours = NA, y_max = NA, x_max = NA, x_min = NA,
                                    wd_figures, figure_name = NA, 
                                    legend_imposed = T, # the legend is imposed by the vector colours
                                    legend_show = T){
@@ -60,7 +61,7 @@ plot_countsYear_oneVar_fun <- function(dataset, varCount, varX, figure_print = F
   varXClass <- class(dataset[,varX])
   
   # find the maximum varCount 
-  x_max <- c()
+  count_max <- c()
   dataset_varCount_l <- list()
   for(i in 1:length(varCount_values)){
     v <- varCount_values[i]
@@ -86,19 +87,25 @@ plot_countsYear_oneVar_fun <- function(dataset, varCount, varX, figure_print = F
     
     class(dataset_cut_varCount[,1]) <- varXClass
     
-    x_max <- c(x_max,max(dataset_cut_varCount$count))
-    #names(x_max)[i] <- v
+    count_max <- c(count_max,max(dataset_cut_varCount$count))
+    #names(count_max)[i] <- v
     
     dataset_varCount_l[[i]] <- dataset_cut_varCount
   }
-  names(x_max) <- names(dataset_varCount_l) <- varCount_values
+  names(count_max) <- names(dataset_varCount_l) <- varCount_values
   
   # order varCount_values by abundance
-  varCount_values <- varCount_values[rev(order(x_max))]
+  varCount_values <- varCount_values[rev(order(count_max))]
   dataset_varCount_l <- dataset_varCount_l[varCount_values]
   
   if(is.na(y_max)[1]){
-    y_max <- max(x_max)
+    y_max <- max(count_max)
+  }
+  if(is.na(x_max)[1]){
+    x_max <- max(dataset[,varX])
+  }
+  if(is.na(x_min)[1]){
+    x_min <- min(dataset[,varX])
   }
   
   if(is.na(figure_name)){
@@ -110,8 +117,15 @@ plot_countsYear_oneVar_fun <- function(dataset, varCount, varX, figure_print = F
          width = width * coef, height = height * coef, units = units, res = res)
   }
   par(mar = c(side1,side2,side3,side4))
-  plot(1, xlim = range(nuseds$Year), ylim = c(0,y_max), las = las,
+  plot(NA, xlim = c(x_min,x_max), ylim = c(0,y_max), las = las,
        ylab = ylab, xlab = xlab, main = main, xaxt = xaxt, yaxt = yaxt)
+  
+  if(add_linesVertical){
+    xs <- x_min:x_max
+    segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0], 
+             y0 = 0, y1 = y_max, 
+             col = "grey70", lwd = lwd_vertical)
+  }
   
   if(is.na(colours)[1]){
     colours <- rainbow(n = length(varCount_values))
@@ -135,5 +149,16 @@ plot_countsYear_oneVar_fun <- function(dataset, varCount, varX, figure_print = F
   if(figure_print){
     dev.off()
   }
+}
+
+#' Function to compute the euclidean distance between a reference point
+#' and points whose coordinates are provided 
+distance_Euclidean_fun <- function(x_ref,y_ref,x,y){
+  x_ref <- as.numeric(x_ref)
+  y_ref <- as.numeric(y_ref)
+  x <- as.numeric(x)
+  y <- as.numeric(y)
+  out <- sqrt((x_ref - x)^2 + (y_ref - y)^2)
+  return(out)
 }
 
