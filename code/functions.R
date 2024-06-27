@@ -162,3 +162,42 @@ distance_Euclidean_fun <- function(x_ref,y_ref,x,y){
   return(out)
 }
 
+#' Function to return the last version of a file whose name contains the given
+#' pattern.
+import_mostRecent_file_fun <- function(wd,pattern){
+  
+  files_c <- list.files(wd)
+  files_c <- files_c[grepl(x = files_c, 
+                           pattern = pattern)]
+  
+  if(length(files_c) == 0){
+    print("File not found.")
+    out <- NA
+  }else{
+    file.mtime <- file.mtime(paste(wd,files_c,sep="/"))
+    file <- files_c[file.mtime == max(file.mtime)]
+    print(paste0("File imported: ",file," ; Date modified: ", max(file.mtime)))
+    out <- read.csv(paste(wd,file,sep = "/"),header = T)
+  }
+  return(out)
+}
+
+#' Function used to lower case characters and remove special characters from 
+#' strings. It is used to strings of characters.
+simplify_string_fun <- function(string){
+  
+  string <- tolower(string)
+  string <- gsub(" ","",string)
+  string <- gsub("-","",string)
+  string <- gsub("_","",string)
+  string <- gsub("'","",string)
+  string <- gsub("\\\\","",string)
+  string <- gsub("\\(","",string)
+  string <- gsub(")","",string)
+  string <- gsub("\\[","",string)
+  string <- gsub("]","",string)
+  string <- gsub("\\.","",string)
+  string <- gsub("/","",string)
+  
+  return(string)
+}

@@ -16,21 +16,50 @@ source("code/colours.R")
 
 figures_print <- F
 
+
+# Define the colours of the regions
+colours_rg <- c("clay3",
+                "tidal3",
+                "soil2",
+                "stone3",
+                "seafoam2", # "lichen1"
+                "stone1",
+                "clay1",
+                "tidal2",
+                "soil1")
+colours_rg <- SWP_cols[colours_rg]
+
+# Or rainbow
+colours_rg <- rainbow(n = length(regions))
+
+# Or hand made 
+# colours_rg <- colorRampPalette(colors = c("firebrick3","cadetblue3","aquamarine3","darkslategray4","bisque4","goldenrod3","gray40","deeppink3","darkorchid3"))
+colours_rg <- c("firebrick3","goldenrod3","darkslategray4","bisque4","darkorchid3",
+                "cadetblue3","gray40","aquamarine3","deeppink3")
+
+names(colours_rg) <- regions
+
+
+
+#
+# Import datasets ------
+#
+
 #' * Import the cleaned NuSEDS data matched with PSF cuid and streamid *
-# nuseds <- read.csv(paste0(wd_data_input_PSF,"/NuSEDS_escapement_data_collated_20240419.csv"),
-#                    header = T)
-# 
-# colToKeep <- c("POP_ID","SPECIES","CU_NAME","SYSTEM_SITE","GFE_ID","Year",
-#                "ESTIMATE_CLASSIFICATION","ESTIMATE_METHOD")
-
-nuseds <- read.csv(paste0(wd_data_input_PSF,"/nuseds_cuid_streamid_20240419.csv"),
-                   header = T)
-
+#' Note: the choice was made to not use the cleaned and combined nuseds file 
+#' NuSEDS_escapement_data_collated_DATE.csv because it does not contain the region.
+#' Prodivinding the region requires to match ciud with is a pain and was done to 
+#' produce nuseds_cuid_streamid_DATE.csv, which is the file that is used instead.
+#' It contains extra fields not needed.
+nuseds <- import_mostRecent_file_fun(wd = wd_data_input_PSF,
+                                     pattern = "nuseds_cuid_streamid")
 head(nuseds)
+
+# Remove rows with NAs
 sum(is.na(nuseds$MAX_ESTIMATE)) # 155984
 nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
 
-colToKeep <- c("region","SPECIES","cu_name_pse","cuid","POP_ID",
+colToKeep <- c("region","SPECIES","cu_name_pse","cuid","POP_ID","cu_name_dfo","CU_NAME",
                "SYSTEM_SITE","GFE_ID","X_LONGT","Y_LAT",
                "Year","MAX_ESTIMATE",
                "ESTIMATE_CLASSIFICATION","ESTIMATE_METHOD","stream_survey_quality")
@@ -40,12 +69,11 @@ nuseds <- nuseds[,colToKeep]
 #' * Import the definition of the different fields of these two datasets *
 fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 
-fields_def$cu_system_sites
 
 #'* Import the PSE CUs decoder *
-
 cu_decoder <- read.csv(paste0(wd_data_input,"/conservationunits_decoder.csv"),
                        header = T)
+
 
 #
 # Figures DRAFT ------
@@ -573,7 +601,7 @@ for(rg in regions){
 }
 
 #
-# Figures (x2) number surveys: total & region > species ; Species > region ------------
+# Figures: (1) number surveys: total & region > species ; (2) Species > region ------------
 
 #'* 1st, order regions and species by abundance *
 
@@ -607,9 +635,8 @@ x_max <- sapply(species, function(sp){
 species <- species[rev(order(x_max))]
 colours_sp <- species_cols_light[species]
 
-#'* Total nb populations/yr + per refion ; Wide format *
+#'* Total nb populations/yr + per region ; Wide format *
 #' 
-figures_print <- T
 
 coef <- 0.8
 if(figures_print){
@@ -676,29 +703,6 @@ if(figures_print){
 #'* Nb of populations surveyed per year species > regions *
 #'
 
-# Define the colours of the regions
-colours_rg <- c("clay3",
-                "tidal3",
-                "soil2",
-                "stone3",
-                "seafoam2", # "lichen1"
-                "stone1",
-                "clay1",
-                "tidal2",
-                "soil1")
-colours_rg <- SWP_cols[colours_rg]
-
-# Or rainbow
-colours_rg <- rainbow(n = length(regions))
-
-# Or hand made 
-# colours_rg <- colorRampPalette(colors = c("firebrick3","cadetblue3","aquamarine3","darkslategray4","bisque4","goldenrod3","gray40","deeppink3","darkorchid3"))
-colours_rg <- c("firebrick3","goldenrod3","darkslategray4","bisque4","darkorchid3",
-                "cadetblue3","gray40","aquamarine3","deeppink3")
-
-names(colours_rg) <- regions
-
-figures_print <- T
 
 coef <- .9
 if(figures_print){
@@ -752,6 +756,24 @@ if(figures_print){
 #
 sum(is.na(nuseds$GFE_ID)) # 0
 sum(is.na(nuseds$POP_ID)) # 0
+sum(is.na(nuseds$cu_name_pse)) # 0
+sum(is.na(nuseds$cu_name_dfo)) # 0
+sum(is.na(nuseds$CU_NAME)) # 0
+sum(is.na(nuseds$region)) # 0
+
+nuseds$cu_name_pse |> unique() |> length() # 361
+nuseds$CU_NAME |> unique() |> length()     # 365
+
+# Check if certain POP_ID without a cuid have a CU_NAME with a cuid:
+cond <- is.na(nuseds$cuid)
+POP_IDs <- nuseds$POP_ID[cond] |> unique()
+CU_NAMEs <- nuseds$CU_NAME[cond] |> unique()
+sapply(CU_NAMEs,function(cu_n){
+  cond <- nuseds$CU_NAME == cu_n
+  out <- nuseds$cuid[cond] |> unique()
+  return(out)
+})
+
 
 # There are populations (POP_ID) without cuid --> try to find the cuid using the 
 # distance.
@@ -860,9 +882,11 @@ sum(is.na(nuseds_filled$cuid))
 sum(is.na(nuseds_filled$cu_name_pse))
 
 #
-# Figure proportions ---------
+# Figure proportions of CUs with at least one population assessed ---------
 
-# dataset <- nuseds_filled # it was decided to not attribute ciud to the POP_ID that are missing one (May 31 2024)
+# Remove populations that do not have a 
+# it was decided to not attribute cuid to the POP_ID that are missing one (May 31 2024)
+# dataset <- nuseds_filled 
 cond <- !is.na(nuseds$cuid)
 dataset <- nuseds[cond,]
 
@@ -899,8 +923,7 @@ x_max <- sapply(species, function(sp){
 species <- species[rev(order(x_max))]
 colours_sp <- species_cols_light[species]
 
-# plot
-figures_print <- T
+#'* Plot all data and the each Region > species  *
 
 coef <- 0.8
 if(figures_print){
@@ -918,7 +941,7 @@ CUs_totNb # 389
 years <- unique(dataset$Year)
 years <- years[order(years)]
 
-dataset_totNbyr <- sapply(years, function(yr){
+CUs_totNb_yr <- sapply(years, function(yr){
   cond <- dataset$Year == yr
   cuids_here <- dataset$cuid[cond] |> unique()
   return(length(cuids_here))
@@ -930,7 +953,7 @@ plot(NA, las = 1, ylim = c(0,1), xlim = range(years),
 segments(x0 = years[years %% 10 == 0], x1 = years[years %% 10 == 0], 
          y0 = 0, y1 = 1.2, 
          col = "grey70")
-lines(x = years, y = dataset_totNbyr / CUs_totNb, lwd = 2)
+lines(x = years, y = CUs_totNb_yr / CUs_totNb, lwd = 2)
 legend("topleft","Total", col = "black", lwd = 2, bty = "n")
 
 # Nb of population surveyed per year for each region:
@@ -995,10 +1018,212 @@ if(figures_print){
 }
 
 
+#'* Plot all data then Region then species  *
+
+coef <- 0.8
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Proportion_CUs_surveyed_perYear_total_Regions_species_2.jpeg"),
+       width = 21.59 * coef, height = 27.94 * coef, units = 'cm', res = 300)
+}
+m <- matrix(1:3, ncol = 1)
+layout(m, heights = c(1,1,1.2))
+
+#' Proportion of the total number of CUs with at least one population surveyed:
+cuids <- unique(dataset$cuid)
+CUs_totNb <- length(cuids)
+CUs_totNb # 389
+
+years <- unique(dataset$Year)
+years <- years[order(years)]
+
+CUs_totNb_yr <- sapply(years, function(yr){
+  cond <- dataset$Year == yr
+  cuids_here <- dataset$cuid[cond] |> unique()
+  return(length(cuids_here))
+})
+
+par(mar = c(.5,4.5,1,.5))
+plot(NA, las = 1, ylim = c(0,1), xlim = range(years),
+     ylab = "Proportion of CUs assessed", xlab = "", xaxt = 'n')
+segments(x0 = years[years %% 10 == 0], x1 = years[years %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+lines(x = years, y = CUs_totNb_yr / CUs_totNb, lwd = 2)
+legend("topleft","Total", col = "black", lwd = 2, bty = "n")
+
+# Proportion of CUs surveyed per year for each region:
+plot(NA, las = 1, ylim = c(0,1), xlim = range(years),
+     ylab = "Proportion of CUs assessed", xlab = "", xaxt = 'n')
+segments(x0 = years[years %% 10 == 0], x1 = years[years %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+for(rg in regions){
+  cond <- dataset$region == rg
+  dataset_rg <- dataset[cond,]
+  
+  CUs_totNb <- length(unique(dataset_rg$cuid))
+  
+  CUs_totNb_yr <- sapply(years, function(yr){
+    cond <- dataset_rg$Year == yr
+    cuids_here <- dataset_rg$cuid[cond] |> unique()
+    return(length(cuids_here))
+  })
+  
+  lines(x = years, y = CUs_totNb_yr / CUs_totNb, lwd = 2, col = colours_rg[rg])
+}
+legend("topleft",regions, col = colours_rg[regions], lwd = 2, bty = "n")
+
+# Proportion of CUs surveyed per year for each species:
+par(mar = c(4.5,4.5,1,.5))
+plot(NA, las = 1, ylim = c(0,1), xlim = range(years),
+     ylab = "Proportion of CUs assessed", xlab = "Year")
+segments(x0 = years[years %% 10 == 0], x1 = years[years %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+for(sp in species){
+  cond <- dataset$SPECIES == sp
+  dataset_sp <- dataset[cond,]
+  
+  CUs_totNb <- length(unique(dataset_sp$cuid))
+  
+  CUs_totNb_yr <- sapply(years, function(yr){
+    cond <- dataset_sp$Year == yr
+    cuids_here <- dataset_sp$cuid[cond] |> unique()
+    return(length(cuids_here))
+  })
+  
+  lines(x = years, y = CUs_totNb_yr / CUs_totNb, lwd = 2, col = colours_sp[sp])
+}
+legend("topleft",species, col = colours_sp[species], lwd = 2, bty = "n")
+if(figures_print){
+  dev.off()
+}
+
+#
+# Figure proportions of populations assessed -------- 
+#
+
+# Remove populations that do not have a 
+# it was decided to not attribute cuid to the POP_ID that are missing one (May 31 2024)
+# dataset <- nuseds_filled 
+cond <- !is.na(nuseds$cuid)
+dataset <- nuseds[cond,]
+
+#' Keep the same order of species and regions as in the main figure (i.e., with 
+#' the number of populations assessed per year)
+
+regions <- unique(dataset$region)
+species <- unique(dataset$SPECIES)
+
+# Still retain the order of the most surveyed regions at the global scale:
+x_max <- sapply(regions, function(reg){
+  cond <- nuseds$region == reg
+  nuseds_cut <- nuseds[cond,]
+  nuseds_cut_surveyYear <- nuseds_cut %>%
+    group_by(Year) %>%
+    summarise(count = n()) %>%
+    arrange(Year)
+  return(max(nuseds_cut_surveyYear$count))
+})
+
+regions <- regions[rev(order(x_max))]
+
+# same for the species:
+x_max <- sapply(species, function(sp){
+  cond <- nuseds$SPECIES == sp
+  nuseds_cut <- nuseds[cond,]
+  nuseds_cut_surveyYear <- nuseds_cut %>%
+    group_by(Year) %>%
+    summarise(count = n()) %>%
+    arrange(Year)
+  return(max(nuseds_cut_surveyYear$count))
+})
+
+species <- species[rev(order(x_max))]
+colours_sp <- species_cols_light[species]
 
 
+coef <- 0.8
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Proportion_populations_surveyed_perYear_total_Regions_species.jpeg"),
+       width = 21.59 * coef, height = 27.94 * coef, units = 'cm', res = 300)
+}
+m <- matrix(1:3, ncol = 1)
+layout(m, heights = c(1,1,1.2))
 
+#' Proportion of the total number of populations
+POP_IDs <- unique(dataset$POP_ID)
+POP_ID_totNb <- length(POP_IDs)
+POP_ID_totNb # 5928
 
+years <- unique(dataset$Year)
+years <- years[order(years)]
+
+POP_ID_totNb_yr <- sapply(years, function(yr){
+  cond <- dataset$Year == yr
+  POP_IDs_here <- dataset$POP_ID[cond] |> unique()
+  return(length(POP_IDs_here))
+})
+
+par(mar = c(.5,4.5,1,.5))
+plot(NA, las = 1, ylim = c(0,1), xlim = range(years),
+     ylab = "Proportion of populations assessed", xlab = "", xaxt = 'n')
+segments(x0 = years[years %% 10 == 0], x1 = years[years %% 10 == 0], 
+         y0 = 0, y1 = 1.2, 
+         col = "grey70")
+lines(x = years, y = POP_ID_totNb_yr / POP_ID_totNb, lwd = 2)
+legend("topleft","Total", col = "black", lwd = 2, bty = "n")
+
+# Nb of population surveyed per year for each region:
+plot(NA, las = 1, ylim = c(0,1), xlim = range(years),
+     ylab = "Proportion of populations assessed", xlab = "", xaxt = 'n')
+segments(x0 = years[years %% 10 == 0], x1 = years[years %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+for(rg in regions){
+  # rg <- regions[1]
+  cond <- dataset$region == rg
+  dataset_rg <- dataset[cond,]
+
+  POP_ID_totNb <- length(unique(dataset_rg$POP_ID))
+  
+  POP_ID_totNb_yr <- sapply(years, function(yr){
+    cond <- dataset_rg$Year == yr
+    POP_IDs_here <- dataset_rg$POP_ID[cond] |> unique()
+    return(length(POP_IDs_here))
+  })
+  
+  lines(x = years, y = POP_ID_totNb_yr / POP_ID_totNb, lwd = 2, col = colours_rg[rg])
+}
+legend("topleft",regions, col = colours_rg[regions], lwd = 2, bty = "n")
+
+# Nb of population surveyed per year for each species:
+par(mar = c(4.5,4.5,1,.5))
+plot(NA, las = 1, ylim = c(0,1), xlim = range(years),
+     ylab = "Proportion of populations assessed", xlab = "Year")
+segments(x0 = years[years %% 10 == 0], x1 = years[years %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+for(sp in species){
+  cond <- dataset$SPECIES == sp
+  dataset_sp <- dataset[cond,]
+  
+  POP_ID_totNb <- length(unique(dataset_sp$POP_ID))
+  
+  POP_ID_totNb_yr <- sapply(years, function(yr){
+    cond <- dataset_sp$Year == yr
+    POP_IDs_here <- dataset_sp$POP_ID[cond] |> unique()
+    return(length(POP_IDs_here))
+  })
+  
+  lines(x = years, y = POP_ID_totNb_yr / POP_ID_totNb, lwd = 2, col = colours_sp[sp])
+}
+legend("topleft",species, col = colours_sp[species], lwd = 2, bty = "n")
+if(figures_print){
+  dev.off()
+}
+
+#
+# TRY ADDING TIME STEPS RELATED TO LAW CHANGES IN THE FIGURES -------
+#
+
+# EMMA'S Time line figure: 
+# https://docs.google.com/presentation/d/1sDjHGAVQU6vzHVpgouG6ucd0EZEtLuGOTqDhSTWBWRA/edit?usp=sharing
 
 
 
