@@ -5,11 +5,13 @@
 
 wd_figures <- paste0(getwd(),"/figures")
 wd_data_input <- paste0(getwd(),"/data_input")
+
 wd_data_input_PSF <- "C:/Users/bcarturan/Salmon Watersheds Dropbox/Bruno Carturan/X Drive/1_PROJECTS/1_Active/Population Methods and Analysis/population-indicators/spawner-surveys/output"
 
 
 library(tidyr)
 library(dplyr)
+library(paletteer) # https://r-graph-gallery.com/color-palette-finder
 
 source("code/functions.R")
 source("code/colours.R")
@@ -37,8 +39,9 @@ colours_rg <- rainbow(n = length(regions))
 colours_rg <- c("firebrick3","goldenrod3","darkslategray4","bisque4","darkorchid3",
                 "cadetblue3","gray40","aquamarine3","deeppink3")
 
+regions <- c("Vancouver Island & Mainland Inlets","Central Coast","Fraser",
+             "Haida Gwaii","Skeena","Nass","Transboundary","Yukon","Columbia")
 names(colours_rg) <- regions
-
 
 
 #
@@ -1225,8 +1228,120 @@ if(figures_print){
 # EMMA'S Time line figure: 
 # https://docs.google.com/presentation/d/1sDjHGAVQU6vzHVpgouG6ucd0EZEtLuGOTqDhSTWBWRA/edit?usp=sharing
 
+# Create a table for the time lines of the different events
+
+events <- list()
+i <- 1
+
+#'* BC16 reports *
+#' https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40872774.pdf
+#' 
+events[[i]] <- data.frame(event = "BC16 reports",
+                     year_start = "1927 - 1932",
+                     details = "",
+                     effect = "positive")
+i <- i + 1
+
+#'* Start of most monitoring programs *
+#' https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40872774.pdf
+#' 
+events[[i]] <- data.frame(event = "Start of most monitoring programs",
+                          year_start = "1950 - 1960",
+                          details = "",
+                          effect = "positive")
+i <- i + 1
+
+events[[i]] <- data.frame(event = "Pacific Salmon Treaty signed",
+                          year_start = 1985,
+                          details = "",
+                          effect = "positive")
+i <- i + 1
+
+events[[i]] <- data.frame(event = "Coho collapse",
+                          year_start = 1998,
+                          details = "",
+                          effect = "negative")    # because the fisheries closed 
+i <- i + 1
+
+events[[i]] <- data.frame(event = "Fraser sockeye & Cohen Inquiry",
+                          year_start = 2009,
+                          details = "",
+                          effect = "negative")
+i <- i + 1
+
+#'* Paul Martin's deficit budget cut *
+#' https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40872774.pdf
+#' 
+events[[i]] <- data.frame(event = "Paul Martin's deficit budget cut",
+                     year_start = 1995,
+                     details = "",
+                     effect = "negative")
+
+i <- i + 1
+
+#'* Wild Salmon Policy is introduced *
+#' https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40872774.pdf
+#' 
+events[[i]] <- data.frame(event = "Wild Salmon Policy",
+                     year_start = 2005,
+                     details = "",
+                     effect = "positive")
+
+i <- i + 1
+
+#'* Change in Fisheries Act *
+#' https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40872774.pdf
+#' 
+events[[i]] <- data.frame(event = "Change in Fisheries Act",
+                     year_start = 2012,
+                     details = "",
+                     effect = "negative")
+
+i <- i + 1
 
 
+#'* Number of survey per years (all) *
+
+#' Nb of surveys per year:
+nuseds_surveyYear <- nuseds %>%
+  group_by(Year) %>%
+  summarise(count = n()) %>%
+  arrange(Year)
+
+head(nuseds_surveyYear)
+hist(nuseds_surveyYear$count)
+
+years <- min(nuseds_surveyYear$Year):max(nuseds_surveyYear$Year)
+
+coef <- 1.5
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Number_surveys_perYear_events.jpeg"),
+       width = 15 * coef, height = 10 * coef, units = 'cm', res = 300)
+}
+par(mar = c(4.5,4.5,1,.5))
+plot(x = nuseds_surveyYear$Year, y = nuseds_surveyYear$count, type = "l", lwd = 2,
+     ylab = "Number of populations", xlab = "Years")
+segments(x0 = years[years %% 10 == 0], x1 = years[years %% 10 == 0], 
+         y0 = 0, y1 = max(nuseds_surveyYear$count), col = "grey70")
+for(i in 1:length(events)){
+  date <- events[[i]]$year_start
+  if(grepl(" - ",date)){
+    yrs <- strsplit(split = " - ", x = date)[[1]] |> as.numeric()
+  }else{
+    yrs <- c(date - .5, date + .5)
+  }
+  col <- "red"
+  if(events[[i]]$effect == "positive"){
+    col <- 'blue'
+  }
+  polygon(x = c(yrs,rev(yrs)),
+          y = c(0,0,max(nuseds_surveyYear$count),max(nuseds_surveyYear$count)), 
+          border = NA, col = colour_transparency_fun(col, alpha = .2))
+}
+#points(x = nuseds_surveyYear$Year, y = nuseds_surveyYear$count, pch = 16)
+if(figures_print){
+  dev.off()
+}
 
 
 

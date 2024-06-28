@@ -201,3 +201,19 @@ simplify_string_fun <- function(string){
   
   return(string)
 }
+
+# Function taking a vector of colours names and return a vector of the same colours
+# but with more transparency added
+colour_transparency_fun <- function(colours,alpha=0.35){
+  col.rgb <- col2rgb(colours)
+  colnames(col.rgb) <- colours
+  output <- c()
+  for(i in 1:length(col.rgb[1,])){
+    output[i] <- rgb(red = col.rgb[1,i],
+                     green = col.rgb[2,i],
+                     blue = col.rgb[3,i], 
+                     maxColorValue = 255,alpha = alpha*255)
+  }
+  return(output)
+}
+
