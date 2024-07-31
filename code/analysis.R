@@ -13,6 +13,8 @@ wd_data_input_PSF <- "C:/Users/bcarturan/Salmon Watersheds Dropbox/Bruno Cartura
 library(tidyr)
 library(dplyr)
 library(paletteer) # https://r-graph-gallery.com/color-palette-finder
+library(readxl)
+
 
 source("code/functions.R")
 source("code/colours.R")
@@ -89,6 +91,79 @@ fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 #'* Import the PSE CUs decoder *
 cu_decoder <- read.csv(paste0(wd_data_input,"/conservationunits_decoder.csv"),
                        header = T)
+
+#'* Import the catch data from the NPAFC Statistics *
+# Metadata: 
+# https://www.npafc.org/wp-content/uploads/Statistics/Statistics-Metadata-Report-June2024.pdf
+catch <- read_xlsx(paste0(wd_data_input,"/NPAFC_Catch_Stat-1925-2023.xlsx")) |> as.data.frame()
+colnames(catch) <- catch[1,]
+catch <- catch[-1,]
+head(catch)
+
+catch$Country |> unique()
+catch$`Whole Country/Province/State` |> unique()
+catch$`Reporting Area` |> unique()
+catch$Species |> unique()
+catch$`Catch Type` |> unique()
+catch$`Data Type` |> unique()  # "Number (000's)" "Round wt (MT)" = round weight of fish, which is the weight of the whole fish before processing
+
+# Only keep Canada
+cond <- catch$Country == "Canada"
+catch <- catch[cond,]
+
+# Only keep Commercial
+cond <- catch$`Catch Type` == "Commercial"
+catch <- catch[cond,]
+
+
+# Compare "Number (000's)" vs. "Round wt (MT)"
+# Nesting: region > Species (there is no "Whole country for each species but there is "Total" for each region)
+unique(catch[,c("Reporting Area","Species")])
+
+layout(matrix(1:2,nrow = 1))
+cond <- colnames(data_dt) %in% 1900:2050
+years <- colnames(data_dt)[cond]
+for(dt in unique(catch$`Data Type`)){
+  # dt <- unique(catch$`Data Type`)[1]
+  cond_dt <- catch$`Data Type` == dt
+  data_dt <- catch[cond_dt,]
+  
+  rg <- unique(data_dt$`Reporting Area`)
+  rg <- rg[rg != "Whole country"]
+  
+  counts <- sapply(X = rg,FUN = function(r){
+    # r <- rg[1]
+    cond_r <- data_dt$`Reporting Area` == r
+    out <- data_dt[cond_r,years] |> 
+      as.matrix() |>
+      as.numeric() |>
+      max(na.rm = T) 
+    return(out)
+  })
+  
+  ymax <- max(counts, na.rm = T)
+  
+  plot(NA,xlim = range(as.numeric(years)),ylim = c(0,ymax), 
+       ylab = dt, xlab = "Years", 
+       main = dt)
+  
+  for(r in rg){
+    # r <- rg[1]
+    cond_r <- data_dt$`Reporting Area` == r
+    cond_sp <- data_dt$Species == "Total"
+    lines(x = as.numeric(years), y = data_dt[cond_r & cond_sp,years])
+  }
+}
+
+
+# Only keep number of fish (discard weights)
+cond <- catch$`Data Type` == "Number (000's)"
+catch <- catch[cond,]
+
+
+
+
+
 
 
 #
@@ -1442,5 +1517,188 @@ if(figures_print){
 
 
 
+
+
+
+# Catch vs. number of surveys per species --------
+
+#'* 1st, order regions and species by abundance *
+
+regions <- unique(nuseds$region)
+species <- unique(nuseds$SPECIES)
+
+# Still retain the order of the most surveyed regions at the global scale:
+x_max <- sapply(regions, function(reg){
+  cond <- nuseds$region == reg
+  nuseds_cut <- nuseds[cond,]
+  nuseds_cut_surveyYear <- nuseds_cut %>%
+    group_by(Year) %>%
+    summarise(count = n()) %>%
+    arrange(Year)
+  return(max(nuseds_cut_surveyYear$count))
+})
+
+regions <- regions[rev(order(x_max))]
+
+# same for the species:
+x_max <- sapply(species, function(sp){
+  cond <- nuseds$SPECIES == sp
+  nuseds_cut <- nuseds[cond,]
+  nuseds_cut_surveyYear <- nuseds_cut %>%
+    group_by(Year) %>%
+    summarise(count = n()) %>%
+    arrange(Year)
+  return(max(nuseds_cut_surveyYear$count))
+})
+
+species <- species[rev(order(x_max))]
+colours_sp <- species_cols_light[species]
+
+
+
+
+
+
+
+
+# Order species by number of population surveyed per species.
+species <- unique(nuseds$SPECIES)
+
+x_max <- sapply(species, function(sp){
+  cond <- nuseds$SPECIES == sp
+  nuseds_cut <- nuseds[cond,]
+  nuseds_cut_surveyYear <- nuseds_cut %>%
+    group_by(Year) %>%
+    summarise(count = n()) %>%
+    arrange(Year)
+  return(max(nuseds_cut_surveyYear$count))
+})
+
+species <- species[rev(order(x_max))]
+
+# Find the maximum nb of fish caught
+c_max <- sapply(species, function(sp){
+  cond_sp <- catch$Species == sp
+  cond_ra <- catch$`Reporting Area` == "Whole country"
+  data <- catch[cond_sp & cond_ra,]
+  data[,years] <- as.numeric(data[,years])
+  return(max(data[1,years]))
+})
+
+cond <- colnames(data_dt) %in% 1900:2050
+years <- colnames(data_dt)[cond]
+
+
+figures_print <- T
+
+plot_correlation <- T
+pval_show <- F
+
+coef <- .9
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Correlation_Number_surveys_vs_Catches.jpeg"),
+       width = 21.59 * coef, height = 14 * coef, units = 'cm', res = 300)
+}
+layout(matrix(1:(length(species)+1), nrow = 2, byrow = T),  
+       widths =  c(1.18,1,1), heights = c(1,1.15))
+i <- 1
+for(sp in species){
+  # sp <- species[2]
+  
+  # Catch
+  cond_sp <- catch$Species == sp
+  cond_ra <- catch$`Reporting Area` == "Whole country"
+  data <- catch[cond_sp & cond_ra,]
+  data[,years] <- as.numeric(data[,years])
+  cacth_total <- data.frame(Year = years,
+                            catch = data[1,years] |> as.numeric())
+  
+  # Surveys
+  cond_sp <- nuseds$SPECIES == sp
+  survey_total <- nuseds[cond_sp,] %>%
+    group_by(Year) %>%
+    summarise(count = n()) %>%
+    arrange(Year) %>%
+    as.data.frame()
+  
+  colnames(survey_total)[2] <- "surveys"
+  
+  # merge the two
+  data <- merge(x = cacth_total, y = survey_total, by = "Year", all = T)
+  
+  # ONly select data points after 1960
+  cond <- data$Year > 1960
+  c_max <- max(data$catch[cond])
+  
+  if(plot_correlation){
+    # plot
+    
+    x <- data$catch[cond]
+    y <- data$surveys[cond]
+    y_max <- max(x_max)
+    if(sp %in% c("Sockeye","Chinook")){
+      y_max <- y_max * 2/3
+    }
+    
+    side1 <- 2
+    side2 <- .5
+    xlab <- ylab <- ""
+    yaxt <- "n"
+    if(i > 3){
+      side1 <- 4.5
+      xlab <- "Catches (number of fishes in thousands)"
+    }
+    if(i %in% c(1,4)){
+      side2 <- 4.5
+      ylab <- "Number of populations"
+      yaxt <- 's'
+    }
+    
+    par(mar = c(side1,side2,.5,.5))
+    plot(x = x, y = y, pch = 16, col = colour_transparency_fun("grey30", alpha = .2),
+         cex = 2, yaxt = yaxt,
+         xlim = c(0,c_max), ylim = c(0,y_max),
+         xlab = xlab, ylab = ylab, main = "")
+    #abline(a = 0, b = 1)
+    if(i == 3){
+      mtext("Catches (number of fishes in thousands)",side = 1,line = 3,cex = .7)
+    }
+    
+    # regression line
+    m <- loess(surveys ~ catch, data = data[cond,], span = .5)
+    m <- lm(surveys ~ catch, data = data[cond,])
+    y_m <- predict(m, newdata = data[cond,])
+    lines(x = x, y = y_m, lwd = 2)
+    cor_spear <- cor.test(x = x, y = y, method = "spearman")
+    pval <- ""
+    if(pval_show){
+      if(cor_spear$p.value < 0.001){
+        pval <- "***"
+      }else if(cor_spear$p.value < 0.01){
+        pval <- "**"
+      }else if(cor_spear$p.value < 0.05){
+        pval <- "*"
+      }
+    }
+    legend("topleft",sp,bty='n')
+    legend("bottomright",
+           legend = bquote(rho~"="~.(round(cor_spear$estimate,2))~" "~.(pval)~" "), 
+           bty = "n")
+    
+  }else{
+    plot(x = data$Year, y = data$surveys, pch = 16, col = "gray", lwd = 2, 
+         xlab = "Years", ylab = "Number of populations", main = sp, type = "l")
+    par(new=TRUE)
+    plot(x = data$Year, y = data$catch, pch = 16, col = "black", lwd = 2,
+         xlab = "Years", ylab = "", 
+         main = "", type = "l", yaxt = 'n')
+    axis(side = 4)
+    mtext("Catches (number of fishes in thousands)",side = 4, cex = .8, line = 2)
+  }
+  i <- i + 1
+}
+if(figures_print){
+  dev.off()
+}
 
 
