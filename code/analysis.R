@@ -32,10 +32,8 @@ colours_rg <- c("clay3",
                 "clay1",
                 "tidal2",
                 "soil1")
-colours_rg <- SWP_cols[colours_rg]
 
-# Or rainbow
-colours_rg <- rainbow(n = length(regions))
+colours_rg <- SWP_cols[colours_rg]
 
 # Or hand made 
 # colours_rg <- colorRampPalette(colors = c("firebrick3","cadetblue3","aquamarine3","darkslategray4","bisque4","goldenrod3","gray40","deeppink3","darkorchid3"))
@@ -44,6 +42,9 @@ colours_rg <- rainbow(n = length(regions))
 
 regions <- c("Vancouver Island & Mainland Inlets","Central Coast","Fraser",
              "Haida Gwaii","Skeena","Nass","Transboundary","Yukon","Columbia")
+
+# Or rainbow
+colours_rg <- rainbow(n = length(regions))
 
 colours_rg <- paletteer_d("peRReo::planb", n = length(regions), type = "discrete", ) # Monet Panb 
 
@@ -57,13 +58,11 @@ colours_rg_07 <- gsub("FF","B3",colours_rg)
 
 # Colours for the species:
 
-
-
 #
 # Import datasets ------
 #
 
-#' * Import the cleaned NuSEDS data matched with PSF cuid and streamid *
+#'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
 #' Note: the choice was made to not use the cleaned and combined nuseds file 
 #' NuSEDS_escapement_data_collated_DATE.csv because it does not contain the region.
 #' Prodivinding the region requires to match ciud with is a pain and was done to 
@@ -84,7 +83,7 @@ colToKeep <- c("region","SPECIES","cu_name_pse","cuid","POP_ID","cu_name_dfo","C
 
 nuseds <- nuseds[,colToKeep]
 
-#' * Import the definition of the different fields of these two datasets *
+#'* Import the definition of the different fields of these two datasets *
 fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 
 
@@ -121,8 +120,8 @@ catch <- catch[cond,]
 unique(catch[,c("Reporting Area","Species")])
 
 layout(matrix(1:2,nrow = 1))
-cond <- colnames(data_dt) %in% 1900:2050
-years <- colnames(data_dt)[cond]
+cond <- colnames(catch) %in% 1900:2050
+years <- colnames(catch)[cond]
 for(dt in unique(catch$`Data Type`)){
   # dt <- unique(catch$`Data Type`)[1]
   cond_dt <- catch$`Data Type` == dt
@@ -159,12 +158,6 @@ for(dt in unique(catch$`Data Type`)){
 # Only keep number of fish (discard weights)
 cond <- catch$`Data Type` == "Number (000's)"
 catch <- catch[cond,]
-
-
-
-
-
-
 
 #
 # Figures DRAFT ------
@@ -696,6 +689,51 @@ for(rg in regions){
 }
 
 #
+#
+# Produce datasets -----
+#
+
+# Total count of surveys:
+nuseds_surveyYear <- nuseds %>%
+  group_by(Year) %>%
+  summarise(count = n()) %>%
+  arrange(Year)
+
+head(nuseds_surveyYear)
+
+write.csv(paste0(wd_data_output,"/Number_populationsAssessed_total.csv"),
+          row.names = F)
+
+# Count of surveys per region > species
+nuseds_surveyYear <- nuseds %>%
+  group_by(region,SPECIES,Year) %>%
+  summarise(count = n()) %>%
+  arrange(region,SPECIES,Year)
+
+head(nuseds_surveyYear)
+View(nuseds_surveyYear)
+
+write.csv(nuseds_surveyYear,
+          paste0(wd_data_output,"/Number_populationsAssessed_regions_species.csv"),
+          row.names = F)
+
+
+# Count of surveys per species > regions
+nuseds_surveyYear <- nuseds %>%
+  group_by(SPECIES,region,Year) %>%
+  summarise(count = n()) %>%
+  arrange(SPECIES,region,Year)
+
+head(nuseds_surveyYear)
+View(nuseds_surveyYear)
+
+write.csv(nuseds_surveyYear,
+          paste0(wd_data_output,"/Number_populationsAssessed_species_regions.csv"),
+          row.names = F)
+
+
+nuseds$SPECIES
+
 # Figures: (1) number surveys: total & region > species ; (2) Species > region ------------
 
 #'* 1st, order regions and species by abundance *
@@ -1554,13 +1592,6 @@ x_max <- sapply(species, function(sp){
 species <- species[rev(order(x_max))]
 colours_sp <- species_cols_light[species]
 
-
-
-
-
-
-
-
 # Order species by number of population surveyed per species.
 species <- unique(nuseds$SPECIES)
 
@@ -1587,12 +1618,13 @@ c_max <- sapply(species, function(sp){
 
 cond <- colnames(data_dt) %in% 1900:2050
 years <- colnames(data_dt)[cond]
+year_cut <- 1960
 
-
-figures_print <- T
+figures_print <- F
 
 plot_correlation <- T
-pval_show <- F
+show_trendline <- F
+pval_show <- T
 
 coef <- .9
 if(figures_print){
@@ -1627,7 +1659,7 @@ for(sp in species){
   data <- merge(x = cacth_total, y = survey_total, by = "Year", all = T)
   
   # ONly select data points after 1960
-  cond <- data$Year > 1960
+  cond <- data$Year > year_cut
   c_max <- max(data$catch[cond])
   
   if(plot_correlation){
@@ -1639,6 +1671,8 @@ for(sp in species){
     if(sp %in% c("Sockeye","Chinook")){
       y_max <- y_max * 2/3
     }
+    
+    n <- min(c(sum(!is.na(x)),sum(!is.na(y)))) # number of data points
     
     side1 <- 2
     side2 <- .5
@@ -1665,10 +1699,12 @@ for(sp in species){
     }
     
     # regression line
-    m <- loess(surveys ~ catch, data = data[cond,], span = .5)
-    m <- lm(surveys ~ catch, data = data[cond,])
-    y_m <- predict(m, newdata = data[cond,])
-    lines(x = x, y = y_m, lwd = 2)
+    # m <- loess(surveys ~ catch, data = data[cond,], span = .5)
+    if(show_trendline){
+      m <- lm(surveys ~ catch, data = data[cond,])
+      y_m <- predict(m, newdata = data[cond,])
+      lines(x = x, y = y_m, lwd = 2)
+    }
     cor_spear <- cor.test(x = x, y = y, method = "spearman")
     pval <- ""
     if(pval_show){
@@ -1684,6 +1720,7 @@ for(sp in species){
     legend("bottomright",
            legend = bquote(rho~"="~.(round(cor_spear$estimate,2))~" "~.(pval)~" "), 
            bty = "n")
+    # legend("bottomleft", legend = paste("n =",n), bty = "n") # it is the same number for all species
     
   }else{
     plot(x = data$Year, y = data$surveys, pch = 16, col = "gray", lwd = 2, 
@@ -1696,6 +1733,10 @@ for(sp in species){
     mtext("Catches (number of fishes in thousands)",side = 4, cex = .8, line = 2)
   }
   i <- i + 1
+  
+  print(paste("***",sp,"***"))
+  print(cor_spear)
+  
 }
 if(figures_print){
   dev.off()
