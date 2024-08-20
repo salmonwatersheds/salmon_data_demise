@@ -7,7 +7,11 @@ wd_figures <- paste0(getwd(),"/figures")
 wd_data_input <- paste0(getwd(),"/data_input")
 wd_data_output <- paste0(getwd(),"/data_output")
 
+# Bruno Dropbox
 wd_data_input_PSF <- "C:/Users/bcarturan/Salmon Watersheds Dropbox/Bruno Carturan/X Drive/1_PROJECTS/1_Active/Population Methods and Analysis/population-indicators/spawner-surveys/output"
+
+# Steph Dropbox
+wd_data_input_PSF <- "/Users/stephaniepeacock/Salmon\ Watersheds\ Dropbox/Stephanie\ Peacock/X\ Drive/1_PROJECTS/1_Active/Population\ Methods\ and\ Analysis/population-indicators/spawner-surveys/output"
 
 
 library(tidyr)
@@ -90,6 +94,9 @@ fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 #'* Import the PSE CUs decoder *
 cu_decoder <- read.csv(paste0(wd_data_input,"/conservationunits_decoder.csv"),
                        header = T)
+
+# # Comment from Steph: The conservationunits_decoder.csv wasn't in salmon_data_demise/data_input; sourced from PSF folders:
+# cu_decoder <- read.csv("/Users/stephaniepeacock/Salmon Watersheds Dropbox/Stephanie Peacock/X Drive/1_PROJECTS/1_Active/Population Methods and Analysis/population-indicators/data-input/conservationunits_decoder.csv")
 
 #'* Import the catch data from the NPAFC Statistics *
 # Metadata: 
