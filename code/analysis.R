@@ -1,5 +1,14 @@
 
-
+#'******************************************************************************
+#' The goal of the script is to 
+#' 
+#' Files imported:
+#' - 
+#' 
+#' Files produced: 
+#' - 
+#' 
+#'******************************************************************************
 
 
 
@@ -697,137 +706,7 @@ for(rg in regions){
 
 #
 #
-# Produce datasets -----
 #
-
-#'* Total count of surveys: *
-nuseds_surveyYear <- nuseds %>%
-  group_by(Year) %>%
-  summarise(count = n()) %>%
-  arrange(Year)
-
-head(nuseds_surveyYear)
-
-write.csv(paste0(wd_data_output,"/Number_populationsAssessed_total.csv"),
-          row.names = F)
-
-#'* Count of surveys per region > species *
-nuseds_surveyYear <- nuseds %>%
-  group_by(region,SPECIES,Year) %>%
-  summarise(count = n()) %>%
-  arrange(region,SPECIES,Year)
-
-head(nuseds_surveyYear)
-View(nuseds_surveyYear)
-
-write.csv(nuseds_surveyYear,
-          paste0(wd_data_output,"/Number_populationsAssessed_regions_species.csv"),
-          row.names = F)
-
-
-#'* Proportion population assessed *
-#'  Remove populations that do not have a cuid
-# it was decided to not attribute cuid to the POP_ID that are missing one (May 31 2024)
-# dataset <- nuseds_filled 
-cond <- !is.na(nuseds$cuid)
-dataset <- nuseds[cond,]
-
-#' Proportion of the total number of populations
-POP_IDs <- unique(dataset$POP_ID)
-POP_ID_totNb <- length(POP_IDs)
-POP_ID_totNb # 5928
-
-years <- unique(dataset$Year)
-years <- years[order(years)]
-
-POP_ID_totNb_yr <- sapply(years, function(yr){
-  cond <- dataset$Year == yr
-  POP_IDs_here <- dataset$POP_ID[cond] |> unique()
-  return(length(POP_IDs_here))
-})
-
-dataset_toWrite <- data.frame(year = years,
-                              population_nb = POP_ID_totNb_yr,
-                              population_prop = POP_ID_totNb_yr / POP_ID_totNb)
-
-write.csv(dataset_toWrite,
-          paste0(wd_data_output,"/Proportion_populationsAssessed_total.csv"),
-          row.names = F)
-
-
-# per regions
-dataset_toWrite <- NULL
-for(rg in regions){
-  # rg <- regions[1]
-  cond <- dataset$region == rg
-  dataset_rg <- dataset[cond,]
-  
-  POP_ID_totNb <- length(unique(dataset_rg$POP_ID))
-  
-  POP_ID_totNb_yr <- sapply(years, function(yr){
-    cond <- dataset_rg$Year == yr
-    POP_IDs_here <- dataset_rg$POP_ID[cond] |> unique()
-    return(length(POP_IDs_here))
-  })
-  
-  datahere <- data.frame(region = rg, 
-                         year = years,
-                         population_nb = POP_ID_totNb_yr,
-                         population_prop = POP_ID_totNb_yr / POP_ID_totNb)
-  
-  if(is.null(dataset_toWrite)){
-    dataset_toWrite <- datahere
-  }else{
-    dataset_toWrite <- rbind(dataset_toWrite,datahere)
-  }
-}
-
-View(dataset_toWrite)
-
-write.csv(dataset_toWrite,
-          paste0(wd_data_output,"/Proportion_populationsAssessed_regions.csv"),
-          row.names = F)
-
-
-# per species
-dataset_toWrite <- NULL
-for(sp in species){
-  # sp <- species[1]
-  cond <- dataset$SPECIES == sp
-  dataset_sp <- dataset[cond,]
-  
-  POP_ID_totNb <- length(unique(dataset_sp$POP_ID))
-  
-  POP_ID_totNb_yr <- sapply(years, function(yr){
-    cond <- dataset_sp$Year == yr
-    POP_IDs_here <- dataset_sp$POP_ID[cond] |> unique()
-    return(length(POP_IDs_here))
-  })
-  
-  datahere <- data.frame(species = sp, 
-                         year = years,
-                         population_nb = POP_ID_totNb_yr,
-                         population_prop = POP_ID_totNb_yr / POP_ID_totNb)
-  
-  if(is.null(dataset_toWrite)){
-    dataset_toWrite <- datahere
-  }else{
-    dataset_toWrite <- rbind(dataset_toWrite,datahere)
-  }
-}
-
-View(dataset_toWrite)
-max(dataset_toWrite$population_prop)
-
-write.csv(dataset_toWrite,
-          paste0(wd_data_output,"/Proportion_populationsAssessed_species.csv"),
-          row.names = F)
-
-
-# Checks: the count with number of years and nb POP_ID are a bit different
-
-nuseds$SPECIES
-
 # Figures: (1) number surveys: total & region > species ; (2) Species > region ------------
 
 #'* 1st, order regions and species by abundance *

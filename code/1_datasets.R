@@ -149,6 +149,7 @@ for(rg in regions){
     out <- length(nuseds$streamid[cond])
     if(out != length(unique(nuseds$streamid[cond]))){
       print("Duplicated streamid TO INVESTIGATE")
+      print(unique(nuseds[cond,c("region","cuid","GFE_ID","streamid")]))
     }
     return(out)
   })
@@ -183,7 +184,7 @@ write.csv(dataExport,
           row.names = F)
 
 #'* Count of surveys per species *
-species <- nuseds$species |> unique()
+species <- nuseds$SPECIES |> unique()
 
 dataExport <- NULL
 for(sp in species){
@@ -280,11 +281,6 @@ for(rg in regions){
     }
   }
 }
-
-dataExport <- nuseds %>%
-  group_by(region,SPECIES,Year) %>%
-  summarise(count = n()) %>%
-  arrange(region,SPECIES,Year)
 
 head(dataExport)
 # View(dataExport)
