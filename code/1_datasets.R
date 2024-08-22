@@ -87,21 +87,59 @@ fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 years <- nuseds$Year |> unique()
 years <- years[order(years)]
 
-nb_pop_total <- length(unique(nuseds$streamid))
+# To deal with odd and even Pink CUs
+years_odd <- years[years %% 2 == 1]
+years_even <- years[years %% 2 == 0]
 
-nb_CU_total <- length(unique(nuseds$cuid)) # 389
+#'* Total count and proportions population and CUs surveyed: *
 
+cond_odd <- nuseds$Year %in% years_odd
+cond_even <- nuseds$Year %in% years_even
 
-#'* Total count and proportions popoulation and CUs surveyed: *
-
-dataExport <- data.frame(year = years)
-dataExport$count <- sapply(years,function(y){
+count_odd <- sapply(years_odd,function(y){
+  cond <- nuseds$Year == y
+  out <- length(unique(nuseds$streamid[cond]))
+  return(out)
+})
+count_even <- sapply(years_even,function(y){
   cond <- nuseds$Year == y
   out <- length(unique(nuseds$streamid[cond]))
   return(out)
 })
 
-# compare with counting the number of data points per year --> SAME
+# proportion of population assessed 
+nb_pop_total_odd <- length(unique(nuseds$streamid[cond_odd]))
+proportion_odd <- count_odd / nb_pop_total_odd
+nb_pop_total_even <- length(unique(nuseds$streamid[cond_even]))
+proportion_even <- count_even / nb_pop_total_even
+
+# proportion of CUs assessed
+nb_CU_total_odd <- length(unique(nuseds$cuid[cond_odd]))
+proportion_CU_odd <- sapply(years_odd, function(y){
+  cond <- nuseds$Year == y
+  out <- length(unique(nuseds$cuid[cond]))
+  return(out / nb_CU_total_odd)
+})
+nb_CU_total_even <- length(unique(nuseds$cuid[cond_even]))
+proportion_CU_even <- sapply(years_even, function(y){
+  cond <- nuseds$Year == y
+  out <- length(unique(nuseds$cuid[cond]))
+  return(out / nb_CU_total_even)
+})
+
+dataExport <- data.frame(year = c(years_odd,years_even),
+                         count = c(count_odd,count_even),
+                         proportion = c(proportion_odd,proportion_even),
+                         proportion_CU = c(proportion_CU_odd,proportion_CU_even))
+
+
+dataExport <- dataExport[order(dataExport$year),]
+
+write.csv(dataExport,
+          paste0(wd_data_output,"/Number_Prop_populationsAssessed_total.csv"),
+          row.names = F)
+
+# Check that counting streamid or data points per years is the same 
 dataExport_2 <- nuseds %>%
   group_by(Year) %>%
   summarise(count = n()) %>%
@@ -115,62 +153,60 @@ abline(a = 0, b = 1)
 identical(dataExport$count,dataExport_2$count) # TRUE
 
 
-# add the proportion of population assessed 
-dataExport$proportion <- dataExport$count / nb_pop_total
-range(dataExport$proportion)
-
-# add the proportion of CUs with at least one population assessed
-dataExport$proportion_CU <- sapply(dataExport$year, function(y){
-  # y <- dataExport$Year[50]
-  cond <- nuseds$Year == y
-  out <- length(unique(nuseds$cuid[cond]))
-  return(out / nb_CU_total)
-})
-
-range(dataExport$proportion_CU)
-
-write.csv(dataExport,
-          paste0(wd_data_output,"/Number_Prop_populationsAssessed_total.csv"),
-          row.names = F)
-
-
 #'* Count of surveys per region *
 regions <- nuseds$region |> unique()
 
 dataExport <- NULL
 for(rg in regions){
-  # rg <- regions[1]
+  # rg <- regions[5]
   cond_rg <- nuseds$region == rg
   
+  cond_odd <- nuseds$Year %in% years_odd
+  cond_even <- nuseds$Year %in% years_even
+  
   # count
-  count <- sapply(years, function(y){
+  count_odd <- sapply(years_odd, function(y){
     # y <- dataExport$year[50]
     cond <- nuseds$region == rg & nuseds$Year == y
     out <- length(nuseds$streamid[cond])
-    if(out != length(unique(nuseds$streamid[cond]))){
-      print("Duplicated streamid TO INVESTIGATE")
-      print(unique(nuseds[cond,c("region","cuid","GFE_ID","streamid")]))
-    }
+    return(out)
+  })
+  
+  count_even <- sapply(years_even, function(y){
+    # y <- dataExport$year[50]
+    cond <- nuseds$region == rg & nuseds$Year == y
+    out <- length(nuseds$streamid[cond])
     return(out)
   })
   
   # proportion populations assessed
-  nb_pop_total <- length(unique(nuseds[cond_rg,]$streamid))
-  proportion <- count / nb_pop_total
+  nb_pop_total_odd <- length(unique(nuseds[cond_rg & cond_odd,]$streamid))
+  proportion_odd <- count_odd / nb_pop_total_odd
+  nb_pop_total_even <- length(unique(nuseds[cond_rg & cond_even,]$streamid))
+  proportion_even <- count_even / nb_pop_total_even
   
   # proportion CUs assessed
-  nb_CU_total <- length(unique(nuseds[cond_rg,]$cuid))
-  proportion_CU <- sapply(years,function(y){
+  nb_CU_total_odd <- length(unique(nuseds[cond_rg & cond_odd,]$cuid))
+  proportion_CU_odd <- sapply(years_odd,function(y){
     cond <- nuseds$region == rg & nuseds$Year == y
     out <- length(unique(nuseds$cuid[cond]))
-    return(out / nb_CU_total)
+    return(out / nb_CU_total_odd)
+  })
+  nb_CU_total_even <- length(unique(nuseds[cond_rg & cond_even,]$cuid))
+  proportion_CU_even <- sapply(years_even,function(y){
+    cond <- nuseds$region == rg & nuseds$Year == y
+    out <- length(unique(nuseds$cuid[cond]))
+    return(out / nb_CU_total_even)
   })
   
   dataExportHere <- data.frame(region = rg, 
-                               year = years,
-                               count = count,
-                               proportion = proportion,
-                               proportion_CU = proportion_CU)
+                               year = c(years_odd,years_even),
+                               count = c(count_odd,count_even),
+                               proportion = c(proportion_odd,proportion_even),
+                               proportion_CU = c(proportion_CU_odd,proportion_CU_even))
+  
+  dataExportHere <- dataExportHere[order(dataExportHere$year),]
+  
   
   if(is.null(dataExport)){
     dataExport <- dataExportHere
@@ -189,30 +225,82 @@ species <- nuseds$SPECIES |> unique()
 dataExport <- NULL
 for(sp in species){
   # sp <- species[1]
+  # sp <- "Pink"
   cond_sp <- nuseds$SPECIES == sp
   
-  # count
-  count <- sapply(years, function(y){
-    # y <- dataExport$year[50]
-    cond <- nuseds$SPECIES == sp & nuseds$Year == y
-    out <- length(nuseds$streamid[cond])
-    if(out != length(unique(nuseds$streamid[cond]))){
-      print("Duplicated streamid TO INVESTIGATE")
-    }
-    return(out)
-  })
-  
-  # proportion populations assessed
-  nb_pop_total <- length(unique(nuseds[cond_sp,]$streamid))
-  proportion <- count / nb_pop_total
-  
-  # proportion CUs assessed
-  nb_CU_total <- length(unique(nuseds[cond_sp,]$cuid))
-  proportion_CU <- sapply(years,function(y){
-    cond <- nuseds$SPECIES == sp & nuseds$Year == y
-    out <- length(unique(nuseds$cuid[cond]))
-    return(out / nb_CU_total)
-  })
+  if(sp == "Pink"){
+    
+    cond_sp_odd <- cond_sp & grepl("odd",nuseds$cu_name_pse)
+    cond_sp_even <- cond_sp & grepl("even",nuseds$cu_name_pse)
+    
+    count_odd <- sapply(years_odd, function(y){
+      # y <- dataExport$year[50]
+      cond <- nuseds$SPECIES == sp & nuseds$Year == y & grepl("odd",nuseds$cu_name_pse)
+      out <- length(nuseds$streamid[cond])
+      return(out)
+    })
+    count_even <- sapply(years_even, function(y){
+      # y <- dataExport$year[50]
+      cond <- nuseds$SPECIES == sp & nuseds$Year == y & grepl("even",nuseds$cu_name_pse)
+      out <- length(nuseds$streamid[cond])
+      return(out)
+    })
+    
+    # proportion populations assessed
+    nb_pop_total_odd <- length(unique(nuseds[cond_sp_odd,]$streamid))
+    proportion_odd <- count_odd / nb_pop_total_odd
+    nb_pop_total_even <- length(unique(nuseds[cond_sp_even,]$streamid))
+    proportion_even <- count_even / nb_pop_total_even
+    
+    # proportion CUs assessed
+    nb_CU_total_odd <- length(unique(nuseds[cond_sp_odd,]$cuid))
+    proportion_CU_odd <- sapply(years_odd,function(y){
+      cond <- nuseds$SPECIES == sp & nuseds$Year == y & grepl("odd",nuseds$cu_name_pse)
+      out <- length(unique(nuseds$cuid[cond]))
+      return(out / nb_CU_total_odd)
+    })
+    nb_CU_total_even <- length(unique(nuseds[cond_sp_even,]$cuid))
+    proportion_CU_even <- sapply(years_even,function(y){
+      cond <- nuseds$SPECIES == sp & nuseds$Year == y & grepl("even",nuseds$cu_name_pse)
+      out <- length(unique(nuseds$cuid[cond]))
+      return(out / nb_CU_total_even)
+    })
+    
+    data_pink <- data.frame(year = c(years_odd,years_even), 
+                            count = c(count_odd,count_even), 
+                            proportion = c(proportion_odd,proportion_even),
+                            proportion_CU = c(proportion_CU_odd,proportion_CU_even))
+    
+    data_pink <- data_pink[order(data_pink$year),]
+    
+    count <- data_pink$count
+    proportion <- data_pink$proportion
+    proportion_CU <- data_pink$proportion_CU
+    
+  }else{ # if not pink
+    # count
+    count <- sapply(years, function(y){
+      # y <- dataExport$year[50]
+      cond <- nuseds$SPECIES == sp & nuseds$Year == y
+      out <- length(nuseds$streamid[cond])
+      if(out != length(unique(nuseds$streamid[cond]))){
+        print("Duplicated streamid TO INVESTIGATE")
+      }
+      return(out)
+    })
+    
+    # proportion populations assessed
+    nb_pop_total <- length(unique(nuseds[cond_sp,]$streamid))
+    proportion <- count / nb_pop_total
+    
+    # proportion CUs assessed
+    nb_CU_total <- length(unique(nuseds[cond_sp,]$cuid))
+    proportion_CU <- sapply(years,function(y){
+      cond <- nuseds$SPECIES == sp & nuseds$Year == y
+      out <- length(unique(nuseds$cuid[cond]))
+      return(out / nb_CU_total)
+    })
+  }
   
   dataExportHere <- data.frame(species = sp, 
                                year = years,
@@ -238,34 +326,94 @@ regions <- nuseds$region |> unique()
 dataExport <- NULL
 for(rg in regions){
   # rg <- regions[1]
+  # rg <- "Central Coast"
   cond_rg <- nuseds$region == rg
   species <- nuseds$SPECIES[cond_rg] |> unique()
+  
   for(sp in species){
     # sp <- species[1]
-    cond_rg_sp <-  nuseds$region == rg & nuseds$SPECIES == sp
+    # sp <- "Pink"
+    cond_rg_sp <- nuseds$region == rg & nuseds$SPECIES == sp
     
     # count
-    count <- sapply(years, function(y){
-      # y <- dataExport$year[50]
-      cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y
-      out <- length(nuseds$streamid[cond])
-      if(out != length(unique(nuseds$streamid[cond]))){
-        print("Duplicated streamid TO INVESTIGATE")
-      }
-      return(out)
-    })
-    
-    # proportion populations assessed
-    nb_pop_total <- length(unique(nuseds[cond_rg_sp,]$streamid))
-    proportion <- count / nb_pop_total
-    
-    # proportion CUs assessed
-    nb_CU_total <- length(unique(nuseds[cond_rg_sp,]$cuid))
-    proportion_CU <- sapply(years,function(y){
-      cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y
-      out <- length(unique(nuseds$cuid[cond]))
-      return(out / nb_CU_total)
-    })
+    if(sp == "Pink"){
+      
+      cond_rg_sp_odd <- cond_rg_sp & grepl("odd",nuseds$cu_name_pse)
+      cond_rg_sp_even <- cond_rg_sp & grepl("even",nuseds$cu_name_pse)
+      
+      count_odd <- sapply(years_odd, function(y){
+        # y <- dataExport$year[50]
+        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
+          grepl("odd",nuseds$cu_name_pse)
+        out <- length(nuseds$streamid[cond])
+        return(out)
+      })
+      count_even <- sapply(years_even, function(y){
+        # y <- dataExport$year[50]
+        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
+          grepl("even",nuseds$cu_name_pse)
+        out <- length(nuseds$streamid[cond])
+        return(out)
+      })
+      
+      # proportion populations assessed
+      nb_pop_total_odd <- length(unique(nuseds[cond_rg_sp_odd,]$streamid))
+      proportion_odd <- count_odd / nb_pop_total_odd
+      nb_pop_total_even <- length(unique(nuseds[cond_rg_sp_even,]$streamid))
+      proportion_even <- count_even / nb_pop_total_even
+      
+      # proportion CUs assessed
+      nb_CU_total_odd <- length(unique(nuseds[cond_rg_sp_odd,]$cuid))
+      proportion_CU_odd <- sapply(years_odd,function(y){
+        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
+          grepl("odd",nuseds$cu_name_pse)
+        out <- length(unique(nuseds$cuid[cond]))
+        return(out / nb_CU_total_odd)
+      })
+      nb_CU_total_even <- length(unique(nuseds[cond_rg_sp_even,]$cuid))
+      proportion_CU_even <- sapply(years_even,function(y){
+        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
+          grepl("even",nuseds$cu_name_pse)
+        out <- length(unique(nuseds$cuid[cond]))
+        return(out / nb_CU_total_even)
+      })
+      
+      data_pink <- data.frame(year = c(years_odd,years_even), 
+                             count = c(count_odd,count_even), 
+                             proportion = c(proportion_odd,proportion_even),
+                             proportion_CU = c(proportion_CU_odd,proportion_CU_even))
+      
+      data_pink <- data_pink[order(data_pink$year),]
+      
+      count <- data_pink$count
+      proportion <- data_pink$proportion
+      proportion_CU <- data_pink$proportion_CU
+      
+    }else{ # not Pink salmon
+      
+      count <- sapply(years, function(y){
+        # y <- dataExport$year[50]
+        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y
+        out <- length(nuseds$streamid[cond])
+        if(out != length(unique(nuseds$streamid[cond]))){
+          print("Duplicated streamid TO INVESTIGATE")
+        }
+        return(out)
+      })
+      
+      # proportion populations assessed
+      nb_pop_total <- length(unique(nuseds[cond_rg_sp,]$streamid))
+      proportion <- count / nb_pop_total
+      
+      # proportion CUs assessed
+      nb_CU_total <- length(unique(nuseds[cond_rg_sp,]$cuid))
+      proportion_CU <- sapply(years,function(y){
+        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y
+        out <- length(unique(nuseds$cuid[cond]))
+        return(out / nb_CU_total)
+      })
+      
+    }
     
     dataExportHere <- data.frame(region = rg, 
                                  species = sp,

@@ -31,6 +31,7 @@ source("code/colours.R")
 
 figures_print <- F
 
+#
 # Import files ------
 
 # Counts and proportions of populations and CUs assessed across regions and species
@@ -166,6 +167,7 @@ if(figures_print){
   jpeg(paste0(wd_figures,"/Number_populationsSurveyed_total.jpeg"),
        width = 15 * coef, height = 10 * coef, units = 'cm', res = 300)
 }
+layout(mat = matrix(1))
 par(mar = c(4.5,4.5,1,.5))
 plot(x = data_total$year, y = data_total$count, type = "l", lwd = 2,
      ylab = "Number of populations surveyed", xlab = "Years")
@@ -185,7 +187,6 @@ if(figures_print){
 m <- matrix(c(1:length(regions)), ncol = 3, byrow = T)
 layout(m, widths =  c(1.12,1,1), heights = c(1.1,1,1.27))
 for(rg in regions){
-  
   # rg <- regions[1]
   i <- which(rg == regions)
   side1 <- side3 <- .5
@@ -202,7 +203,7 @@ for(rg in regions){
     side2 <- 4.5
     ylab <- "Number of populations surveyed"
     yaxt <- "s"
-    y_max_count <- y_max_count + 1 
+    #y_max_count <- y_max_count + 1 
   }
   if(i %in% 1:3){ # top plots
     side3 <- 2
@@ -234,10 +235,12 @@ for(rg in regions){
   if(i %in% 1:3){
     axis(side = 3)
   }
-  legend("topleft",paste0(letters[i],") ",rg), col = "black", bty = "n")
+  legend("topleft",paste0(letters[i],") ",rg), col = "black", 
+         bty = "n", box.lwd = 0, box.col = "white")
   
   if(i == 9){
-    legend("left",species, col = colours_sp, lwd = 2, bty = "n")
+    legend("left",species, col = colours_sp, lwd = 2, 
+           bty = "n", box.lwd = 0, box.col = "white")
   }
 }
 if(figures_print){
@@ -322,7 +325,6 @@ for(sp in species){
     side2 <- 4.5
     ylab <- "Number of populations surveyed"
     yaxt <- "s"
-    y_max_count <- y_max_count + 1 
   }
   if(i %in% 1:3){ # top plots
     side3 <- 2
@@ -355,11 +357,11 @@ for(sp in species){
     axis(side = 3)
   }
   legend("topleft",paste0(letters[i],") ",sp), col = "black", bty = "n")
-  
-  if(i == 6){
-    legend("left",regions, col = colours_rg, lwd = 2, bty = "n")
-  }
 }
+par(mar=c(5,2,1.1,5))
+plot(NA,xaxt='n',yaxt="n",xlab="",ylab="",bty="n",ylim=c(0,1),xlim=c(0,1))
+legend("topleft","Regions:",bty="n",cex=1.2)
+legend("bottomleft",regions, col = colours_rg, lwd = 2, bty = "n")
 if(figures_print){
   dev.off()
 }
@@ -416,7 +418,7 @@ if(figures_print){
 }
 
 #
-# Number population surveyed vs. catch WORK IN PROGRESS ---------
+# FIGURE ???: Number population surveyed vs. catch ---------
 #
 
 cond <- colnames(data_dt) %in% 1900:2050
@@ -439,7 +441,7 @@ if(figures_print){
        width = 21.59 * coef, height = 14 * coef, units = 'cm', res = 300)
 }
 layout(matrix(1:(length(species)+1), nrow = 2, byrow = T),  
-       widths =  c(1.18,1,1), heights = c(1,1.15))
+       widths =  c(1.13,1,1), heights = c(1,1.15))
 i <- 1
 for(sp in species){
   # sp <- species[2]
@@ -489,7 +491,7 @@ for(sp in species){
        xlab = xlab, ylab = ylab, main = "")
   #abline(a = 0, b = 1)
   if(i == 3){
-    mtext("Catches (number of fishes in thousands)",side = 1,line = 3,cex = .7)
+    mtext("Catches (number of fishes in thousands)",side = 1,line = 3,cex = .65)
   }
   
   # regression line
