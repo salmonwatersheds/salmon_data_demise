@@ -29,7 +29,7 @@ library(readxl)
 source("code/functions.R")
 source("code/colours.R")
 
-figures_print <- F
+figures_print <- T
 
 #
 # Import files ------
@@ -131,7 +131,7 @@ catch <- catch[cond,]
 regions <- unique(data_rg$region)
 species <- unique(data_sp$species)
 
-# Retain the order of the most surveyed regions at the global scale:
+# Retain the order of the most monitored regions at the global scale:
 x_max <- sapply(regions, function(rg){
   cond <- data_rg$region == rg
   return(max(data_rg$count[cond]))
@@ -139,17 +139,20 @@ x_max <- sapply(regions, function(rg){
 
 regions <- regions[rev(order(x_max))]
 
-# same for the species:
-x_max <- sapply(species, function(sp){
-  cond <- data_sp$species == sp
-  return(max(data_sp$count[cond]))
-})
+# for the species: alphabetic order is good
+# x_max <- sapply(species, function(sp){
+#   cond <- data_sp$species == sp
+#   return(max(data_sp$count[cond]))
+# })
+# species <- species[rev(order(x_max))]
 
-species <- species[rev(order(x_max))]
+species <- species[order(species)]
 
-# place the pink 1st because they fluctuate the most
-species <- species[species != "Pink"]
-species <- c("Pink",species)
+#' create a different order for displaying the curves --> place the pink 1st 
+#' because they fluctuate the most and hide other species' lines
+species_lines <- species
+species_lines <- species_lines[species_lines != "Pink"]
+species_lines <- c("Pink",species_lines)
 
 #
 # Define species and regions colours -----
@@ -160,28 +163,28 @@ colours_rg <- paletteer_d("peRReo::planb", n = length(regions), type = "discrete
 names(colours_rg) <- regions
 
 #
-# FIGURE 1: Number populations surveyed per years (all) (EMMA PRODUCED IT ON HER SIDE) ------
+# FIGURE 1: Number populations monitored per years (all) (EMMA PRODUCED IT ON HER SIDE) ------
 
 coef <- 1.5
 if(figures_print){
-  jpeg(paste0(wd_figures,"/Number_populationsSurveyed_total.jpeg"),
+  jpeg(paste0(wd_figures,"/Number_populations_monitored_total.jpeg"),
        width = 15 * coef, height = 10 * coef, units = 'cm', res = 300)
 }
 layout(mat = matrix(1))
 par(mar = c(4.5,4.5,1,.5))
 plot(x = data_total$year, y = data_total$count, type = "l", lwd = 2,
-     ylab = "Number of populations surveyed", xlab = "Years")
+     ylab = "Number of populations monitored", xlab = "Years")
 # points(x = data_total$year, y = data_total$count, pch = 16)
 if(figures_print){
   dev.off()
 }
 
 #
-# FIGURE 2: Number populations surveyed per years per region > species --------
+# FIGURE 2: Number populations monitored per years per region > species --------
 #
 
 if(figures_print){
-  jpeg(paste0(wd_figures,"/Number_populationsSurveyed_regions_species.jpeg"),
+  jpeg(paste0(wd_figures,"/Number_populations_monitored_regions_species.jpeg"),
        width = 21.59 * 1, height = 21.59 * .8, units = 'cm', res = 300)
 }
 m <- matrix(c(1:length(regions)), ncol = 3, byrow = T)
@@ -201,7 +204,7 @@ for(rg in regions){
   }
   if(i %in% c(1,4,7)){ # left side plot
     side2 <- 4.5
-    ylab <- "Number of populations surveyed"
+    ylab <- "Number of populations monitored"
     yaxt <- "s"
     #y_max_count <- y_max_count + 1 
   }
@@ -225,7 +228,7 @@ for(rg in regions){
            y0 = 0, y1 = y_max, 
            col = "grey70", lwd = .5)
   # plot species counts
-  for(sp in species){
+  for(sp in species_lines){
     # sp <- species[1]
     cond <- data_rg_sp$region == rg & data_rg_sp$species == sp
     lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], lwd = 2, 
@@ -248,177 +251,7 @@ if(figures_print){
 }
 
 #
-# FIGURE 3: Proportion of CUs surveyed (i.e. at least 1 population) --------
-#
-
-coef <- 0.8
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Proportion_CUs_surveyed_total_regions_species.jpeg"),
-       width = 21.59 * coef, height = 27.94 * coef, units = 'cm', res = 300)
-}
-m <- matrix(1:3, ncol = 1)
-layout(m, heights = c(1,1,1.2))
-#' Proportion of the total number of CUs with at least one population surveyed:
-par(mar = c(.5,4.5,1,.5))
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
-     ylab = "Proportion of CUs surveyed", xlab = "", xaxt = 'n')
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
-lines(x = data_total$year, y = data_total$proportion_CU, lwd = 2)
-legend("topleft","Total", col = "black", lwd = 2, bty = "n")
-
-# Proportion of CUs surveyed per year for each region:
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
-     ylab = "Proportion of CUs surveyed", xlab = "", xaxt = 'n')
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
-for(rg in regions){
-  cond <- data_rg$region == rg
-  lines(x = data_rg$year[cond], y = data_rg$proportion_CU[cond], 
-        lwd = 2, col = colours_rg[rg])
-}
-legend("topleft",regions, col = colours_rg[regions], lwd = 2, bty = "n")
-
-# Proportion of CUs surveyed per year for each species:
-par(mar = c(4.5,4.5,1,.5))
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
-     ylab = "Proportion of CUs assessed", xlab = "Year")
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
-for(sp in species){
-  cond <- data_sp$species == sp
-  lines(x = data_sp$year[cond], y = data_sp$proportion_CU[cond],
-        lwd = 2, col = colours_sp[sp])
-}
-legend("topleft",species, col = colours_sp[species], lwd = 2, bty = "n")
-if(figures_print){
-  dev.off()
-}
-
-#
-# FIGURE S1: Number populations surveyed per years per species > region ------
-#
-
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Number_populationsSurveyed_species_regions.jpeg"),
-       width = 21.59 * 1, height = 21.59 * .8 * 2/3, units = 'cm', res = 300)
-}
-m <- matrix(c(1:(length(species) + 1)), ncol = 3, byrow = T)
-layout(m, widths =  c(1.12,1,1), heights = c(1.1,1.27))
-for(sp in species){
-  # sp <- species[1]
-  i <- which(sp == species)
-  side1 <- side3 <- .5
-  side2 <- 2
-  xlab <- ""
-  xaxt <- "n"
-  yaxt <- "s"
-  if(i %in% (length(species)+1):(length(species) - 1)){ # bottom plots
-    side1 <- 4.5
-    xlab <- "Year"
-    xaxt <- "s"
-  }
-  if(i %in% c(1,4)){ # left side plot
-    side2 <- 4.5
-    ylab <- "Number of populations surveyed"
-    yaxt <- "s"
-  }
-  if(i %in% 1:3){ # top plots
-    side3 <- 2
-  }
-
-  y_max <- sapply(regions,function(rg){
-    cond <- data_rg_sp$region == rg & data_rg_sp$species == sp
-    return(max(data_rg_sp$count[cond],na.rm = T))
-  }) |> max()
-  
-  y_max <- y_max + y_max /10
-  
-  par(mar = c(side1,side2,side3,.5))
-  plot(NA,xlim = range(data_sp$year), ylim = c(0,y_max), 
-       ylab = ylab, xlab = xlab, xaxt = xaxt, yaxt = yaxt)
-  # vertical segments
-  xs <- min(data_sp$year):max(range(data_sp$year))
-  segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0], 
-           y0 = 0, y1 = y_max, 
-           col = "grey70", lwd = .5)
-  # plot species counts
-  for(rg in regions){
-    # rg <- regions[1]
-    cond <- data_rg_sp$region == rg & data_rg_sp$species == sp
-    lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], lwd = 2, 
-          col = colours_rg[rg])
-  }
-  
-  if(i %in% 1:3){
-    axis(side = 3)
-  }
-  legend("topleft",paste0(letters[i],") ",sp), col = "black", bty = "n")
-}
-par(mar=c(5,2,1.1,5))
-plot(NA,xaxt='n',yaxt="n",xlab="",ylab="",bty="n",ylim=c(0,1),xlim=c(0,1))
-legend("topleft","Regions:",bty="n",cex=1.2)
-legend("bottomleft",regions, col = colours_rg, lwd = 2, bty = "n")
-if(figures_print){
-  dev.off()
-}
-
-#
-# FIGURE S2: Proportion of populations surveyed ------
-#
-
-coef <- 0.8
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Proportion_populations_surveyed_total_regions_species.jpeg"),
-       width = 21.59 * coef, height = 27.94 * coef, units = 'cm', res = 300)
-}
-m <- matrix(1:3, ncol = 1)
-layout(m, heights = c(1,1,1.2))
-#' Proportion of the total number of CUs with at least one population surveyed:
-par(mar = c(.5,4.5,1,.5))
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
-     ylab = "Proportion of populations surveyed", xlab = "", xaxt = 'n')
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
-lines(x = data_total$year, y = data_total$proportion, lwd = 2)
-legend("topleft","Total", col = "black", lwd = 2, bty = "n")
-
-# Proportion of CUs surveyed per year for each region:
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
-     ylab = "Proportion of populations surveyed", xlab = "", xaxt = 'n')
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
-for(rg in regions){
-  cond <- data_rg$region == rg
-  lines(x = data_rg$year[cond], y = data_rg$proportion[cond], 
-        lwd = 2, col = colours_rg[rg])
-}
-legend("topleft",regions, col = colours_rg[regions], lwd = 2, bty = "n")
-
-# Proportion of CUs surveyed per year for each species:
-par(mar = c(4.5,4.5,1,.5))
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
-     ylab = "Proportion of populations assessed", xlab = "Year")
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
-for(sp in species){
-  cond <- data_sp$species == sp
-  lines(x = data_sp$year[cond], y = data_sp$proportion[cond],
-        lwd = 2, col = colours_sp[sp])
-}
-legend("topleft",species, col = colours_sp[species], lwd = 2, bty = "n")
-if(figures_print){
-  dev.off()
-}
-
-#
-# FIGURE ???: Number population surveyed vs. catch ---------
+# FIGURE 3: Number population monitored vs. catch ---------
 #
 
 cond <- colnames(data_dt) %in% 1900:2050
@@ -456,7 +289,7 @@ for(sp in species){
   
   # surveys
   cond_sp <- data_sp$species == sp
-
+  
   # merge the two
   data <- merge(x = cacth_total, y = data_sp[cond_sp,], by = "year", all = T)
   
@@ -465,10 +298,10 @@ for(sp in species){
   
   # ONly select data points after 1960
   cond <- data$year > year_cut
-
+  
   x <- data$catch[cond]
   y <- data$count[cond]
-
+  
   n <- min(c(sum(!is.na(x)),sum(!is.na(y)))) # number of data points
   
   side1 <- 2
@@ -481,7 +314,7 @@ for(sp in species){
   }
   if(i %in% c(1,4)){
     side2 <- 4.5
-    ylab <- "Number of populations surveyed"
+    ylab <- "Number of populations monitored"
     # yaxt <- 's'
   }
   
@@ -535,6 +368,185 @@ for(yr in data_yr_col$year){
 if(figures_print){
   dev.off()
 }
+
+#
+# FIGURE 4: Proportion of CUs monitored (i.e. at least 1 population) --------
+#
+
+coef <- 0.8
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Proportion_CUs_monitored_total_regions_species.jpeg"),
+       width = 21.59 * coef, height = 27.94 * coef, units = 'cm', res = 300)
+}
+m <- matrix(1:3, ncol = 1)
+layout(m, heights = c(1,1,1.2))
+#' Proportion of the total number of CUs with at least one population monitored:
+par(mar = c(.5,4.5,1,.5))
+plot(NA, las = 1, ylim = c(0,1.1), xlim = c(min(data_total$year) - 5, max(data_total$year)),
+     ylab = "Proportion of CUs monitored", xlab = "", xaxt = 'n')
+segments(x0 = data_total$year[data_total$year %% 10 == 0], 
+         x1 = data_total$year[data_total$year %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+lines(x = data_total$year, y = data_total$proportion_CU, lwd = 2)
+legend("topleft","a)", bty = "n")
+legend("topleft",c("","Total"), col = c(NA,"black"), lwd = 2, bty = "n")
+
+# Proportion of CUs monitored per year for each region:
+plot(NA, las = 1, ylim = c(0,1.1), xlim =  c(min(data_total$year) - 5, max(data_total$year)),
+     ylab = "Proportion of CUs monitored", xlab = "", xaxt = 'n')
+segments(x0 = data_total$year[data_total$year %% 10 == 0], 
+         x1 = data_total$year[data_total$year %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+for(rg in regions){
+  cond <- data_rg$region == rg
+  lines(x = data_rg$year[cond], y = data_rg$proportion_CU[cond], 
+        lwd = 2, col = colours_rg[rg])
+}
+legend("topleft","b)", bty = "n")
+legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = "n")
+
+# Proportion of CUs monitored per year for each species:
+par(mar = c(4.5,4.5,1,.5))
+plot(NA, las = 1, ylim = c(0,1.1), xlim =  c(min(data_total$year) - 5, max(data_total$year)),
+     ylab = "Proportion of CUs assessed", xlab = "Year")
+segments(x0 = data_total$year[data_total$year %% 10 == 0], 
+         x1 = data_total$year[data_total$year %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+for(sp in species_lines){
+  cond <- data_sp$species == sp
+  lines(x = data_sp$year[cond], y = data_sp$proportion_CU[cond],
+        lwd = 2, col = colours_sp[sp])
+}
+legend("topleft","c)", bty = "n")
+legend("topleft",c("",species), col = c(NA,colours_sp[species]), lwd = 2, 
+       bty = "n")
+if(figures_print){
+  dev.off()
+}
+
+#
+# FIGURE S1: Number populations monitored per years per species > region ------
+#
+
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Number_populations_monitored_species_regions.jpeg"),
+       width = 21.59 * 1, height = 21.59 * .8 * 2/3, units = 'cm', res = 300)
+}
+m <- matrix(c(1:(length(species) + 1)), ncol = 3, byrow = T)
+layout(m, widths =  c(1.12,1,1), heights = c(1.1,1.27))
+for(sp in species){
+  # sp <- species[1]
+  i <- which(sp == species)
+  side1 <- side3 <- .5
+  side2 <- 2
+  xlab <- ""
+  xaxt <- "n"
+  yaxt <- "s"
+  if(i %in% (length(species)+1):(length(species) - 1)){ # bottom plots
+    side1 <- 4.5
+    xlab <- "Year"
+    xaxt <- "s"
+  }
+  if(i %in% c(1,4)){ # left side plot
+    side2 <- 4.5
+    ylab <- "Number of populations monitored"
+    yaxt <- "s"
+  }
+  if(i %in% 1:3){ # top plots
+    side3 <- 2
+  }
+
+  y_max <- sapply(regions,function(rg){
+    cond <- data_rg_sp$region == rg & data_rg_sp$species == sp
+    return(max(data_rg_sp$count[cond],na.rm = T))
+  }) |> max()
+  
+  y_max <- y_max + y_max /10
+  
+  par(mar = c(side1,side2,side3,.5))
+  plot(NA,xlim = range(data_sp$year), ylim = c(0,y_max), 
+       ylab = ylab, xlab = xlab, xaxt = xaxt, yaxt = yaxt)
+  # vertical segments
+  xs <- min(data_sp$year):max(range(data_sp$year))
+  segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0], 
+           y0 = 0, y1 = y_max, 
+           col = "grey70", lwd = .5)
+  # plot species counts
+  for(rg in regions){
+    # rg <- regions[1]
+    cond <- data_rg_sp$region == rg & data_rg_sp$species == sp
+    lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], lwd = 2, 
+          col = colours_rg[rg])
+  }
+  
+  if(i %in% 1:3){
+    axis(side = 3)
+  }
+  legend("topleft",paste0(letters[i],") ",sp), col = "black", bty = "n")
+}
+par(mar=c(5,2,1.1,5))
+plot(NA,xaxt='n',yaxt="n",xlab="",ylab="",bty="n",ylim=c(0,1),xlim=c(0,1))
+legend("topleft","Regions:",bty="n",cex=1.2)
+legend("bottomleft",regions, col = colours_rg, lwd = 2, bty = "n")
+if(figures_print){
+  dev.off()
+}
+
+#
+# FIGURE S2: Proportion of populations monitored ------
+#
+
+coef <- 0.8
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Proportion_populations_monitored_total_regions_species.jpeg"),
+       width = 21.59 * coef, height = 27.94 * coef, units = 'cm', res = 300)
+}
+m <- matrix(1:3, ncol = 1)
+layout(m, heights = c(1,1,1.2))
+#' Proportion of the total number of CUs with at least one population monitored:
+par(mar = c(.5,4.5,1,.5))
+plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
+     ylab = "Proportion of populations monitored", xlab = "", xaxt = 'n')
+segments(x0 = data_total$year[data_total$year %% 10 == 0], 
+         x1 = data_total$year[data_total$year %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+lines(x = data_total$year, y = data_total$proportion, lwd = 2)
+legend("topleft","a)", bty = "n")
+legend("topleft",c(NA,"Total"), col = c(NA,"black"), lwd = 2, bty = "n")
+
+# Proportion of CUs monitored per year for each region:
+plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
+     ylab = "Proportion of populations monitored", xlab = "", xaxt = 'n')
+segments(x0 = data_total$year[data_total$year %% 10 == 0], 
+         x1 = data_total$year[data_total$year %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+for(rg in regions){
+  cond <- data_rg$region == rg
+  lines(x = data_rg$year[cond], y = data_rg$proportion[cond], 
+        lwd = 2, col = colours_rg[rg])
+}
+legend("topleft","b)", bty = "n")
+legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = "n")
+
+# Proportion of CUs monitored per year for each species:
+par(mar = c(4.5,4.5,1,.5))
+plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
+     ylab = "Proportion of populations assessed", xlab = "Year")
+segments(x0 = data_total$year[data_total$year %% 10 == 0], 
+         x1 = data_total$year[data_total$year %% 10 == 0], 
+         y0 = 0, y1 = 1.2, col = "grey70")
+for(sp in species_lines){
+  cond <- data_sp$species == sp
+  lines(x = data_sp$year[cond], y = data_sp$proportion[cond],
+        lwd = 2, col = colours_sp[sp])
+}
+legend("topleft","c)", bty = "n")
+legend("topleft",c("",species), col = c(NA,colours_sp[species]), lwd = 2, bty = "n")
+if(figures_print){
+  dev.off()
+}
+
+#
 
 
 
