@@ -91,11 +91,12 @@ for(r in 1:9){
 # Plot
 #------------------------------------------------------------------------------
 
+png("figures/trend.png", width = 6, height = 6, units = "in",res = 200)
 par(mfrow = c(1,1), mar = c(4,2,4,1), oma = rep(0,4))
-plot(trend$slope, as.numeric(factor(trend$region, levels = rev(regions))) + as.numeric(factor(trend$species, levels = rev(species)))/6, col = colours_sp[trend$species], pch = 19, cex = 1.5, ylim = c(1,10), yaxs = "i", xlab = "Average change per year in number of populations monitored since 1980", yaxt = "n", ylab = "")
+plot(trend$slope, as.numeric(factor(trend$region, levels = rev(regions))) + as.numeric(factor(trend$species, levels = rev(species)))/6, col = colours_sp[trend$species], pch = 19, cex = 1.5, ylim = c(1,10), yaxs = "i", xlab = "Average change per year in number of populations monitored since 1986", yaxt = "n", ylab = "")
 segments(x0 = trend$slope - 1.96*trend$se, x1 = trend$slope + 1.96*trend$se, y0 = as.numeric(factor(trend$region, levels = rev(regions))) + as.numeric(factor(trend$species, levels = rev(species)))/6, y1 = as.numeric(factor(trend$region, levels = rev(regions))) + as.numeric(factor(trend$species, levels = rev(species)))/6, col = colours_sp[trend$species], lwd = 1.2)
 abline(v = 0, lty = 3)     
 abline(h = 1:9)
-text(-6, 1:9+0.8, rev(regions), adj = 0)
+text(-6.7, 1:9+0.8, rev(regions), adj = 0)
 legend(-6, 11, pch = 19, pt.cex = 1.5, col = colours_sp, legend = species, ncol = 5, xpd = NA, bty = "n")
-
+dev.off()
