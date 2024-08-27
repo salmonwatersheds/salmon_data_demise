@@ -222,11 +222,17 @@ for(rg in regions){
   par(mar = c(side1,side2,side3,.5))
   plot(NA,xlim = range(data_rg$year), ylim = c(0,y_max), 
        ylab = ylab, xlab = xlab, xaxt = xaxt, yaxt = yaxt)
-  # vertical segments
+  # # vertical segments
   xs <- min(data_rg$year):max(range(data_rg$year))
-  segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0], 
-           y0 = 0, y1 = y_max, 
+  segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0],
+           y0 = 0, y1 = y_max,
            col = "grey70", lwd = .5)
+
+  # # Note from Steph: My preference for grid lines (can leave out vertical if wanted):
+  # # Extend all the way from top to bottom (no gap)
+  # abline(v = seq(1930, 2025, 10), lty = 3, col = grey(0.8))
+  # abline(h = pretty(data_rg_sp$count[cond]), lty = 3, col = grey(0.8))
+  
   # plot species counts
   for(sp in species_lines){
     # sp <- species[1]
