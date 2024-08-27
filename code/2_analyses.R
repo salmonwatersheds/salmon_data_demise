@@ -10,7 +10,7 @@
 #' - Number_Prop_populationsAssessed_regions_species.csv  # created in 1_dataset.R
 #' 
 #' Files produced: 
-
+#' 
 #' 
 #'******************************************************************************
 
@@ -29,101 +29,38 @@ library(readxl)
 source("code/functions.R")
 source("code/colours.R")
 
-figures_print <- T
+figures_print <- F
 
 #
 # Import files ------
 
 # Counts and proportions of populations and CUs assessed across regions and species
-data_total <- read.csv(paste0(wd_data_output,"/Number_Prop_populationsAssessed_total.csv"),
-                       header = T)
 
+data_total <- read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"), 
+                      sheet = "populations_total") |> as.data.frame()
 head(data_total)
 
 # Counts and proportions of populations and CUs assessed per regions
-data_rg <- read.csv(paste0(wd_data_output,"/Number_Prop_populationsAssessed_regions.csv"),
-                       header = T)
+data_rg <- read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"), 
+                     sheet = "populations_regions") |> as.data.frame()
 
 head(data_rg)
 
 # Counts and proportions of populations and CUs assessed per species
-data_sp <- read.csv(paste0(wd_data_output,"/Number_Prop_populationsAssessed_species.csv"),
-                    header = T)
+data_sp <-  read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"), 
+                      sheet = "populations_species") |> as.data.frame()
 
 head(data_rg)
 
 # Counts and proportions of populations and CUs assessed per regions and species
-data_rg_sp <- read.csv(paste0(wd_data_output,"/Number_Prop_populationsAssessed_regions_species.csv"),
-                    header = T)
-
+data_rg_sp <-  read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"), 
+                         sheet = "populations_regions_species") |> as.data.frame()
 head(data_rg_sp)
 
-#'* Import the catch data from the NPAFC Statistics *
-# Metadata: 
-# https://www.npafc.org/wp-content/uploads/Statistics/Statistics-Metadata-Report-June2024.pdf
-catch <- read_xlsx(paste0(wd_data_input,"/NPAFC_Catch_Stat-1925-2023.xlsx")) |> as.data.frame()
-colnames(catch) <- catch[1,]
-catch <- catch[-1,]
+# Import the catch data
+catch  <-  read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"), 
+                     sheet = "catches_species_total") |> as.data.frame()
 head(catch)
-
-catch$Country |> unique()
-catch$`Whole Country/Province/State` |> unique()
-catch$`Reporting Area` |> unique()
-catch$Species |> unique()
-catch$`Catch Type` |> unique()
-catch$`Data Type` |> unique()  # "Number (000's)" "Round wt (MT)" = round weight of fish, which is the weight of the whole fish before processing
-
-# Only keep Canada
-cond <- catch$Country == "Canada"
-catch <- catch[cond,]
-
-# Only keep Commercial
-cond <- catch$`Catch Type` == "Commercial"
-catch <- catch[cond,]
-
-# Compare "Number (000's)" vs. "Round wt (MT)"
-# Nesting: region > Species (there is no "Whole country for each species but there is "Total" for each region)
-unique(catch[,c("Reporting Area","Species")])
-
-layout(matrix(1:2,nrow = 1))
-cond <- colnames(catch) %in% 1900:2050
-years <- colnames(catch)[cond]
-for(dt in unique(catch$`Data Type`)){
-  # dt <- unique(catch$`Data Type`)[1]
-  cond_dt <- catch$`Data Type` == dt
-  data_dt <- catch[cond_dt,]
-  
-  rg <- unique(data_dt$`Reporting Area`)
-  rg <- rg[rg != "Whole country"]
-  
-  counts <- sapply(X = rg,FUN = function(r){
-    # r <- rg[1]
-    cond_r <- data_dt$`Reporting Area` == r
-    out <- data_dt[cond_r,years] |> 
-      as.matrix() |>
-      as.numeric() |>
-      max(na.rm = T) 
-    return(out)
-  })
-  
-  ymax <- max(counts, na.rm = T)
-  
-  plot(NA,xlim = range(as.numeric(years)),ylim = c(0,ymax), 
-       ylab = dt, xlab = "Years", 
-       main = dt)
-  
-  for(r in rg){
-    # r <- rg[1]
-    cond_r <- data_dt$`Reporting Area` == r
-    cond_sp <- data_dt$Species == "Total"
-    lines(x = as.numeric(years), y = data_dt[cond_r & cond_sp,years])
-  }
-}
-
-# Only keep number of fish (discard weights)
-cond <- catch$`Data Type` == "Number (000's)"
-catch <- catch[cond,]
-
 
 #
 # Define the order of the regions and species bases on number of populations assessed -------
@@ -157,24 +94,51 @@ species_lines <- c("Pink",species_lines)
 #
 # Define species and regions colours -----
 
-colours_sp <- species_cols_light[species]
+# colours_sp <- species_cols_light[species] # PSE colours
 
-colours_rg <- paletteer_d("peRReo::planb", n = length(regions), type = "discrete", ) # Monet Panb 
+colours_sp <- c(
+  Chinook = "#000000",
+  Chum = "#1C6838",
+  Coho = "#1962A0",
+  Pink = "#D89CA9",
+  Sockeye = "#9E163C"
+) # building on intuitive palette suggested by Eric
+
+# Bruno's palette:
+# colours_rg <- paletteer_d("peRReo::planb", n = length(regions), type = "discrete", ) # Monet Panb 
+colours_rg <- paletteer_d("ltc::crbhits",n = length(regions)) # SP: not in love with this one; feel free to change
 names(colours_rg) <- regions
 
 #
-# FIGURE 1: Number populations monitored per years (all) (EMMA PRODUCED IT ON HER SIDE) ------
+# FIGURE 1: Number populations monitored vs catches ------
+#
 
-coef <- 1.5
+year_min <- 1915
+year_max <- max(data_total$year)
+
+coef <- 1
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_populations_monitored_total.jpeg"),
-       width = 15 * coef, height = 10 * coef, units = 'cm', res = 300)
+       width = 21.59 * coef, height = 21.59 * coef * 2/3, units = 'cm', res = 300)
 }
 layout(mat = matrix(1))
-par(mar = c(4.5,4.5,1,.5))
-plot(x = data_total$year, y = data_total$count, type = "l", lwd = 2,
-     ylab = "Number of populations monitored", xlab = "Years")
+par(mar = c(4.5,4.5,3,4.5))
+plot(x = data_total$year, y = data_total$count, type = "l", lwd = 2, bty = "u",
+     xlim = c(year_min,year_max),
+     ylab = "Number of populations monitored", xlab = "Year", col = "#1962A0")
 # points(x = data_total$year, y = data_total$count, pch = 16)
+# cacthes
+par(new = TRUE)
+cond_yr <- catch$year <= max(catch$year) &  catch$year >= min(catch$year)
+cond_total <- catch$species == "Total"
+plot(x = catch$year[cond_yr & cond_total], 
+     y =  catch$count[cond_yr & cond_total] / 1000, 
+     xlim = c(year_min,year_max),
+     lwd = 2, col = "#9E163C",type = "l",bty = "u",yaxt = 'n', ylab = '',xlab='')
+axis(side = 4)
+mtext(text = "Catches (in thousands)",side = 4, cex = 1, line = 2.5)
+legend("bottom",c("Monitoring","Fishing"), lwd = 2, bty = 'n',
+       col = c("#1962A0", "#9E163C"))
 if(figures_print){
   dev.off()
 }
@@ -257,11 +221,72 @@ if(figures_print){
 }
 
 #
-# FIGURE 3: Number population monitored vs. catch ---------
+#
+# Figure 3: trends 1986 to 2022 per regions > species ---------
 #
 
-cond <- colnames(data_dt) %in% 1900:2050
-years <- colnames(data_dt)[cond]
+year_min <- 1986
+
+# What is the linear trend from 1986 to present in number of streams monitored by
+# each region and species?
+trend <- data.frame(
+  region = rep(regions, each = 5),
+  species = rep(species, 9),
+  slope = NA, 
+  se = NA
+)
+
+cond_yr <- data_rg_sp$year >= 1986
+
+for(rg in regions){
+  cond_rg <- data_rg_sp$region == rg
+  species_here <- unique(data_rg_sp$species[cond_rg])
+  for(sp in species_here){
+    cond_rg_sp <- data_rg_sp$region == rg & data_rg_sp$species == sp
+    fit <- lm(data_rg_sp$count[cond_rg_sp & cond_yr] ~ data_rg_sp$year[cond_rg_sp & cond_yr])
+    
+    cond_rg_sp_trend <- trend$region == rg & trend$species == sp
+    trend$slope[cond_rg_sp_trend] <- fit$coefficients[2]
+    trend$se[cond_rg_sp_trend] <- summary(fit)$coefficients[2,"Std. Error"]
+  } # end sp
+} # end rg
+
+# Plot
+
+y_rg <- as.numeric(factor(trend$region, levels = rev(regions)))
+y_rg_yr <- y_rg +  as.numeric(factor(trend$species, levels = rev(species)))/6
+
+x_min <- min(trend$slope - 1.96*trend$se, na.rm = T)
+x_max <- max(trend$slope + 1.96*trend$se, na.rm = T)
+
+coef <- .9
+
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Trends_populations_monitored_regions_species.jpeg"),
+       width = 21.59 * coef, height = 21.59 * coef, units = 'cm', res = 300)
+}
+par(mfrow = c(1,1), mar = c(4.5,9,4,1), oma = rep(0,4))
+plot(x = trend$slope, y = y_rg_yr, col = colours_sp[trend$species], yaxt = "n", ylab = "",
+     pch = 19, cex = 1.5, ylim = c(1,10), xlim = c(x_min,x_max), yaxs = "i",
+     xlab = paste("Average annual change in number of populations monitored since",year_min))
+segments(x0 = trend$slope - 1.96*trend$se, x1 = trend$slope + 1.96*trend$se, 
+         y0 = y_rg_yr, y1 = y_rg_yr, col = colours_sp[trend$species], lwd = 1.2)
+abline(v = 0, lty = 3)     
+abline(h = 1:9)
+# text(-6.7, 1:9+0.8, rev(regions), adj = 0)
+regions_here <- regions
+regions_here <- gsub("& ","&\n",regions_here)
+axis(side = 2,labels = regions_here, at = unique(y_rg) + .5, las = 1)
+legend(-7, 10.8, pch = 19, pt.cex = 1.5, col = colours_sp, legend = species, ncol = 5, xpd = NA, bty = "n")
+if(figures_print){
+  dev.off()
+}
+
+#
+# FIGURE 4: Correlation btw Number population monitored vs. catch ---------
+#
+
+years <- min(data_total$year):max(data_total$year)
 year_cut <- 1960
 
 plot_correlation <- T
@@ -269,7 +294,7 @@ show_trendline <- F
 pval_show <- T
 
 # colour gradient for years
-colfunc_yr <- colorRampPalette(c("dodgerblue3","firebrick3"))
+colfunc_yr <- colorRampPalette(c("#1962A0","#9E163C"))
 data_yr_col <- data.frame(year =  year_cut:max(years),
                           colours = colfunc_yr(length(year_cut:max(years))))
 data_yr_col$colours_trans <- colour_transparency_fun(data_yr_col$colours, alpha = .7)
@@ -286,23 +311,22 @@ for(sp in species){
   # sp <- species[2]
   
   # Catch
-  cond_sp <- catch$Species == sp
-  cond_ra <- catch$`Reporting Area` == "Whole country"
-  data <- catch[cond_sp & cond_ra,]
-  data[,years] <- as.numeric(data[,years])
-  cacth_total <- data.frame(year = years,
-                            catch = data[1,years] |> as.numeric())
-  
+  cond_sp_c <- catch$species == sp
+  data_c <- catch[cond_sp_c,c("year","count")]
+  colnames(data_c)[colnames(data_c) == "count"] <- "catch"
+  data_c$catch <- data_c$catch / 1000
+
   # surveys
   cond_sp <- data_sp$species == sp
+  data_s <- data_sp[cond_sp,c("year","count")]
   
   # merge the two
-  data <- merge(x = cacth_total, y = data_sp[cond_sp,], by = "year", all = T)
-  
+  data <- merge(x = data_c, y = data_s, by = "year", all = T)
+
   # merge with data_yr_col
   data <- merge(x = data, y = data_yr_col, by = "year", all = T)
   
-  # ONly select data points after 1960
+  # Only select data points after 1960
   cond <- data$year > year_cut
   
   x <- data$catch[cond]
@@ -316,7 +340,7 @@ for(sp in species){
   yaxt <- "s"
   if(i > 3){
     side1 <- 4.5
-    xlab <- "Catches (number of fishes in thousands)"
+    xlab <- "Catches (in thousands)"
   }
   if(i %in% c(1,4)){
     side2 <- 4.5
@@ -326,11 +350,10 @@ for(sp in species){
   
   par(mar = c(side1,side2,.5,.5))
   plot(x = x, y = y, pch = 16, col = data$colours_trans[cond],
-       cex = 2, yaxt = yaxt,
-       xlab = xlab, ylab = ylab, main = "")
+       cex = 2, yaxt = yaxt, xlab = xlab, ylab = ylab, main = "")
   #abline(a = 0, b = 1)
   if(i == 3){
-    mtext("Catches (number of fishes in thousands)",side = 1,line = 3,cex = .65)
+    mtext("Catches (in thousands)",side = 1,line = 3,cex = .65)
   }
   
   # regression line
@@ -376,7 +399,7 @@ if(figures_print){
 }
 
 #
-# FIGURE 4: Proportion of CUs monitored (i.e. at least 1 population) --------
+# FIGURE 5: Proportion of CUs monitored (i.e. at least 1 population) --------
 #
 
 coef <- 0.8
@@ -414,7 +437,7 @@ legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = 
 # Proportion of CUs monitored per year for each species:
 par(mar = c(4.5,4.5,1,.5))
 plot(NA, las = 1, ylim = c(0,1.1), xlim =  c(min(data_total$year) - 5, max(data_total$year)),
-     ylab = "Proportion of CUs assessed", xlab = "Year")
+     ylab = "Proportion of CUs monitored", xlab = "Year")
 segments(x0 = data_total$year[data_total$year %% 10 == 0], 
          x1 = data_total$year[data_total$year %% 10 == 0], 
          y0 = 0, y1 = 1.2, col = "grey70")
@@ -537,7 +560,7 @@ legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = 
 # Proportion of CUs monitored per year for each species:
 par(mar = c(4.5,4.5,1,.5))
 plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
-     ylab = "Proportion of populations assessed", xlab = "Year")
+     ylab = "Proportion of populations monitored", xlab = "Year")
 segments(x0 = data_total$year[data_total$year %% 10 == 0], 
          x1 = data_total$year[data_total$year %% 10 == 0], 
          y0 = 0, y1 = 1.2, col = "grey70")

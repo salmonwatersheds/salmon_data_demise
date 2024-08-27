@@ -23,6 +23,8 @@ wd_data_output <- paste0(getwd(),"/data_output")
 
 library(tidyr)
 library(dplyr)
+library(xlsx)
+library(readxl)
 source("code/functions.R")
 
 # **** TEMPORARY (i.e. to define a reproduceable universal workflow) ***
@@ -73,6 +75,10 @@ nrow(nuseds) # 149828
 sum(is.na(nuseds$streamid)) # 0
 sum(is.na(nuseds$GFE_ID)) # 0
 
+length(unique(nuseds$streamid)) # 6766
+length(unique(nuseds$GFE_ID))   # 2300
+unique(nuseds$region)
+
 # check if there are duplicated streamid
 data_check <- nuseds[cond,c("cuid","GFE_ID","streamid")] |> unique()
 any(duplicated(data_check$streamid)) # FALSE
@@ -80,8 +86,65 @@ any(duplicated(data_check$streamid)) # FALSE
 #'* Import the definition of the different fields of these two datasets *
 fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 
+nuseds$region |> unique() |> length()
+nuseds$cuid |> unique() |> length()    # 389
+nuseds$streamid |> unique() |> length()    # 6766
 
-# Produce and export the datasets -----
+
+#'* Import the catch data from the NPAFC Statistics *
+# Metadata: 
+# https://www.npafc.org/wp-content/uploads/Statistics/Statistics-Metadata-Report-June2024.pdf
+catch_total <- read_xlsx(paste0(wd_data_input,"/NPAFC_Catch_Stat-1925-2023.xlsx")) |> as.data.frame()
+catch <- catch_total
+# catch_total <- catch
+colnames(catch) <- catch[1,]
+catch <- catch[-1,]
+head(catch)
+
+# Only keep Canada
+catch$Country |> unique()
+cond <- catch$Country == "Canada"
+catch <- catch[cond,]
+
+# Only keep "Whole Country" (vs. BC or Yukon)
+catch$`Whole Country/Province/State` |> unique()
+cond <- catch$`Whole Country/Province/State` == "Whole country"
+catch <- catch[cond,]
+
+# Only keep Commercial
+catch$`Catch Type` |> unique()
+cond <- catch$`Catch Type` == "Commercial"
+catch <- catch[cond,]
+
+# Only keep number of fish (discard weights)
+catch$`Data Type` |> unique()  # "Number (000's)" "Round wt (MT)" = round weight of fish, which is the weight of the whole fish before processing
+cond <- catch$`Data Type` == "Number (000's)"
+catch <- catch[cond,]
+
+# Remove Steelhead (Check values 1st --> there is no values)
+cond_SH <- catch$Species == "Steelhead"
+catch[cond_SH,]
+catch <- catch[!cond_SH,]
+
+# Make sure all the counts are "numeric"
+col_yr <- colnames(catch)[colnames(catch) %in% 1900:2050]
+# apply(catch[,col_yr],2,as,numeric()) # does not work... 
+for(yr in col_yr){
+  catch[,yr] <- as.numeric(catch[,yr])
+}
+
+# Replace the Total values by the sum of the salmon species (without SH)
+# (that should not change anything but it is the right way to proceed).
+cond_Total <- catch$Species == "Total"
+
+# check 
+plot(x = catch[cond_Total,col_yr] |> as.numeric(), y = colSums(catch[!cond_Total,col_yr]))
+abline(a = 0,b = 1)
+
+catch[cond_Total,col_yr][1,] <- colSums(catch[!cond_Total,col_yr])
+
+#
+# Produce the datasets -----
 #
 
 years <- nuseds$Year |> unique()
@@ -135,9 +198,11 @@ dataExport <- data.frame(year = c(years_odd,years_even),
 
 dataExport <- dataExport[order(dataExport$year),]
 
-write.csv(dataExport,
-          paste0(wd_data_output,"/Number_Prop_populationsAssessed_total.csv"),
-          row.names = F)
+Number_Prop_populationsAssessed_total <- dataExport
+
+# write.csv(Number_Prop_populationsAssessed_total,
+#           paste0(wd_data_output,"/Number_Prop_populationsAssessed_total.csv"),
+#           row.names = F)
 
 # Check that counting streamid or data points per years is the same 
 dataExport_2 <- nuseds %>%
@@ -215,9 +280,13 @@ for(rg in regions){
   }
 }
 
-write.csv(dataExport,
-          paste0(wd_data_output,"/Number_Prop_populationsAssessed_regions.csv"),
-          row.names = F)
+
+Number_Prop_populationsAssessed_regions <- dataExport
+
+# write.csv(Number_Prop_populationsAssessed_regions,
+#           paste0(wd_data_output,"/Number_Prop_populationsAssessed_regions.csv"),
+#           row.names = F)
+
 
 #'* Count of surveys per species *
 species <- nuseds$SPECIES |> unique()
@@ -315,9 +384,12 @@ for(sp in species){
   }
 }
 
-write.csv(dataExport,
-          paste0(wd_data_output,"/Number_Prop_populationsAssessed_species.csv"),
-          row.names = F)
+
+Number_Prop_populationsAssessed_species <- dataExport
+
+# write.csv(Number_Prop_populationsAssessed_species,
+#           paste0(wd_data_output,"/Number_Prop_populationsAssessed_species.csv"),
+#           row.names = F)
 
 
 #'* Count of surveys per region > species *
@@ -433,6 +505,106 @@ for(rg in regions){
 head(dataExport)
 # View(dataExport)
 
-write.csv(dataExport,
-          paste0(wd_data_output,"/Number_Prop_populationsAssessed_regions_species.csv"),
-          row.names = F)
+Number_Prop_populationsAssessed_regions_species <- dataExport
+
+# write.csv(Number_Prop_populationsAssessed_regions_species,
+#           paste0(wd_data_output,"/Number_Prop_populationsAssessed_regions_species.csv"),
+#           row.names = F)
+
+
+#'* Catches per species and total *
+
+# To long format
+dataExport <- NULL
+for(sp in unique(catch$Species)){
+  cond_sp <- catch$Species == sp
+  count <- catch[cond_sp,col_yr,drop = T] |> unlist()
+  count <- count * 1000
+  dataExportHere <- data.frame(species = sp,
+                               year = as.numeric(col_yr),
+                               count = count)
+  if(is.null(dataExport)){
+    dataExport <- dataExportHere
+  }else{
+    dataExport <- rbind(dataExport,dataExportHere)
+  }
+}
+
+Number_catches_species_total <- dataExport
+
+# write.csv(Number_Prop_populationsAssessed_regions_species,
+#           paste0(wd_data_output,"/Number_catches_species_total.csv"),
+#           row.names = F)
+
+
+#
+# Export excel file -------
+#
+files_l <- list(Number_Prop_populationsAssessed_total,
+                Number_Prop_populationsAssessed_regions,
+                Number_Prop_populationsAssessed_species,
+                Number_Prop_populationsAssessed_regions_species,
+                Number_catches_species_total)
+
+names(files_l) <- c("populations_total",
+                    "populations_regions",
+                    "populations_species",
+                    "populations_regions_species",
+                    "catches_species_total")
+
+for(sh_i in 1:length(names(files_l))){
+  # sh_i <- 1
+  if(sh_i == 1){
+    append <- F
+  }else{
+    append <- T
+  }
+  sheetName <- names(files_l)[sh_i]
+  sheet <- as.data.frame(files_l[[sheetName]])
+  write.xlsx(sheet, 
+             file = paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"),
+             sheetName = sheetName, 
+             row.names = FALSE,
+             append = append,
+             showNA = T)
+  print(sh_i)
+}
+
+#
+# Some picks at numbers -----
+#
+
+years <- 1980:1990
+populations <- sapply(X = years, function(yr){
+  cond_y <- nuseds$Year == yr
+  out <- length(unique(nuseds$streamid[cond_y]))
+  names(out) <- yr
+  return(out)
+})
+populations
+# 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
+# 2307 2322 2310 2315 2340 2652 2745 2459 2436 2440 2441 
+
+streams <- sapply(X = years, function(yr){
+  cond_y <- nuseds$Year == yr
+  out <- length(unique(nuseds$GFE_ID[cond_y]))
+  names(out) <- yr
+  return(out)
+})
+streams
+# 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
+# 1192 1224 1208 1187 1215 1356 1369 1294 1298 1341 1306 
+
+
+# Average loss of populations per yeat since 1986
+catch_total <- read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"),
+                         sheet = "populationsAssessed_total") |> as.data.frame()
+
+cond_min <- 1986 <= data_total$year
+lm <- lm(data_total$count[cond_min] ~ data_total$year[cond_min])
+lm
+
+# Same but per species
+
+
+
