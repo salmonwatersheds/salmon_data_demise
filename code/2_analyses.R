@@ -63,18 +63,21 @@ catch  <-  read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xls
 head(catch)
 
 #
-# Define the order of the regions and species bases on number of populations assessed -------
-
+# Define the order of the regions and species -------
+#
 regions <- unique(data_rg$region)
 species <- unique(data_sp$species)
 
-# Retain the order of the most monitored regions at the global scale:
-x_max <- sapply(regions, function(rg){
-  cond <- data_rg$region == rg
-  return(max(data_rg$count[cond]))
-})
+# Retain the order of the most monitored regions at the global scale: NOT ANYMORE
+# x_max <- sapply(regions, function(rg){
+#   cond <- data_rg$region == rg
+#   return(max(data_rg$count[cond]))
+# })
+# 
+# regions <- regions[rev(order(x_max))]
 
-regions <- regions[rev(order(x_max))]
+regions <- c("Yukon","Transboundary","Haida Gwaii","Nass","Skeena","Central Coast",
+             "Vancouver Island & Mainland Inlets","Fraser","Columbia")
 
 # for the species: alphabetic order is good
 # x_max <- sapply(species, function(sp){
@@ -123,11 +126,23 @@ if(figures_print){
 }
 layout(mat = matrix(1))
 par(mar = c(4.5,4.5,3,4.5))
-plot(x = data_total$year, y = data_total$count, type = "l", lwd = 2, bty = "u",
-     xlim = c(year_min,year_max),
+plot(NA, type = "l", lwd = 2, bty = "u",
+     xlim = c(year_min,year_max),ylim = c(range(data_total$count)),
      ylab = "Number of populations monitored", xlab = "Year", col = "#1962A0")
 # points(x = data_total$year, y = data_total$count, pch = 16)
-# cacthes
+# catches
+
+segments_horizontal_fun(y_range = range(data_total$count), x_range = c(1900,2030))
+
+segments(x0 = data_total$year[data_total$year %% 20 == 0],
+         x1 = data_total$year[data_total$year %% 20 == 0],
+         y0 = -100, y1 = max(data_total$year),
+         lwd = 2, lty = 2, col = colour_transparency_fun("grey50",alpha = .5))
+
+lines(x = data_total$year, y = data_total$count, lwd = 2)
+
+
+
 par(new = TRUE)
 cond_yr <- catch$year <= max(catch$year) &  catch$year >= min(catch$year)
 cond_total <- catch$species == "Total"
