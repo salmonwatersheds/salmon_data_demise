@@ -95,7 +95,7 @@ species_lines <- species_lines[species_lines != "Pink"]
 species_lines <- c("Pink",species_lines)
 
 #
-# Define species and regions colours -----
+# Colours and other figure settings -----
 
 # colours_sp <- species_cols_light[species] # PSE colours
 
@@ -111,6 +111,12 @@ colours_sp <- c(
 # colours_rg <- paletteer_d("peRReo::planb", n = length(regions), type = "discrete", ) # Monet Panb 
 colours_rg <- paletteer_d("ltc::crbhits",n = length(regions)) # SP: not in love with this one; feel free to change
 names(colours_rg) <- regions
+
+# Backgrond segments parameters
+colours_seg <- "grey50"
+alpha_seg <- .5
+lty_seg <- 2
+
 
 #
 # FIGURE 1: Number populations monitored vs catches ------
@@ -131,18 +137,14 @@ plot(NA, type = "l", lwd = 2, bty = "u",
      ylab = "Number of populations monitored", xlab = "Year", col = "#1962A0")
 # points(x = data_total$year, y = data_total$count, pch = 16)
 # catches
-
-segments_horizontal_fun(y_range = range(data_total$count), x_range = c(1900,2030))
-
-segments(x0 = data_total$year[data_total$year %% 20 == 0],
-         x1 = data_total$year[data_total$year %% 20 == 0],
-         y0 = -100, y1 = max(data_total$year),
-         lwd = 2, lty = 2, col = colour_transparency_fun("grey50",alpha = .5))
-
+segments_horizontal_fun(y_range = range(data_total$count), x_range = c(1900,2030), 
+                        lty = lty_seg, colour = colours_seg, alpha = alpha_seg)
+segments(x0 = (year_min:year_max)[(year_min:year_max) %% 20 == 0],
+         x1 = (year_min:year_max)[(year_min:year_max) %% 20 == 0],
+         y0 = -100, y1 = max(data_total$count),
+         lwd = 2, lty = lty_seg, col = colour_transparency_fun(colours_seg,alpha = alpha_seg))
 lines(x = data_total$year, y = data_total$count, lwd = 2)
-
-
-
+#
 par(new = TRUE)
 cond_yr <- catch$year <= max(catch$year) &  catch$year >= min(catch$year)
 cond_total <- catch$species == "Total"
@@ -162,6 +164,8 @@ if(figures_print){
 # FIGURE 2: Number populations monitored per years per region > species --------
 #
 
+lwd <- .5
+
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_populations_monitored_regions_species.jpeg"),
        width = 21.59 * 1, height = 21.59 * .8, units = 'cm', res = 300)
@@ -169,7 +173,7 @@ if(figures_print){
 m <- matrix(c(1:length(regions)), ncol = 3, byrow = T)
 layout(m, widths =  c(1.12,1,1), heights = c(1.1,1,1.27))
 for(rg in regions){
-  # rg <- regions[1]
+  # rg <- regions[7]
   i <- which(rg == regions)
   side1 <- side3 <- .5
   side2 <- 2
@@ -201,11 +205,25 @@ for(rg in regions){
   par(mar = c(side1,side2,side3,.5))
   plot(NA,xlim = range(data_rg$year), ylim = c(0,y_max), 
        ylab = ylab, xlab = xlab, xaxt = xaxt, yaxt = yaxt)
-  # # vertical segments
+  ## vertical segments
   xs <- min(data_rg$year):max(range(data_rg$year))
   segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0],
-           y0 = 0, y1 = y_max,
-           col = "grey70", lwd = .5)
+           y0 = 0, y1 = y_max, 
+           lty = lty_seg, lwd = lwd,
+           col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+  # horizontal segments
+  nb_lines <- 5
+  if(rg %in% c("Haida Gwaii","Vancouver Island & Mainland Inlets","Skeena")){ # ,"Vancouver Island & Mainland Inlets"
+    nb_lines <- 4
+  }
+  # if(rg %in% c()){ 
+  #   nb_lines <- 6
+  # }
+  segments_horizontal_fun(y_range = c(0,y_max), 
+                          x_range = c(1900,2030), 
+                          lty = lty_seg, lwd = lwd, 
+                          nb_lines = nb_lines,
+                          colour = colours_seg, alpha = alpha_seg)
 
   # # Note from Steph: My preference for grid lines (can leave out vertical if wanted):
   # # Extend all the way from top to bottom (no gap)
@@ -417,6 +435,10 @@ if(figures_print){
 # FIGURE 5: Proportion of CUs monitored (i.e. at least 1 population) --------
 #
 
+lwd <- 1
+
+y_min <- min(data_total$year) - 6
+
 coef <- 0.8
 if(figures_print){
   jpeg(paste0(wd_figures,"/Proportion_CUs_monitored_total_regions_species.jpeg"),
@@ -426,36 +448,63 @@ m <- matrix(1:3, ncol = 1)
 layout(m, heights = c(1,1,1.2))
 #' Proportion of the total number of CUs with at least one population monitored:
 par(mar = c(.5,4.5,1,.5))
-plot(NA, las = 1, ylim = c(0,1.1), xlim = c(min(data_total$year) - 5, max(data_total$year)),
+plot(NA, las = 1, ylim = c(0,1.1), xlim = c(y_min, max(data_total$year)),
      ylab = "Proportion of CUs monitored", xlab = "", xaxt = 'n')
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
+# vertical segments
+segments(x0 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+
+#
 lines(x = data_total$year, y = data_total$proportion_CU, lwd = 2)
 legend("topleft","a)", bty = "n")
 legend("topleft",c("","Total"), col = c(NA,"black"), lwd = 2, bty = "n")
 
 # Proportion of CUs monitored per year for each region:
-plot(NA, las = 1, ylim = c(0,1.1), xlim =  c(min(data_total$year) - 5, max(data_total$year)),
+plot(NA, las = 1, ylim = c(0,1.1), xlim =  c(y_min, max(data_total$year)),
      ylab = "Proportion of CUs monitored", xlab = "", xaxt = 'n')
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
-for(rg in regions){
+#
+segments(x0 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+#
+regions_here <- regions[regions != "Vancouver Island & Mainland Inlets"]
+regions_here <- c("Vancouver Island & Mainland Inlets",regions_here)
+for(rg in regions_here){
   cond <- data_rg$region == rg
   lines(x = data_rg$year[cond], y = data_rg$proportion_CU[cond], 
         lwd = 2, col = colours_rg[rg])
 }
 legend("topleft","b)", bty = "n")
-legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = "n")
+legend("topleft",c("",regions_here), col = c(NA,colours_rg[regions_here]), lwd = 2, bty = "n")
 
 # Proportion of CUs monitored per year for each species:
 par(mar = c(4.5,4.5,1,.5))
-plot(NA, las = 1, ylim = c(0,1.1), xlim =  c(min(data_total$year) - 5, max(data_total$year)),
+plot(NA, las = 1, ylim = c(0,1.1), xlim =  c(y_min, max(data_total$year)),
      ylab = "Proportion of CUs monitored", xlab = "Year")
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
+#
+segments(x0 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+#
 for(sp in species_lines){
   cond <- data_sp$species == sp
   lines(x = data_sp$year[cond], y = data_sp$proportion_CU[cond],
@@ -471,6 +520,8 @@ if(figures_print){
 #
 # FIGURE S1: Number populations monitored per years per species > region ------
 #
+
+lwd <- .5
 
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_populations_monitored_species_regions.jpeg"),
@@ -513,8 +564,18 @@ for(sp in species){
   # vertical segments
   xs <- min(data_sp$year):max(range(data_sp$year))
   segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0], 
-           y0 = 0, y1 = y_max, 
-           col = "grey70", lwd = .5)
+           y0 = 0, y1 = y_max, lwd = lwd, lty = lty_seg,
+           col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+  # horizontal segments
+  nb_lines <- 5
+  if(sp %in% c("Chum","Sockeye")){ # ,"Vancouver Island & Mainland Inlets"
+    nb_lines <- 4
+  }
+  segments_horizontal_fun(y_range = c(0,y_max), 
+                          x_range = c(1900,2030), 
+                          lty = lty_seg, lwd = lwd, 
+                          nb_lines = nb_lines,
+                          colour = colours_seg, alpha = alpha_seg)
   # plot species counts
   for(rg in regions){
     # rg <- regions[1]
@@ -540,6 +601,8 @@ if(figures_print){
 # FIGURE S2: Proportion of populations monitored ------
 #
 
+y_min <- min(data_total$year) - 6
+
 coef <- 0.8
 if(figures_print){
   jpeg(paste0(wd_figures,"/Proportion_populations_monitored_total_regions_species.jpeg"),
@@ -549,21 +612,37 @@ m <- matrix(1:3, ncol = 1)
 layout(m, heights = c(1,1,1.2))
 #' Proportion of the total number of CUs with at least one population monitored:
 par(mar = c(.5,4.5,1,.5))
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
+plot(NA, las = 1, ylim = c(0,1), xlim = c(y_min,max(data_total$year)),
      ylab = "Proportion of populations monitored", xlab = "", xaxt = 'n')
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
+# vertical segments
+segments(x0 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+#
 lines(x = data_total$year, y = data_total$proportion, lwd = 2)
 legend("topleft","a)", bty = "n")
 legend("topleft",c(NA,"Total"), col = c(NA,"black"), lwd = 2, bty = "n")
 
 # Proportion of CUs monitored per year for each region:
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
+plot(NA, las = 1, ylim = c(0,1), xlim = c(y_min,max(data_total$year)),
      ylab = "Proportion of populations monitored", xlab = "", xaxt = 'n')
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
+# vertical segments
+segments(x0 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+#
 for(rg in regions){
   cond <- data_rg$region == rg
   lines(x = data_rg$year[cond], y = data_rg$proportion[cond], 
@@ -574,11 +653,19 @@ legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = 
 
 # Proportion of CUs monitored per year for each species:
 par(mar = c(4.5,4.5,1,.5))
-plot(NA, las = 1, ylim = c(0,1), xlim = range(data_total$year),
+plot(NA, las = 1, ylim = c(0,1), xlim = c(y_min,max(data_total$year)),
      ylab = "Proportion of populations monitored", xlab = "Year")
-segments(x0 = data_total$year[data_total$year %% 10 == 0], 
-         x1 = data_total$year[data_total$year %% 10 == 0], 
-         y0 = 0, y1 = 1.2, col = "grey70")
+# vertical segments
+segments(x0 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total$year))[(y_min:max(data_total$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+#
 for(sp in species_lines){
   cond <- data_sp$species == sp
   lines(x = data_sp$year[cond], y = data_sp$proportion[cond],

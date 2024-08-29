@@ -221,19 +221,20 @@ colour_transparency_fun <- function(colours,alpha = 0.35){
 
 
 #' Function to create horizontal segments in a figure that matched the ticks.
-segments_horizontal_fun <- function(y_range,x_range,
-                                    colour = "grey50", alpha = .5, lwd = 2, lty = 1){
+segments_horizontal_fun <- function(y_range, x_range,
+                                    nb_lines = 5,       # if length(grid_vals) < nb_lines--> add lines in between each values in grid_vals
+                                    colour = "grey50", alpha = 1, lwd = 2, lty = 1){
   digits_nb <- nchar(ceiling(y_range[2]))
   grid_max <- substr(x = ceiling(y_range[2]), start = 1, stop = 1)
   factor <- paste(c(1,rep(0,(digits_nb - 1))), collapse = "") |> as.numeric()
   grid_vals <- 0:as.numeric(grid_max) * factor
-  if(length(grid_vals) < 5){ # add a segment to each 1/2 intervals as well
+  if(length(grid_vals) < nb_lines){ # add a segment to each 1/2 intervals as well
     grid_max <- substr(x = ceiling(y_range[2]), start = 1, stop = 2)
     grid_vals <- 0:as.numeric(grid_max) 
     grid_vals <- grid_vals[grid_vals %% 5 == 0]
     grid_vals <- grid_vals * factor / 10
   }
-  if(length(grid_vals) < 5){ # add a segment to each 1/5 intervals as well
+  if(length(grid_vals) < nb_lines){ # add a segment to each 1/5 intervals as well
     grid_vals <- 0:as.numeric(grid_max) 
     grid_vals <- grid_vals[grid_vals %% 2 == 0]
     grid_vals <- grid_vals * factor / 10
@@ -244,7 +245,4 @@ segments_horizontal_fun <- function(y_range,x_range,
            lwd = lwd, lty = lty,
            col = colour_transparency_fun(colour,alpha = alpha))
 }
-
-
-
 
