@@ -435,6 +435,8 @@ if(figures_print){
 # FIGURE 5: Proportion of CUs monitored (i.e. at least 1 population) --------
 #
 
+alpha <- .7
+
 lwd <- 1
 
 y_min <- min(data_total$year) - 6
@@ -485,7 +487,7 @@ regions_here <- c("Vancouver Island & Mainland Inlets",regions_here)
 for(rg in regions_here){
   cond <- data_rg$region == rg
   lines(x = data_rg$year[cond], y = data_rg$proportion_CU[cond], 
-        lwd = 2, col = colours_rg[rg])
+        lwd = 2, col = colour_transparency_fun(colours = colours_rg[rg], alpha = alpha))
 }
 legend("topleft","b)", bty = "n")
 legend("topleft",c("",regions_here), col = c(NA,colours_rg[regions_here]), lwd = 2, bty = "n")
@@ -508,7 +510,7 @@ segments(x0 = 1900, x1 = 2030,
 for(sp in species_lines){
   cond <- data_sp$species == sp
   lines(x = data_sp$year[cond], y = data_sp$proportion_CU[cond],
-        lwd = 2, col = colours_sp[sp])
+        lwd = 2, col = colour_transparency_fun(colours = colours_sp[sp], alpha = alpha))
 }
 legend("topleft","c)", bty = "n")
 legend("topleft",c("",species), col = c(NA,colours_sp[species]), lwd = 2, 
@@ -601,6 +603,8 @@ if(figures_print){
 # FIGURE S2: Proportion of populations monitored ------
 #
 
+alpha <- .7
+
 y_min <- min(data_total$year) - 6
 
 coef <- 0.8
@@ -646,7 +650,7 @@ segments(x0 = 1900, x1 = 2030,
 for(rg in regions){
   cond <- data_rg$region == rg
   lines(x = data_rg$year[cond], y = data_rg$proportion[cond], 
-        lwd = 2, col = colours_rg[rg])
+        lwd = 2, col = colour_transparency_fun(colours = colours_rg[rg], alpha = alpha))
 }
 legend("topleft","b)", bty = "n")
 legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = "n")
@@ -669,7 +673,7 @@ segments(x0 = 1900, x1 = 2030,
 for(sp in species_lines){
   cond <- data_sp$species == sp
   lines(x = data_sp$year[cond], y = data_sp$proportion[cond],
-        lwd = 2, col = colours_sp[sp])
+        lwd = 2, col = colour_transparency_fun(colours = colours_sp[sp],alpha = alpha))
 }
 legend("topleft","c)", bty = "n")
 legend("topleft",c("",species), col = c(NA,colours_sp[species]), lwd = 2, bty = "n")
