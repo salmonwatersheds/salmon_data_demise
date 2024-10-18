@@ -39,12 +39,16 @@ wd_data_input_PSF <- "/Users/stephaniepeacock/Salmon\ Watersheds\ Dropbox/Stepha
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
 #' Note: the choice was made to not use the cleaned and combined nuseds file 
 #' NuSEDS_escapement_data_collated_DATE.csv because it does not contain the region.
-#' Prodivinding the region requires to match ciud with is a pain and was done to 
+#' Providing the region requires to match cuid which is hard and was done to 
 #' produce nuseds_cuid_streamid_DATE.csv, which is the file that is used instead.
 #' It contains extra fields not needed.
-nuseds <- import_mostRecent_file_fun(wd = wd_data_input_PSF,
+nuseds <- import_mostRecent_file_fun(wd = paste0(wd_data_input_PSF,"/archive"),
                                      pattern = "nuseds_cuid_streamid")
 head(nuseds)
+
+#' IMPORTANT NOTE: streamid = unique cuid & GFE_ID combination
+#' The name 'streamid' is miss-leading as it seems to characterise a stream only
+#' but it characterise a unique CU & location association.
 
 # Remove rows with NAs
 sum(is.na(nuseds$MAX_ESTIMATE)) # 155984
@@ -89,7 +93,6 @@ fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 nuseds$region |> unique() |> length()
 nuseds$cuid |> unique() |> length()    # 389
 nuseds$streamid |> unique() |> length()    # 6766
-
 
 #'* Import the catch data from the NPAFC Statistics *
 # Metadata: 
@@ -536,6 +539,32 @@ Number_catches_species_total <- dataExport
 #           paste0(wd_data_output,"/Number_catches_species_total.csv"),
 #           row.names = F)
 
+#'* Summary table for each regions *
+
+# Define the order of the regions
+regions <- c("Yukon","Transboundary","Haida Gwaii","Nass","Skeena","Central Coast",
+             "Vancouver Island & Mainland Inlets","Fraser","Columbia")
+
+summary <- data.frame(region = regions) 
+
+summary$CU_nb <- sapply(summary$region,function(rg){
+  cond <- nuseds$region == rg
+  return(length(unique(nuseds$cuid[cond])))
+})
+
+summary$pop_nb <- sapply(summary$region,function(rg){
+  cond <- nuseds$region == rg
+  return(length(unique(nuseds$streamid[cond])))
+})
+
+summary$site_nb <- sapply(summary$region,function(rg){
+  cond <- nuseds$region == rg
+  return(nrow(unique(nuseds[cond,c("SYSTEM_SITE","X_LONGT","Y_LAT")])))
+})
+
+sum_sum <- colSums(summary[,c("CU_nb","pop_nb","site_nb")])
+summary <- rbind(summary,
+                 c("Total",sum_sum))
 
 #
 # Export excel file -------
@@ -544,13 +573,15 @@ files_l <- list(Number_Prop_populationsAssessed_total,
                 Number_Prop_populationsAssessed_regions,
                 Number_Prop_populationsAssessed_species,
                 Number_Prop_populationsAssessed_regions_species,
-                Number_catches_species_total)
+                Number_catches_species_total,
+                summary)
 
 names(files_l) <- c("populations_total",
                     "populations_regions",
                     "populations_species",
                     "populations_regions_species",
-                    "catches_species_total")
+                    "catches_species_total",
+                    "summary_regions")
 
 for(sh_i in 1:length(names(files_l))){
   # sh_i <- 1
@@ -569,6 +600,7 @@ for(sh_i in 1:length(names(files_l))){
              showNA = T)
   print(sh_i)
 }
+
 
 #
 # Some picks at numbers -----
