@@ -29,7 +29,7 @@ library(readxl)
 source("code/functions.R")
 source("code/colours.R")
 
-figures_print <- F
+figures_print <- T
 
 #
 # Import files ------
@@ -101,7 +101,7 @@ species_lines <- c("Pink",species_lines)
 
 colours_sp <- c(
   Chinook = "#000000",
-  Chum = "#1C6838",
+  Chum = "#859d32",# "#1C6838",
   Coho = "#1962A0",
   Pink = "#D89CA9",
   Sockeye = "#9E163C"
@@ -112,11 +112,11 @@ colours_sp <- c(
 colours_rg <- paletteer_d("ltc::crbhits",n = length(regions)) # SP: not in love with this one; feel free to change
 names(colours_rg) <- regions
 
+
 # Backgrond segments parameters
 colours_seg <- "grey50"
 alpha_seg <- .5
 lty_seg <- 2
-
 
 #
 # FIGURE 1: Number populations monitored vs catches ------
@@ -127,14 +127,14 @@ year_max <- max(data_total$year)
 
 coef <- 1
 if(figures_print){
-  jpeg(paste0(wd_figures,"/Number_populations_monitored_total.jpeg"),
+  jpeg(paste0(wd_figures,"/Number_populations_monitored_catches.jpeg"),
        width = 21.59 * coef, height = 21.59 * coef * 2/3, units = 'cm', res = 300)
 }
 layout(mat = matrix(1))
 par(mar = c(4.5,4.5,3,4.5))
 plot(NA, type = "l", lwd = 2, bty = "u",
      xlim = c(year_min,year_max),ylim = c(range(data_total$count)),
-     ylab = "Number of populations monitored", xlab = "Year", col = "#1962A0")
+     ylab = "Number of populations monitored", xlab = "Year")
 # points(x = data_total$year, y = data_total$count, pch = 16)
 # catches
 segments_horizontal_fun(y_range = range(data_total$count), x_range = c(1900,2030), 
@@ -153,9 +153,9 @@ plot(x = catch$year[cond_yr & cond_total],
      xlim = c(year_min,year_max),
      lwd = 2, col = "#9E163C",type = "l",bty = "u",yaxt = 'n', ylab = '',xlab='')
 axis(side = 4)
-mtext(text = "Catches (in thousands)",side = 4, cex = 1, line = 2.5)
-legend("bottom",c("Monitoring","Fishing"), lwd = 2, bty = 'n',
-       col = c("#1962A0", "#9E163C"))
+mtext(text = "Catches (in thousands)",side = 4, cex = 1, line = 2.5, col = "#9E163C")
+# legend("bottom",c("Monitoring","Fishing"), lwd = 2, bty = 'n',
+#        col = c("black", "#9E163C"))
 if(figures_print){
   dev.off()
 }
