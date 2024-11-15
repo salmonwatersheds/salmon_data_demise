@@ -14,6 +14,12 @@
 #' 
 #'******************************************************************************
 
+# From CJFAS: Supply figures sized for publication: 
+#.   1-column width is 8.84 cm, (3.48 in)
+#.   2-column is 18.2 cm with a  (7.165 in)
+#.   max. height of 23.7 cm and (9.33 in)
+#.   a resolution of 300 dpi
+
 rm(list = ls())
 graphics.off()
 
@@ -50,7 +56,7 @@ head(data_rg)
 data_sp <-  read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"), 
                       sheet = "populations_species") |> as.data.frame()
 
-head(data_rg)
+head(data_sp)
 
 # Counts and proportions of populations and CUs assessed per regions and species
 data_rg_sp <-  read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"), 
@@ -65,7 +71,7 @@ head(catch)
 #
 # Define the order of the regions and species -------
 #
-regions <- unique(data_rg$region)
+# regions <- unique(data_rg$region)
 species <- unique(data_sp$species)
 
 # Retain the order of the most monitored regions at the global scale: NOT ANYMORE
@@ -129,31 +135,35 @@ coef <- 1
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_populations_monitored_catches.jpeg"),
        width = 21.59 * coef, height = 21.59 * coef * 2/3, units = 'cm', res = 300)
+  # quartz(width = 7.615, height = 4, pointsize = 10)
 }
 layout(mat = matrix(1))
 par(mar = c(4.5,4.5,3,4.5))
 plot(NA, type = "l", lwd = 2, bty = "u",
-     xlim = c(year_min,year_max),ylim = c(range(data_total$count)),
-     ylab = "Number of populations monitored", xlab = "Year")
-# points(x = data_total$year, y = data_total$count, pch = 16)
+     xlim = c(year_min,year_max), #ylim = c(range(data_total$count)),
+     ylab = "", xlab = "Year",
+     yaxs = "i", ylim = c(0, 2800))
+mtext(side = 2, line = 3,  "Number of populations monitored", col = "#1962A0")
 # catches
+
 segments_horizontal_fun(y_range = range(data_total$count), x_range = c(1900,2030), 
-                        lty = lty_seg, colour = colours_seg, alpha = alpha_seg)
-segments(x0 = (year_min:year_max)[(year_min:year_max) %% 20 == 0],
-         x1 = (year_min:year_max)[(year_min:year_max) %% 20 == 0],
+                        lty = lty_seg, colour = colours_seg, alpha = alpha_seg, lwd = 0.8)
+segments(x0 = (year_min:year_max)[(year_min:year_max) %% 10 == 0],
+         x1 = (year_min:year_max)[(year_min:year_max) %% 10 == 0],
          y0 = -100, y1 = max(data_total$count),
-         lwd = 2, lty = lty_seg, col = colour_transparency_fun(colours_seg,alpha = alpha_seg))
-lines(x = data_total$year, y = data_total$count, lwd = 2)
+         lwd = 0.8, lty = lty_seg, col = colour_transparency_fun(colours_seg,alpha = alpha_seg))
+lines(x = data_total$year, y = data_total$count, lwd = 2, xpd = NA, col = "#1962A0")
 #
 par(new = TRUE)
 cond_yr <- catch$year <= max(catch$year) &  catch$year >= min(catch$year)
 cond_total <- catch$species == "Total"
 plot(x = catch$year[cond_yr & cond_total], 
-     y =  catch$count[cond_yr & cond_total] / 1000, 
+     y =  catch$count[cond_yr & cond_total] * 10^-6, 
      xlim = c(year_min,year_max),
-     lwd = 2, col = "#9E163C",type = "l",bty = "u",yaxt = 'n', ylab = '',xlab='')
-axis(side = 4)
-mtext(text = "Catches (in thousands)",side = 4, cex = 1, line = 2.5, col = "#9E163C")
+     ylim = c(0, 44.8), #SP: Need to set ylim so that horizontal lines match axes ticks for populations on left
+     lwd = 2, col = "#9E163C",type = "l",bty = "u",yaxt = 'n', ylab = '',xlab='', yaxs = "i", xpd = NA)
+axis(side = 4, at = seq(0, 40, 8))
+mtext(text = "Canadian catch (millions of salmon)", side = 4, cex = 1, line = 2.5, col = "#9E163C")
 # legend("bottom",c("Monitoring","Fishing"), lwd = 2, bty = 'n',
 #        col = c("black", "#9E163C"))
 if(figures_print){
@@ -164,11 +174,12 @@ if(figures_print){
 # FIGURE 2: Number populations monitored per years per region > species --------
 #
 
-lwd <- .5
+lwd <- 0.5
 
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_populations_monitored_regions_species.jpeg"),
        width = 21.59 * 1, height = 21.59 * .8, units = 'cm', res = 300)
+  # quartz(width = 7.165, height = 7, pointsize = 10)
 }
 m <- matrix(c(1:length(regions)), ncol = 3, byrow = T)
 layout(m, widths =  c(1.12,1,1), heights = c(1.1,1,1.27))
@@ -204,7 +215,7 @@ for(rg in regions){
   
   par(mar = c(side1,side2,side3,.5))
   plot(NA,xlim = range(data_rg$year), ylim = c(0,y_max), 
-       ylab = ylab, xlab = xlab, xaxt = xaxt, yaxt = yaxt)
+       ylab = ylab, xlab = xlab, xaxt = xaxt, yaxt = yaxt, yaxs = "i")
   ## vertical segments
   xs <- min(data_rg$year):max(range(data_rg$year))
   segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0],
@@ -225,16 +236,11 @@ for(rg in regions){
                           nb_lines = nb_lines,
                           colour = colours_seg, alpha = alpha_seg)
 
-  # # Note from Steph: My preference for grid lines (can leave out vertical if wanted):
-  # # Extend all the way from top to bottom (no gap)
-  # abline(v = seq(1930, 2025, 10), lty = 3, col = grey(0.8))
-  # abline(h = pretty(data_rg_sp$count[cond]), lty = 3, col = grey(0.8))
-  
   # plot species counts
   for(sp in species_lines){
     # sp <- species[1]
     cond <- data_rg_sp$region == rg & data_rg_sp$species == sp
-    lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], lwd = 2, 
+    lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], #lwd = 2, # SP: too thick IMO with so many lines. hard to see
           col = colours_sp[sp])
   }
 
@@ -248,11 +254,25 @@ for(rg in regions){
     legend("left",species, col = colours_sp, lwd = 2, 
            bty = "n", box.lwd = 0, box.col = "white")
   }
-}
+} # end rg
 if(figures_print){
   dev.off()
 }
 
+#-----
+# Even/odd pink monitoring across regions: which is dominant?
+par(mfrow = c(3,3), mar = c(3,4,1,1), oma = c(2,2,1,0))
+z <- data_rg_sp %>% filter(species == "Pink")
+for(r in 1:length(regions)){
+  zr <- z %>% filter(region == regions[r])
+  if(dim(zr)[1] > 0){
+  plot(zr$year, zr$count, "o", col = colours_rg[r], main = regions[r], pch = 19, xlab = "", ylab = "")
+    points(zr$year[zr$year %in% seq(1920, 2022, 2)], zr$count[zr$year %in% seq(1920, 2022, 2)], pch = 19, cex = 0.5,col = "white")
+  abline(v = seq(1920, 2022, 10), lwd = 0.5, col = grey(0.6), lty = 2)
+  }
+}
+mtext(side = 2, outer = TRUE, "Number of pink salmon populations monitored")
+legend(2040, 50, pch = c(1, 19), c("Even year", "Odd year"), xpd = NA, bty = "n")
 #
 #
 # Figure 3: trends 1986 to 2022 per regions > species ---------
