@@ -75,7 +75,10 @@ length(unique(nuseds$POP_ID))   # 6009
 cond <- is.na(nuseds$cuid)
 CU_NAME_noCuid <- nuseds[cond,c("region","SPECIES","CU_NAME")] |> unique()
 CU_NAME_noCuid 
-length(CU_NAME_noCuid$CU_NAME) # 22 of them
+length(CU_NAME_noCuid$CU_NAME) # 22 CUS
+
+# How many "populations" do not have a CUID?
+length(unique(nuseds$POP_ID[is.na(nuseds$cuid)]))
 
 # remove them
 cond <- !is.na(nuseds$cuid)
