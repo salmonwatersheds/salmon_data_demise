@@ -161,17 +161,30 @@ years_even <- years[years %% 2 == 0]
 
 cond_odd <- nuseds$Year %in% years_odd
 cond_even <- nuseds$Year %in% years_even
+# SP: I don't understand why these counts have to be separated for even and odd years?
 
 count_odd <- sapply(years_odd,function(y){
   cond <- nuseds$Year == y
   out <- length(unique(nuseds$streamid[cond]))
   return(out)
 })
+
 count_even <- sapply(years_even,function(y){
   cond <- nuseds$Year == y
   out <- length(unique(nuseds$streamid[cond]))
   return(out)
 })
+
+# SP: added for curiosity
+# count_POPID <- sapply(years,function(y){
+#   cond <- nuseds$Year == y
+#   out <- length(unique(nuseds$POP_ID[cond]))
+#   return(out)
+# })
+# plot(years, count_POPID, "o")
+# points(years_even, count_even, col = 2, pch = 19, cex = 0.6)
+# points(years_odd, count_odd, col = 4, pch = 19, cex = 0.6)
+# legend("topleft", pch = c(1, 19, 19), col = c(1,2,4), c("unique POP_ID", "even streamid", "odd streamid"))
 
 # proportion of population assessed 
 nb_pop_total_odd <- length(unique(nuseds$streamid[cond_odd]))
@@ -562,10 +575,109 @@ summary$site_nb <- sapply(summary$region,function(rg){
   return(nrow(unique(nuseds[cond,c("SYSTEM_SITE","X_LONGT","Y_LAT")])))
 })
 
+# Proportion of populations in the last decade with estimates (2013-2022)
+summary$prop_pop_recent <- sapply(summary$region, function(rg){
+  cond <- nuseds$region == rg
+  return(length(unique(nuseds$streamid[nuseds$region == rg & nuseds$Year >= 2013]))/length(unique(nuseds$streamid[cond])))
+})
+
+# Proportion of populations in the peak (1980-1989) with estimates
+summary$prop_pop_80s <- sapply(summary$region, function(rg){
+  cond <- nuseds$region == rg
+  return(length(unique(nuseds$streamid[nuseds$region == rg & nuseds$Year %in% c(1980:1989)]))/length(unique(nuseds$streamid[cond])))
+})
+
 sum_sum <- colSums(summary[,c("CU_nb","pop_nb","site_nb")])
 summary <- rbind(summary,
-                 c("Total",sum_sum))
+                 c("Total or max",sum_sum, max(summary$prop_pop_recent), max(summary$prop_pop_80s)))
 
+range(summary$prop_pop_recent)
+range(summary$prop_pop_80s)
+
+# Across all populations all regions
+length(unique(nuseds$streamid[nuseds$Year %in% c(1980:1989)]))/length(unique(nuseds$streamid))
+length(unique(nuseds$streamid[nuseds$Year %in% c(2013:2022)]))/length(unique(nuseds$streamid))
+
+# Compared to indicator stocks
+
+nuseds %>% filter(streamid %in% unique(nuseds$streamid[grep("KITSUMKALUM", nuseds$SYSTEM_SITE)])) %>%
+  group_by(streamid) %>%
+  summarise(SPECIES = unique(SPECIES), n = sum(!is.na(MAX_ESTIMATE)), cu_name_pse = unique(cu_name_pse), SYSTEM_SITE = unique(SYSTEM_SITE))
+
+ctc_indicators <- c(1438, 1542, 1541, 1540, 2017, 1497, 1494, 1440, 1518, 1504, 1519, 1463, 1474, 1452, 1948, 1443, 1978)
+# NWVI indicators:
+# Colonial-Cayeagle, 1438
+# Tashish, 1542
+# Artlish, and 1541
+# Kaouk 1540
+# SWVI indicators:
+#   Bedwell-Ursus, 2017
+# Megin,  1497
+# Moyeha 1494
+# Marble (Area 27); 1440
+# Leiner, 1518
+# Burman 1504
+# Tahsis (Area 25); 1519
+# Sarita, 1463
+# Nahmint (Area 23); 1474
+# San Juan (Area 20).1452
+# Phillips River 1948
+# Cowichan 1443
+# Nanaimo (fall) 1978
+
+nuseds_vimiCK <- nuseds %>% filter(region == "Vancouver Island & Mainland Inlets", SPECIES == "Chinook")
+length(unique(nuseds_vimiCK$streamid)) # 263
+ctc_indicators %in% nuseds_vimiCK$streamid
+
+dat <- nuseds_vimiCK %>% 
+  group_by(streamid) %>%
+  summarise(nYearsData = length(streamid), 
+            meanSpawners = round(exp(mean(log(MAX_ESTIMATE), na.rm = TRUE)))) %>%
+  arrange(-nYearsData)
+
+plot(c(1926,2022), c(1,100), "n")
+for(i in 1:263){
+  z <- nuseds_vimiCK %>% filter(streamid == dat$streamid[i])
+  points(z$Year, rep(i, length(z$Year)), col = ifelse(dat$streamid[i] %in% ctc_indicators, 2, 1), pch = ifelse(dat$streamid[i] %in% ctc_indicators, 19, 1), cex = 0.5)
+}
+abline(h = seq(0, 100, 10))
+dat$ctc_indicator <- dat$streamid %in% ctc_indicators
+
+dat[1:10,]
+sum(dat$streamid[1:30] %in% ctc_indicators)
+
+14/17
+30/263
+#----------------_#
+# Logisic model is it monitored or not?
+nuseds_full <- data.frame(
+  streamid = rep(unique(nuseds$streamid), each = length(years)),
+  Year = rep(years, length(unique(nuseds$streamid)))) %>%
+  left_join(nuseds %>% select(streamid, Year, MAX_ESTIMATE))
+
+nuseds_full$monitored <- as.numeric(!is.na(nuseds_full$MAX_ESTIMATE))
+
+nuseds_full <- nuseds_full %>% left_join(
+  nuseds_full %>% 
+    group_by(streamid) %>% 
+    summarise(avg_spawners = round(exp(mean(log(MAX_ESTIMATE), na.rm = TRUE))))
+)
+
+fit <- glm(monitored ~ Year * avg_spawners, data = nuseds_full[nuseds_full$Year > 1985,], family = binomial(link = "logit"))
+summary(fit)
+
+# Predict through time
+dummy_dat <- data.frame(
+  Year = rep(years, 3),
+  avg_spawners = rep(c(1000, 10000, 1000000), each = length(years))
+)
+
+pred <- predict.glm(fit, newdata = dummy_dat,
+            type = "response")
+
+plot(years, pred[which(dummy_dat$avg_spawners == 1000)], "l")
+lines(years, pred[which(dummy_dat$avg_spawners == 10000)], col = 2)
+lines(years, pred[which(dummy_dat$avg_spawners == 100000)], col = 4)
 #
 # Export excel file -------
 #
