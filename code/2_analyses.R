@@ -437,7 +437,7 @@ if(figures_print){
 
 alpha <- .7
 
-lwd <- 1
+lwd <- .5
 
 y_min <- min(data_total$year) - 6
 

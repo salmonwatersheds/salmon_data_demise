@@ -66,11 +66,16 @@ sum(is.na(nuseds$streamid)) # 1011
 sum(is.na(nuseds$cuid))     # 1011
 sum(is.na(nuseds$cuid)) / nrow(nuseds) # 0.006702511
 sum(is.na(nuseds$POP_ID))   # 0
+sum(is.na(nuseds$GFE_ID))   # 0
+
+length(unique(nuseds$streamid)) # 6767
+length(unique(nuseds$POP_ID))   # 6009
 
 # Check CU_NAMEs without a cuid
 cond <- is.na(nuseds$cuid)
 CU_NAME_noCuid <- nuseds[cond,c("region","SPECIES","CU_NAME")] |> unique()
-CU_NAME_noCuid # 22 of them
+CU_NAME_noCuid 
+length(CU_NAME_noCuid$CU_NAME) # 22 of them
 
 # remove them
 cond <- !is.na(nuseds$cuid)
@@ -173,7 +178,7 @@ count_even <- sapply(years_even,function(y){
   return(out)
 })
 
-# proportion of population assessed 
+# proportion of populations assessed 
 nb_pop_total_odd <- length(unique(nuseds$streamid[cond_odd]))
 proportion_odd <- count_odd / nb_pop_total_odd
 nb_pop_total_even <- length(unique(nuseds$streamid[cond_even]))
