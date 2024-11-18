@@ -733,3 +733,13 @@ maxYr <- nuseds_vimiCK %>% filter(streamid %in% ctc_indicators == FALSE) %>%
 
 # What percent have not been monitored in the past decade?
 length(which(maxYr$`max(Year)` < 2013))/length(maxYr$`max(Year)`)
+
+#------------------------------------------------------------------------------
+# Where is there a potential reporting bias?
+#------------------------------------------------------------------------------
+
+nuseds_YT <- nuseds %>% filter(region == "Yukon") %>%
+  group_by(streamid) %>%
+  summarise(maxYr = max(Year), SYSTEM_SITE = unique(SYSTEM_SITE))
+
+max(nuseds_YT$maxYr)
