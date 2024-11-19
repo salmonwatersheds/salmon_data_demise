@@ -248,6 +248,8 @@ for(rg in regions){
   # rg <- regions[5]
   cond_rg <- nuseds$region_survey == rg
   
+  cond_rg_CU <- nuseds$region == rg
+  
   cond_odd <- nuseds$Year %in% years_odd
   cond_even <- nuseds$Year %in% years_even
   
@@ -273,13 +275,13 @@ for(rg in regions){
   proportion_even <- count_even / nb_pop_total_even
   
   # proportion CUs assessed
-  nb_CU_total_odd <- length(unique(nuseds[cond_rg & cond_odd,]$cuid))
+  nb_CU_total_odd <- length(unique(nuseds[cond_rg_CU & cond_odd,]$cuid))
   proportion_CU_odd <- sapply(years_odd,function(y){
     cond <- nuseds$region == rg & nuseds$Year == y
     out <- length(unique(nuseds$cuid[cond]))
     return(out / nb_CU_total_odd)
   })
-  nb_CU_total_even <- length(unique(nuseds[cond_rg & cond_even,]$cuid))
+  nb_CU_total_even <- length(unique(nuseds[cond_rg_CU & cond_even,]$cuid))
   proportion_CU_even <- sapply(years_even,function(y){
     cond <- nuseds$region == rg & nuseds$Year == y
     out <- length(unique(nuseds$cuid[cond]))

@@ -126,6 +126,7 @@ tapply(nuseds_loc$SPECIES[which(nuseds_loc$region_cu != nuseds_loc$region_survey
 
 nuseds_loc %>%
   filter(region_cu != region_survey, SPECIES == "Coho")
+
 #------------------------------------------------------------------------------
 # Write CSV of streamid <-> region_survey
 #------------------------------------------------------------------------------
