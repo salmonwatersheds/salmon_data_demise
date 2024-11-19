@@ -102,6 +102,14 @@ nuseds$region |> unique() |> length()
 nuseds$cuid |> unique() |> length()    # 389
 nuseds$streamid |> unique() |> length()    # 6766
 
+# Merge region_survey assignment from 0_assign-regions.R that assigns PSE region
+# to survey sites based on exact location (rather than CU assignment)
+region_survey <- read.csv("data_input/region_survey.csv")
+nuseds <- nuseds %>% left_join(region_survey)
+
+# Check there are no NAs
+sum(is.na(nuseds$region_survey))
+
 #'* Import the catch data from the NPAFC Statistics *
 # Metadata: 
 # https://www.npafc.org/wp-content/uploads/Statistics/Statistics-Metadata-Report-June2024.pdf
@@ -233,12 +241,12 @@ identical(dataExport$count,dataExport_2$count) # TRUE
 
 
 #'* Count of surveys per region *
-regions <- nuseds$region |> unique()
+regions <- nuseds$region_survey |> unique()
 
 dataExport <- NULL
 for(rg in regions){
   # rg <- regions[5]
-  cond_rg <- nuseds$region == rg
+  cond_rg <- nuseds$region_survey == rg
   
   cond_odd <- nuseds$Year %in% years_odd
   cond_even <- nuseds$Year %in% years_even
@@ -407,19 +415,22 @@ Number_Prop_populationsAssessed_species <- dataExport
 
 
 #'* Count of surveys per region > species *
-regions <- nuseds$region |> unique()
+regions <- nuseds$region_survey |> unique()
 
 dataExport <- NULL
 for(rg in regions){
   # rg <- regions[1]
   # rg <- "Central Coast"
-  cond_rg <- nuseds$region == rg
+  cond_rg <- nuseds$region_survey == rg
   species <- nuseds$SPECIES[cond_rg] |> unique()
   
   for(sp in species){
     # sp <- species[1]
     # sp <- "Pink"
-    cond_rg_sp <- nuseds$region == rg & nuseds$SPECIES == sp
+    cond_rg_sp <- nuseds$region_survey == rg & nuseds$SPECIES == sp
+    
+    # Note that what dealing with CUs we use region and not region_survey
+    cond_rg_sp_CUs <- nuseds$region == rg & nuseds$SPECIES == sp
     
     # count
     if(sp == "Pink"){
@@ -429,14 +440,14 @@ for(rg in regions){
       
       count_odd <- sapply(years_odd, function(y){
         # y <- dataExport$year[50]
-        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
+        cond <- nuseds$region_survey == rg & nuseds$SPECIES == sp & nuseds$Year == y &
           grepl("odd",nuseds$cu_name_pse)
         out <- length(nuseds$streamid[cond])
         return(out)
       })
       count_even <- sapply(years_even, function(y){
         # y <- dataExport$year[50]
-        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
+        cond <- nuseds$region_survey == rg & nuseds$SPECIES == sp & nuseds$Year == y &
           grepl("even",nuseds$cu_name_pse)
         out <- length(nuseds$streamid[cond])
         return(out)
@@ -448,15 +459,19 @@ for(rg in regions){
       nb_pop_total_even <- length(unique(nuseds[cond_rg_sp_even,]$streamid))
       proportion_even <- count_even / nb_pop_total_even
       
+      #---
       # proportion CUs assessed
-      nb_CU_total_odd <- length(unique(nuseds[cond_rg_sp_odd,]$cuid))
+      #---
+      # Note that what dealing with CUs we use region and not region_survey
+    
+      nb_CU_total_odd <- length(unique(nuseds$cuid[which(nuseds$region == rg & nuseds$SPECIES == sp & grepl("odd", nuseds$cu_name_pse))]))
       proportion_CU_odd <- sapply(years_odd,function(y){
         cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
           grepl("odd",nuseds$cu_name_pse)
         out <- length(unique(nuseds$cuid[cond]))
         return(out / nb_CU_total_odd)
       })
-      nb_CU_total_even <- length(unique(nuseds[cond_rg_sp_even,]$cuid))
+      nb_CU_total_even <- length(unique(nuseds$cuid[which(nuseds$region == rg & nuseds$SPECIES == sp & grepl("even", nuseds$cu_name_pse))]))
       proportion_CU_even <- sapply(years_even,function(y){
         cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
           grepl("even",nuseds$cu_name_pse)
@@ -479,7 +494,7 @@ for(rg in regions){
       
       count <- sapply(years, function(y){
         # y <- dataExport$year[50]
-        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y
+        cond <- nuseds$region_survey == rg & nuseds$SPECIES == sp & nuseds$Year == y
         out <- length(nuseds$streamid[cond])
         if(out != length(unique(nuseds$streamid[cond]))){
           print("Duplicated streamid TO INVESTIGATE")
@@ -492,9 +507,9 @@ for(rg in regions){
       proportion <- count / nb_pop_total
       
       # proportion CUs assessed
-      nb_CU_total <- length(unique(nuseds[cond_rg_sp,]$cuid))
+      nb_CU_total <- length(unique(nuseds[cond_rg_sp_CUs,]$cuid))
       proportion_CU <- sapply(years,function(y){
-        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y
+        cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y # Not region-survey!!!
         out <- length(unique(nuseds$cuid[cond]))
         return(out / nb_CU_total)
       })
@@ -546,7 +561,7 @@ for(sp in unique(catch$Species)){
 
 Number_catches_species_total <- dataExport
 
-# write.csv(Number_Prop_populationsAssessed_regions_species,
+# write.csv(Number_catches_species_total,
 #           paste0(wd_data_output,"/Number_catches_species_total.csv"),
 #           row.names = F)
 
@@ -564,24 +579,24 @@ summary$CU_nb <- sapply(summary$region,function(rg){
 })
 
 summary$pop_nb <- sapply(summary$region,function(rg){
-  cond <- nuseds$region == rg
+  cond <- nuseds$region_survey == rg # Changed to region_survey
   return(length(unique(nuseds$streamid[cond])))
 })
 
 summary$site_nb <- sapply(summary$region,function(rg){
-  cond <- nuseds$region == rg
+  cond <- nuseds$region_survey == rg
   return(nrow(unique(nuseds[cond,c("SYSTEM_SITE","X_LONGT","Y_LAT")])))
 })
 
 # Proportion of populations in the last decade with estimates (2013-2022)
 summary$prop_pop_recent <- sapply(summary$region, function(rg){
-  cond <- nuseds$region == rg
+  cond <- nuseds$region_survey == rg
   return(round(length(unique(nuseds$streamid[nuseds$region == rg & nuseds$Year >= 2013]))/length(unique(nuseds$streamid[cond])), 3))
 })
 
 # Proportion of populations in the peak (1980-1989) with estimates
 summary$prop_pop_80s <- sapply(summary$region, function(rg){
-  cond <- nuseds$region == rg
+  cond <- nuseds$region_survey == rg
   return(round(length(unique(nuseds$streamid[nuseds$region == rg & nuseds$Year %in% c(1980:1989)]))/length(unique(nuseds$streamid[cond])), 3))
 })
 
@@ -591,6 +606,10 @@ summary <- rbind(summary,
                    round(length(unique(nuseds$streamid[nuseds$Year %in% c(2013:2022)]))/length(unique(nuseds$streamid)), 3), # over all regions
                    round(length(unique(nuseds$streamid[nuseds$Year %in% c(1980:1989)]))/length(unique(nuseds$streamid)), 3) # over all regions
                  ))
+
+# write.csv(summary,
+#           paste0(wd_data_output,"/summary.csv"),
+#           row.names = F)
 
 # Export excel file -------
 #
@@ -654,12 +673,13 @@ streams
 
 
 #------------------------------------------------------------------------------
-# Average loss of populations per yeat since 1986
+# Average loss of populations per year since 1986
 #------------------------------------------------------------------------------
 
-catch_total <- read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"),
+data_total <- read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"),
                          sheet = "populationsAssessed_total") |> as.data.frame()
 
+data_total <- read.csv("data_output/Number_Prop_populationsAssessed_total.csv")
 cond_min <- 1986 <= data_total$year
 lm <- lm(data_total$count[cond_min] ~ data_total$year[cond_min])
 lm
