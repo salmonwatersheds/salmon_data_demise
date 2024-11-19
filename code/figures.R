@@ -38,6 +38,35 @@ if(1 == 2){
 
 
 ###############################################################################
+# Figure Sx: Even/odd monitoring by region
+###############################################################################
+colours_rg <- paletteer_d("ltc::crbhits",n = length(regions)) # SP: not in love with this one; feel free to change
+names(colours_rg) <- regions
+
+data_pk <- read.csv("data_output/Number_Prop_populationsAssessed_regions_species.csv") %>%
+  filter(species == "Pink")
+
+# To deal with odd and even Pink CUs
+years <- sort(unique(data_pk$year))
+years_odd <- years[years %% 2 == 1]
+years_even <- years[years %% 2 == 0]
+
+
+regions_pk <- c("Haida Gwaii", "Nass", "Skeena", "Central Coast", "Vancouver Island & Mainland Inlets", "Fraser")
+quartz(width = 7.615, height = 7, pointsize = 10)
+png(filename = "PinkMonitoring.png", width = 7.615, height = 7, units = "in", res = 300, pointsize = 10)
+par(mfrow = c(3,2), mar = c(4,4,2,1), oma = c(0,2,1,0))
+for(r in 1:6){
+  data_pk.r <- data_pk %>% filter(region == regions_pk[r])
+  plot(data_pk.r$year, data_pk.r$count, "l", col = colours_rg[regions_pk[r]], xlab = "", ylab = "", xlim = c(1950, 2023))
+  abline(h = pretty(data_pk.r$count), lty = 2, col = "#00000030")
+  abline(v = seq(1950, 2023, 10), lty = 2, col = "#00000030")
+  points(data_pk.r$year, data_pk.r$count, pch = ifelse(data_pk.r$year %in% years_even, 19, 21), col = colours_rg[regions_pk[r]], bg = "white")
+  mtext(side = 3, line = 0.5, paste0(letters[r], ") ", regions_pk[r]), adj = 0)
+}
+mtext(side = 2, outer = TRUE, "Number of populations monitored")
+dev.off()
+###############################################################################
 # Figure 2: Number of populations by region/species
 ###############################################################################
 
