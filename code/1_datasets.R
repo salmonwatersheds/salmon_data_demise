@@ -27,28 +27,22 @@ library(xlsx) # Package doesn't work..on mac?
 library(readxl)
 source("code/functions.R")
 
-# **** TEMPORARY (i.e. to define a reproduceable universal workflow) ***
-# Bruno Dropbox
-wd_data_input_PSF <- "C:/Users/bcarturan/Salmon Watersheds Dropbox/Bruno Carturan/X Drive/1_PROJECTS/1_Active/Population Methods and Analysis/population-indicators/spawner-surveys/output"
-
-# Steph Dropbox
-wd_data_input_PSF <- "/Users/stephaniepeacock/Salmon\ Watersheds\ Dropbox/Stephanie\ Peacock/X\ Drive/1_PROJECTS/1_Active/Population\ Methods\ and\ Analysis/population-indicators/spawner-surveys/output"
-
 # Import source files ------
 
+wd_data_input <- paste0(getwd(),"/data_input")
+
+
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
-#' Note: the choice was made to not use the cleaned and combined nuseds file 
-#' NuSEDS_escapement_data_collated_DATE.csv because it does not contain the region.
-#' Providing the region requires to match cuid which is hard and was done to 
-#' produce nuseds_cuid_streamid_DATE.csv, which is the file that is used instead.
-#' It contains extra fields not needed.
-nuseds <- import_mostRecent_file_fun(wd = paste0(wd_data_input_PSF,"/archive"),
-                                     pattern = "nuseds_cuid_streamid")
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
+#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' /data_input folder.
+
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_20240419.csv"), header = T)
 head(nuseds)
 
 #' IMPORTANT NOTE: streamid = unique cuid & GFE_ID combination
 #' The name 'streamid' is miss-leading as it seems to characterise a stream only
-#' but it characterise a unique CU & location association.
+#' but it characterises a unique CU & location association.
 
 # Remove rows with NAs
 sum(is.na(nuseds$MAX_ESTIMATE)) # 155984

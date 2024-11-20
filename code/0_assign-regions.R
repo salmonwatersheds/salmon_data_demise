@@ -5,7 +5,7 @@
 
 library(sf)
 library(dplyr)
-library(PNWColors)
+# library(PNWColors)
 source("code/functions.R")
 
 #------------------------------------------------------------------------------
