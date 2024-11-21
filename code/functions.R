@@ -224,6 +224,13 @@ colour_transparency_fun <- function(colours,alpha = 0.35){
 segments_horizontal_fun <- function(y_range, x_range,
                                     nb_lines = 5,       # if length(grid_vals) < nb_lines--> add lines in between each values in grid_vals
                                     colour = "grey50", alpha = 1, lwd = 2, lty = 1){
+  
+  divide_10 <- F
+  if(nchar(ceiling(y_range[2])) == 1){
+    y_range[2] <- y_range[2] * 10 
+    divide_10 <- T
+  }
+  
   digits_nb <- nchar(ceiling(y_range[2]))
   grid_max <- substr(x = ceiling(y_range[2]), start = 1, stop = 1)
   factor <- paste(c(1,rep(0,(digits_nb - 1))), collapse = "") |> as.numeric()
@@ -239,10 +246,19 @@ segments_horizontal_fun <- function(y_range, x_range,
     grid_vals <- grid_vals[grid_vals %% 2 == 0]
     grid_vals <- grid_vals * factor / 10
   }
+  
+  if(divide_10){
+    grid_vals <- grid_vals / 10 
+  }
+  
   segments(x0 = rep(x_range[1],length(grid_vals)),
            x1 = rep(x_range[2],length(grid_vals)),
            y0 = grid_vals, y1 = grid_vals,
            lwd = lwd, lty = lty,
            col = colour_transparency_fun(colour,alpha = alpha))
 }
+
+
+
+
 

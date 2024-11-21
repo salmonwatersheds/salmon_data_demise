@@ -174,7 +174,7 @@ if(figures_print){
 # FIGURE 2: Number populations monitored per years per region > species --------
 #
 
-lwd <- 0.5
+lwd <- .5 # for the grid segments
 
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_populations_monitored_regions_species.jpeg"),
@@ -184,7 +184,7 @@ if(figures_print){
 m <- matrix(c(1:length(regions)), ncol = 3, byrow = T)
 layout(m, widths =  c(1.12,1,1), heights = c(1.1,1,1.27))
 for(rg in regions){
-  # rg <- regions[7]
+  # rg <- regions[9]
   i <- which(rg == regions)
   side1 <- side3 <- .5
   side2 <- 2
@@ -240,7 +240,7 @@ for(rg in regions){
   for(sp in species_lines){
     # sp <- species[1]
     cond <- data_rg_sp$region == rg & data_rg_sp$species == sp
-    lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], #lwd = 2, # SP: too thick IMO with so many lines. hard to see
+    lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], lwd = 1.5, # SP: too thick IMO with so many lines. hard to see
           col = colours_sp[sp])
   }
 
@@ -469,7 +469,7 @@ if(figures_print){
 m <- matrix(1:3, ncol = 1)
 layout(m, heights = c(1,1,1.2))
 #' Proportion of the total number of CUs with at least one population monitored:
-par(mar = c(.5,4.5,1,.5))
+par(mar = c(0.5,4.5,0.5,.5))
 plot(NA, las = 1, ylim = c(0,1.1), xlim = c(y_min, max(data_total$year)),
      ylab = "Proportion of CUs monitored", xlab = "", xaxt = 'n')
 # vertical segments
@@ -513,7 +513,7 @@ legend("topleft","b)", bty = "n")
 legend("topleft",c("",regions_here), col = c(NA,colours_rg[regions_here]), lwd = 2, bty = "n")
 
 # Proportion of CUs monitored per year for each species:
-par(mar = c(4.5,4.5,1,.5))
+par(mar = c(4.5,4.5,0.5,0.5))
 plot(NA, las = 1, ylim = c(0,1.1), xlim =  c(y_min, max(data_total$year)),
      ylab = "Proportion of CUs monitored", xlab = "Year")
 #
@@ -542,8 +542,6 @@ if(figures_print){
 #
 # FIGURE S1: Number populations monitored per years per species > region ------
 #
-
-lwd <- .5
 
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_populations_monitored_species_regions.jpeg"),
@@ -602,7 +600,7 @@ for(sp in species){
   for(rg in regions){
     # rg <- regions[1]
     cond <- data_rg_sp$region == rg & data_rg_sp$species == sp
-    lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], lwd = 2, 
+    lines(x = data_rg_sp$year[cond], y = data_rg_sp$count[cond], lwd = 1.5, 
           col = colours_rg[rg])
   }
   
@@ -635,7 +633,7 @@ if(figures_print){
 m <- matrix(1:3, ncol = 1)
 layout(m, heights = c(1,1,1.2))
 #' Proportion of the total number of CUs with at least one population monitored:
-par(mar = c(.5,4.5,1,.5))
+par(mar = c(0.5,4.5,0.5,.5))
 plot(NA, las = 1, ylim = c(0,1), xlim = c(y_min,max(data_total$year)),
      ylab = "Proportion of populations monitored", xlab = "", xaxt = 'n')
 # vertical segments
@@ -676,7 +674,7 @@ legend("topleft","b)", bty = "n")
 legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = "n")
 
 # Proportion of CUs monitored per year for each species:
-par(mar = c(4.5,4.5,1,.5))
+par(mar = c(4.5,4.5,0.5,.5))
 plot(NA, las = 1, ylim = c(0,1), xlim = c(y_min,max(data_total$year)),
      ylab = "Proportion of populations monitored", xlab = "Year")
 # vertical segments
