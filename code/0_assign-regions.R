@@ -141,6 +141,8 @@ output <- nuseds_loc %>%
 
 write.csv(output, file = "data_output/region_survey.csv", row.names = FALSE)
 
+nuseds$region_survey <- nuseds_loc$region_survey[match(nuseds$streamid, nuseds_loc$streamid)]
+
 #------------------------------------------------------------------------------
 # Plot regions and monitoring locations
 #------------------------------------------------------------------------------
@@ -164,7 +166,23 @@ length(mon_decade$streamid)/length(unique(nuseds$streamid)) # 37%, right
 colours_rg <- c("#CBC106", "#27993C", "#1C6838", "#8EBCB5", "#389CA7", "#4D83AB", "#CB7B26", "#BF565D", "#9E163C")
 names(colours_rg) <- regions
 
+loc_monitored <- nuseds %>%
+  filter(!is.na(MAX_ESTIMATE), !is.na(streamid), streamid %in% mon_decade$streamid) %>%
+  group_by(paste(latitude_final, longitude_final)) %>%
+  reframe(lat = latitude_final, lon = longitude_final, region = region_survey) %>%
+  distinct() %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4269)
 
+loc_NOTmonitored <- nuseds %>%
+  filter(!is.na(MAX_ESTIMATE), !is.na(streamid), streamid %in% mon_decade$streamid == FALSE) %>%
+  group_by(paste(latitude_final, longitude_final)) %>%
+  reframe(lat = latitude_final, lon = longitude_final, region = region_survey) %>%
+  distinct() %>%
+  filter(`paste(latitude_final, longitude_final)` %in% loc_monitored$`paste(latitude_final, longitude_final)` == FALSE) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4269)
+
+# Doesn't quite add up to 2300..perhaps because I didn't distinguish different SYS_name at the same lat/lon?
+# Leav it for now; minor
 jpeg("figures/map.jpeg",
      width = 660, height = 685, units = 'px')
 par(bg = 'white', mar = c(4,4,1,1), oma = rep(0, 4))
@@ -177,4 +195,23 @@ legend("topright", pch = 19, col = colours_rg, legend = names(colours_rg), bty =
 
 dev.off()
 
+# Separating monitored and not monitored in the past 10 years
+par(bg = 'white', mar = c(4,4,1,1), oma = rep(0, 4))
+plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-140, -118), ylim = c(48.5, 66), bg = grey(0.8))
+plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
+plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
+plot(st_geometry(loc_NOTmonitored), col = colours_rg[loc_NOTmonitored$region], bg = "white", pch = 21, cex = 0.6, add = TRUE)
+plot(st_geometry(loc_monitored), col = colours_rg[loc_monitored$region], pch = 19, cex = 0.5, add = TRUE)
+plot(st_geometry(bbp), col = NA, border = 1, add = TRUE)
 
+# Inset
+plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-132, -119), ylim = c(49, 55), bg = grey(0.8))
+plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
+plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
+plot(st_geometry(loc_NOTmonitored), col = colours_rg[loc_NOTmonitored$region], bg = "white", pch = 21, cex = 0.6, add = TRUE)
+plot(st_geometry(loc_monitored), col = colours_rg[loc_monitored$region], pch = 19, cex = 0.5, add = TRUE)
+legend("topright", pch = c(21, 18), pt.cex = c(0.8, 0.8), bty = "n", legend = c("Not monitored in 2013-2022", "Monitored at least once in 2013-2022"), cex = 0.8)
+
+bbox_coords <- c(-133.3677,-117.6323, 48.7600,  55.2400)
+names(bbox_coords) <- c("xmin","ymin","xmax","ymax")
+bbp <- st_as_sfc(st_bbox(bbox_coords), crs = 4269)
