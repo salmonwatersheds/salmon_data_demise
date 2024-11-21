@@ -98,7 +98,7 @@ nuseds$streamid |> unique() |> length()    # 6766
 
 #'* Import the file where streamid are associated to region *
 #' The file is generated in 0_assign-regions.R
-region_survey <- read.csv("data_input/region_survey.csv")
+region_survey <- read.csv("data_output/region_survey.csv")
 head(region_survey)
 
 # Merge region_survey assignment from 0_assign-regions.R that assigns PSE region

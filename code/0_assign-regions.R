@@ -5,24 +5,27 @@
 
 library(sf)
 library(dplyr)
-# library(PNWColors)
 source("code/functions.R")
+
+wd_data_input <- paste0(getwd(),"/data_input")
+wd_data_output <- paste0(getwd(),"/data_output")
 
 #------------------------------------------------------------------------------
 # Read in data and create spatial variables
 #------------------------------------------------------------------------------
 
 # Load region shapefile
-map_root <- "~/Salmon Watersheds Dropbox/Stephanie Peacock/X Drive/5_DATA/Mapping/"
-regions_spat <- st_read(paste0(map_root, "study areas/shapefiles/PSE_regions/se_boundary_regions.shp")) %>%
+regions_spat <- st_read(paste0(wd_data_input,"/se_boundary_regions.shp")) %>%
   st_transform(crs = 4269)
+
 sf_use_s2(FALSE)
 
-# Load NuSEDS spawner surveys (incl. lat/lon)
-wd_data_input_PSF <- "/Users/stephaniepeacock/Salmon\ Watersheds\ Dropbox/Stephanie\ Peacock/X\ Drive/1_PROJECTS/1_Active/Population\ Methods\ and\ Analysis/population-indicators/spawner-surveys/output"
+#' Import the cleaned NuSEDS data matched with PSF cuid and streamid
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
+#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' /data_input folder.
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_20240419.csv"), header = T)
 
-nuseds <- import_mostRecent_file_fun(wd = paste0(wd_data_input_PSF,"/archive"),
-                                      pattern = "nuseds_cuid_streamid")
 # Create spatial variable of survey sites
 nuseds_loc <- nuseds %>% 
   filter(!is.na(cuid)) %>%
@@ -131,4 +134,9 @@ nuseds_loc %>%
 # Write CSV of streamid <-> region_survey
 #------------------------------------------------------------------------------
 
-write.csv(nuseds_loc %>% select(streamid, region_survey), file = "data_input/region_survey.csv", row.names = FALSE)
+output <- nuseds_loc %>% 
+  as.data.frame() %>% 
+  select(streamid, region_survey)
+  
+write.csv(output, file = "data_output/region_survey.csv", row.names = FALSE)
+
