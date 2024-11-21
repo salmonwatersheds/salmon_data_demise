@@ -5,10 +5,12 @@
 
 figures/archives
 figures/archives 2
+figures/archives 3
 figures_EMA
 figures/Number_populations_monitored_catches.jpeg
 
 data_input/nuseds_cuid_streamid_20240419.csv
+data_input/nuseds_cuid_streamid_2024-11-21.csv
 
 ignore
 

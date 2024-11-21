@@ -31,21 +31,26 @@ source("code/functions.R")
 
 wd_data_input <- paste0(getwd(),"/data_input")
 
-
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
 #' must be downloaded at https://zenodo.org/records/14194639 and placed in the
 #' /data_input folder.
 
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_20240419.csv"), header = T)
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2024-11-21.csv"), header = T)
+# nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_20240419.csv"), header = T)
 head(nuseds)
+nrow(nuseds) # 306823
+
+cond <- nuseds$region == "Northern Transboundary"
+nuseds$region[cond] <- "Transboundary"
 
 #' IMPORTANT NOTE: streamid = unique cuid & GFE_ID combination
 #' The name 'streamid' is miss-leading as it seems to characterise a stream only
 #' but it characterises a unique CU & location association.
 
 # Remove rows with NAs
-sum(is.na(nuseds$MAX_ESTIMATE)) # 155984
+sum(is.na(nuseds$MAX_ESTIMATE)) # 152992 155984
+sum(nuseds$MAX_ESTIMATE == 0 & !is.na(nuseds$MAX_ESTIMATE)) # 2992
 nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
 
 colToKeep <- c("region","SPECIES","cu_name_pse","cuid","POP_ID","cu_name_dfo","CU_NAME",
@@ -56,14 +61,15 @@ colToKeep <- c("region","SPECIES","cu_name_pse","cuid","POP_ID","cu_name_dfo","C
 nuseds <- nuseds[,colToKeep] 
 
 # Some checks
-sum(is.na(nuseds$streamid)) # 1011
-sum(is.na(nuseds$cuid))     # 1011
-sum(is.na(nuseds$cuid)) / nrow(nuseds) # 0.006702511
+sum(is.na(nuseds$streamid)) # 1102 1011
+sum(is.na(nuseds$cuid))     # 1102 1011
+sum(is.na(nuseds$cuid)) / nrow(nuseds) * 100 # 0.716 0.67
 sum(is.na(nuseds$POP_ID))   # 0
 sum(is.na(nuseds$GFE_ID))   # 0
 
-length(unique(nuseds$streamid)) # 6767
-length(unique(nuseds$POP_ID))   # 6009
+length(unique(nuseds$cuid))     # 390 390
+length(unique(nuseds$streamid)) # 6767 6767
+length(unique(nuseds$POP_ID))   # 6009 6009
 
 # Check CU_NAMEs without a cuid
 cond <- is.na(nuseds$cuid)
@@ -77,12 +83,13 @@ length(unique(nuseds$POP_ID[is.na(nuseds$cuid)])) # 82
 # remove them
 cond <- !is.na(nuseds$cuid)
 nuseds <- nuseds[cond,]
-nrow(nuseds) # 149828
+nrow(nuseds) # 152729 149828
 sum(is.na(nuseds$streamid)) # 0
 sum(is.na(nuseds$GFE_ID)) # 0
 
 length(unique(nuseds$streamid)) # 6766
 length(unique(nuseds$GFE_ID))   # 2300
+length(unique(nuseds$cuid))     # 389 
 unique(nuseds$region)
 
 # check if there are duplicated streamid

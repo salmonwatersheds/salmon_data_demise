@@ -427,7 +427,11 @@ for(sp in species){
       pval <- "*"
     }
   }
-  legend("topleft",paste0(letters[i],") ",sp),bty='n')
+  if(sp == "Sockeye"){
+    legend("topright",paste0(letters[i],") ",sp),bty='n')
+  }else{
+    legend("topleft",paste0(letters[i],") ",sp),bty='n')
+  }
   legend("bottomright",
          legend = bquote(rho~"="~.(round(cor_spear$estimate,2))~" "~.(pval)~" "), 
          bty = "n")
