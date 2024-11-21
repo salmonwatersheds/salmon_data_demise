@@ -7,7 +7,7 @@
 
 - **conservationunits_decoder.csv**: the list of CUs shown in the Pacific Salmon Explorer (https://salmonexplorer.ca/)
 
-- **se_boundary_regions.shp .cpg .dbf . prj .sbn .sbx .xml .shx**: the shape files that delinates the different regions
+- **se_boundary_regions.shp .cpg .dbf . prj .sbn .sbx .xml .shx**: the shape files delineating the different regions
 
 - **NPAFC_Catch_Stat-1925-2023.xlsx**: the catch data from the NPAFC Statistics (https://www.npafc.org/statistics/)
 
