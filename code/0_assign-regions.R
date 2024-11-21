@@ -78,7 +78,8 @@ regions_buffed <- st_buffer(regions_spat, dist = 0.1)
 # Assign new regions one-by-one
 # Start with VIMI
 pop_regions_VIMI <- st_intersection(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),], regions_buffed[regions_buffed$region == "Vancouver Island & Mainland Inlets",]) # distance is in m?
-plot(st_geometry(pop_regions_VIMI), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Vancouver Island & Mainland Inlets")], add = TRUE)
+
+# plot(st_geometry(pop_regions_VIMI), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Vancouver Island & Mainland Inlets")], add = TRUE)
 
 nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_VIMI$streamid] <- "Vancouver Island & Mainland Inlets"
 
@@ -94,7 +95,7 @@ plot(st_geometry(pop_regions_HG), pch = 19, col = pnw_palette("Bay", n = 9)[whic
 
 nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_HG$streamid] <- "Haida Gwaii"
 
-# Haida Gwaii
+# Central Coast
 pop_regions_CC <- st_intersection(nuseds_loc[is.na(nuseds_loc$region_survey),], regions_buffed[regions_buffed$region == "Central Coast",]) # distance is in m?
 plot(st_geometry(pop_regions_CC), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Central Coast")], add = TRUE)
 
@@ -137,6 +138,80 @@ nuseds_loc %>%
 output <- nuseds_loc %>% 
   as.data.frame() %>% 
   select(streamid, region_survey)
-  
+
 write.csv(output, file = "data_output/region_survey.csv", row.names = FALSE)
 
+nuseds$region_survey <- nuseds_loc$region_survey[match(nuseds$streamid, nuseds_loc$streamid)]
+
+#------------------------------------------------------------------------------
+# Plot regions and monitoring locations
+#------------------------------------------------------------------------------
+
+rivers_low <- readRDS("~/Salmon Watersheds Dropbox/Stephanie Peacock/X Drive/1_PROJECTS/1_Active/Climate Change/Data & Analysis/ccva/freshwater/data/spatial/layers/watercourse_lowRes.rds")
+
+# Shoreline
+shoreline <- st_read("~/Documents/Mapping/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
+  st_transform(crs = 4269) %>%
+  st_crop(ymin = 40, ymax = 70, xmin = -160, xmax = -105)
+
+# What about adding open points for those monitored in the most recent decade?
+mon_decade <- nuseds %>%
+  filter(Year >= 2013, !is.na(MAX_ESTIMATE)) %>%
+  group_by(streamid) %>%
+  summarise(mon = unique(streamid)) %>%
+  select(streamid)
+length(mon_decade$streamid)/length(unique(nuseds$streamid)) # 37%, right
+
+# Bruno's palette:
+colours_rg <- c("#CBC106", "#27993C", "#1C6838", "#8EBCB5", "#389CA7", "#4D83AB", "#CB7B26", "#BF565D", "#9E163C")
+names(colours_rg) <- regions
+
+loc_monitored <- nuseds %>%
+  filter(!is.na(MAX_ESTIMATE), !is.na(streamid), streamid %in% mon_decade$streamid) %>%
+  group_by(paste(latitude_final, longitude_final)) %>%
+  reframe(lat = latitude_final, lon = longitude_final, region = region_survey) %>%
+  distinct() %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4269)
+
+loc_NOTmonitored <- nuseds %>%
+  filter(!is.na(MAX_ESTIMATE), !is.na(streamid), streamid %in% mon_decade$streamid == FALSE) %>%
+  group_by(paste(latitude_final, longitude_final)) %>%
+  reframe(lat = latitude_final, lon = longitude_final, region = region_survey) %>%
+  distinct() %>%
+  filter(`paste(latitude_final, longitude_final)` %in% loc_monitored$`paste(latitude_final, longitude_final)` == FALSE) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4269)
+
+# Doesn't quite add up to 2300..perhaps because I didn't distinguish different SYS_name at the same lat/lon?
+# Leav it for now; minor
+jpeg("figures/map.jpeg",
+     width = 660, height = 685, units = 'px')
+par(bg = 'white', mar = c(4,4,1,1), oma = rep(0, 4))
+  plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-142, -115), ylim = c(48, 67), bg = grey(0.8))
+plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
+plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
+plot(st_geometry(nuseds_loc), col = colours_rg[nuseds_loc$region_survey], pch = 19, cex = 0.4, add = TRUE)
+# plot(st_geometry(nuseds_loc[nuseds_loc$streamid %in% mon_decade$streamid,]), col = colours_rg[nuseds_loc$region_survey[nuseds_loc$streamid %in% mon_decade$streamid]], pch = 19, cex = 0.5, add = TRUE)
+legend("topright", pch = 19, col = colours_rg, legend = names(colours_rg), bty = "n")
+
+dev.off()
+
+# Separating monitored and not monitored in the past 10 years
+par(bg = 'white', mar = c(4,4,1,1), oma = rep(0, 4))
+plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-140, -118), ylim = c(48.5, 66), bg = grey(0.8))
+plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
+plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
+plot(st_geometry(loc_NOTmonitored), col = colours_rg[loc_NOTmonitored$region], bg = "white", pch = 21, cex = 0.6, add = TRUE)
+plot(st_geometry(loc_monitored), col = colours_rg[loc_monitored$region], pch = 19, cex = 0.5, add = TRUE)
+plot(st_geometry(bbp), col = NA, border = 1, add = TRUE)
+
+# Inset
+plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-132, -119), ylim = c(49, 55), bg = grey(0.8))
+plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
+plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
+plot(st_geometry(loc_NOTmonitored), col = colours_rg[loc_NOTmonitored$region], bg = "white", pch = 21, cex = 0.6, add = TRUE)
+plot(st_geometry(loc_monitored), col = colours_rg[loc_monitored$region], pch = 19, cex = 0.5, add = TRUE)
+legend("topright", pch = c(21, 18), pt.cex = c(0.8, 0.8), bty = "n", legend = c("Not monitored in 2013-2022", "Monitored at least once in 2013-2022"), cex = 0.8)
+
+bbox_coords <- c(-133.3677,-117.6323, 48.7600,  55.2400)
+names(bbox_coords) <- c("xmin","ymin","xmax","ymax")
+bbp <- st_as_sfc(st_bbox(bbox_coords), crs = 4269)
