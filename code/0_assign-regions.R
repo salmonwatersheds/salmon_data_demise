@@ -152,21 +152,29 @@ shoreline <- st_read("~/Documents/Mapping/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1
   st_transform(crs = 4269) %>%
   st_crop(ymin = 40, ymax = 70, xmin = -160, xmax = -105)
 
+# What about adding open points for those monitored in the most recent decade?
+mon_decade <- nuseds %>%
+  filter(Year >= 2013, !is.na(MAX_ESTIMATE)) %>%
+  group_by(streamid) %>%
+  summarise(mon = unique(streamid)) %>%
+  select(streamid)
+length(mon_decade$streamid)/length(unique(nuseds$streamid)) # 37%, right
 
 # Bruno's palette:
-# colours_rg <- paletteer_d("peRReo::planb", n = length(regions), type = "discrete", ) # Monet Panb 
-colours_rg <- paletteer_d("ltc::crbhits", n = length(regions)) # SP: not in love with this one; feel free to change
-# colours_rg <- c("#389CA7", "#8EBCB5", "#4D83AB", "#BF565D", "#CB7B26", "#1C6838", "#9E163C", "#27993C", "#CBC106")
 colours_rg <- c("#CBC106", "#27993C", "#1C6838", "#8EBCB5", "#389CA7", "#4D83AB", "#CB7B26", "#BF565D", "#9E163C")
 names(colours_rg) <- regions
+
+
 jpeg("figures/map.jpeg",
      width = 660, height = 685, units = 'px')
 par(bg = 'white', mar = c(4,4,1,1), oma = rep(0, 4))
   plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-142, -115), ylim = c(48, 67), bg = grey(0.8))
 plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
 plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
-plot(st_geometry(nuseds_loc), col = colours_rg[nuseds_loc$region_survey], pch = 19, cex = 0.5, add = TRUE)
+plot(st_geometry(nuseds_loc), col = colours_rg[nuseds_loc$region_survey], pch = 19, cex = 0.4, add = TRUE)
+# plot(st_geometry(nuseds_loc[nuseds_loc$streamid %in% mon_decade$streamid,]), col = colours_rg[nuseds_loc$region_survey[nuseds_loc$streamid %in% mon_decade$streamid]], pch = 19, cex = 0.5, add = TRUE)
 legend("topright", pch = 19, col = colours_rg, legend = names(colours_rg), bty = "n")
 
 dev.off()
+
 
