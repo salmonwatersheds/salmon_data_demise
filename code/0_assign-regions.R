@@ -75,7 +75,8 @@ regions_buffed <- st_buffer(regions_spat, dist = 0.1)
 # Assign new regions one-by-one
 # Start with VIMI
 pop_regions_VIMI <- st_intersection(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),], regions_buffed[regions_buffed$region == "Vancouver Island & Mainland Inlets",]) # distance is in m?
-plot(st_geometry(pop_regions_VIMI), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Vancouver Island & Mainland Inlets")], add = TRUE)
+
+# plot(st_geometry(pop_regions_VIMI), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Vancouver Island & Mainland Inlets")], add = TRUE)
 
 nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_VIMI$streamid] <- "Vancouver Island & Mainland Inlets"
 
@@ -91,7 +92,7 @@ plot(st_geometry(pop_regions_HG), pch = 19, col = pnw_palette("Bay", n = 9)[whic
 
 nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_HG$streamid] <- "Haida Gwaii"
 
-# Haida Gwaii
+# Central Coast
 pop_regions_CC <- st_intersection(nuseds_loc[is.na(nuseds_loc$region_survey),], regions_buffed[regions_buffed$region == "Central Coast",]) # distance is in m?
 plot(st_geometry(pop_regions_CC), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Central Coast")], add = TRUE)
 
@@ -132,3 +133,32 @@ nuseds_loc %>%
 #------------------------------------------------------------------------------
 
 write.csv(nuseds_loc %>% select(streamid, region_survey), file = "data_input/region_survey.csv", row.names = FALSE)
+
+#------------------------------------------------------------------------------
+# Plot regions and monitoring locations
+#------------------------------------------------------------------------------
+
+rivers_low <- readRDS("~/Salmon Watersheds Dropbox/Stephanie Peacock/X Drive/1_PROJECTS/1_Active/Climate Change/Data & Analysis/ccva/freshwater/data/spatial/layers/watercourse_lowRes.rds")
+
+# Shoreline
+shoreline <- st_read("~/Documents/Mapping/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
+  st_transform(crs = 4269) %>%
+  st_crop(ymin = 40, ymax = 70, xmin = -160, xmax = -105)
+
+
+# Bruno's palette:
+# colours_rg <- paletteer_d("peRReo::planb", n = length(regions), type = "discrete", ) # Monet Panb 
+colours_rg <- paletteer_d("ltc::crbhits", n = length(regions)) # SP: not in love with this one; feel free to change
+# colours_rg <- c("#389CA7", "#8EBCB5", "#4D83AB", "#BF565D", "#CB7B26", "#1C6838", "#9E163C", "#27993C", "#CBC106")
+colours_rg <- c("#CBC106", "#27993C", "#1C6838", "#8EBCB5", "#389CA7", "#4D83AB", "#CB7B26", "#BF565D", "#9E163C")
+names(colours_rg) <- regions
+jpeg("figures/map.jpeg",
+     width = 660, height = 685, units = 'px')
+par(bg = 'white', mar = c(4,4,1,1), oma = rep(0, 4))
+  plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-142, -115), ylim = c(48, 67), bg = grey(0.8))
+plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
+plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
+plot(st_geometry(nuseds_loc), col = colours_rg[nuseds_loc$region_survey], pch = 19, cex = 0.5, add = TRUE)
+legend("topright", pch = 19, col = colours_rg, legend = names(colours_rg), bty = "n")
+
+dev.off()
