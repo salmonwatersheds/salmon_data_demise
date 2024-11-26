@@ -27,7 +27,17 @@ library(xlsx) # Package doesn't work..on mac?
 library(readxl)
 source("code/functions.R")
 
+
+#'* OPTION CONCERNING THE 0s and NAs *
+#' - option 1: remove both the NAs and Os (--> results in the main text)
+#' - option 2: remove only the NAs
+#' - option 3: replace NAs with 0s and 0s with NAs using the fields ADULT_PRESENCE and JACK_PRESENCE (--> not assessed)
+
+i_option <- 1
+option_0s_NAs <- c("remove_0s_NAs","remove_NAs","fix_0s_NAs")[i_option]
+
 # Import source files ------
+#
 
 wd_data_input <- paste0(getwd(),"/data_input")
 
@@ -50,58 +60,76 @@ nuseds$region[cond] <- "Transboundary"
 #' but it characterises a unique CU & location association.
 
 
-#'* Replace false 0s by NAs and vice versa *
+#'* Filter or fix 0s and/or NAs *
 #'  
+
+nrow(nuseds) # 306823
 
 cond_NA <- is.na(nuseds$MAX_ESTIMATE)
 sum(cond_NA) # 152992
 cond_0 <- nuseds$MAX_ESTIMATE == 0 & !cond_NA
 sum(cond_0)  # 2992
 
-table(nuseds$ADULT_PRESENCE[cond_0])
-# NONE OBSERVED NOT INSPECTED       PRESENT 
-#          2885             5           102 
-# --> set the 5 not inspected to NAs
+if(option_0s_NAs == "remove_0s_NAs"){
+  
+  nuseds <- nuseds[!(cond_NA | cond_0),]
+  nrow(nuseds) # 150839
+  
+}else if(option_0s_NAs == "remove_NAs"){
+  
+  nuseds <- nuseds[!cond_NA,]
+  nrow(nuseds) # 153831
+  
+}else if(option_0s_NAs == "fix_0s_NAs"){
+  
+  table(nuseds$ADULT_PRESENCE[cond_0])
+  # NONE OBSERVED NOT INSPECTED       PRESENT 
+  #          2885             5           102 
+  # --> set the 5 not inspected to NAs
+  
+  table(nuseds$ADULT_PRESENCE[cond_NA])
+  # "" NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+  # 30         35964         96798         16848          3352 
+  # --> set the 35964 to 0s
+  
+  table(nuseds$JACK_PRESENCE[cond_0])
+  #       NONE OBSERVED NOT INSPECTED       PRESENT 
+  #  1813           665            36           478 
+  # --> set the 36 not inspected to NAs
+  
+  table(nuseds$JACK_PRESENCE[cond_NA])
+  #    "" NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+  # 15971          2178          4460            91        130292 
+  # --> set the 2178 to 0s
+  
+  cond_ADULT_PRESENCE_NONE_OBSERVED <- nuseds$ADULT_PRESENCE == "NONE OBSERVED"
+  cond_ADULT_PRESENCE_NOT_INSPECTED <- nuseds$ADULT_PRESENCE == "NOT INSPECTED"
+  cond_JACK_PRESENCE_NONE_OBSERVED <- nuseds$JACK_PRESENCE == "NONE OBSERVED"
+  cond_JACK_PRESENCE_NOT_INSPECTED <- nuseds$JACK_PRESENCE == "NOT INSPECTED"
+  
+  cond_0_to_NA <- cond_0 & (cond_ADULT_PRESENCE_NOT_INSPECTED & cond_JACK_PRESENCE_NOT_INSPECTED)
+  nuseds[cond_0_to_NA,]
+  sum(cond_0_to_NA) # 0
+  sum(cond_0 & cond_ADULT_PRESENCE_NOT_INSPECTED) # 5 ; if we only consider ADULT_PRESENCE
+  
+  cond_NA_to_0 <- cond_NA & (cond_ADULT_PRESENCE_NONE_OBSERVED | cond_JACK_PRESENCE_NONE_OBSERVED)
+  sum(cond_NA_to_0) # 36397
+  sum(cond_NA & cond_ADULT_PRESENCE_NONE_OBSERVED) # 35964 ; if we only consider ADULT_PRESENCE
+  
+  (sum(cond_0_to_NA) + sum(cond_NA_to_0)) / nrow(nuseds) * 100
+  
+  nuseds$MAX_ESTIMATE[cond_0_to_NA] <- NA
+  nuseds$MAX_ESTIMATE[cond_NA_to_0] <- 0
+  
+  # Remove rows with NAs
+  sum(is.na(nuseds$MAX_ESTIMATE)) # 116595
+  sum(nuseds$MAX_ESTIMATE == 0 & !is.na(nuseds$MAX_ESTIMATE)) # 39389
+  nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
+  nrow(nuseds) # 190228
 
-table(nuseds$ADULT_PRESENCE[cond_NA])
-# "" NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
-# 30         35964         96798         16848          3352 
-# --> set the 35964 to 0s
+}
 
-table(nuseds$JACK_PRESENCE[cond_0])
-#       NONE OBSERVED NOT INSPECTED       PRESENT 
-#  1813           665            36           478 
-# --> set the 36 not inspected to NAs
-
-table(nuseds$JACK_PRESENCE[cond_NA])
-#    "" NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
-# 15971          2178          4460            91        130292 
-# --> set the 2178 to 0s
-
-cond_ADULT_PRESENCE_NONE_OBSERVED <- nuseds$ADULT_PRESENCE == "NONE OBSERVED"
-cond_ADULT_PRESENCE_NOT_INSPECTED <- nuseds$ADULT_PRESENCE == "NOT INSPECTED"
-cond_JACK_PRESENCE_NONE_OBSERVED <- nuseds$JACK_PRESENCE == "NONE OBSERVED"
-cond_JACK_PRESENCE_NOT_INSPECTED <- nuseds$JACK_PRESENCE == "NOT INSPECTED"
-
-cond_0_to_NA <- cond_0 & (cond_ADULT_PRESENCE_NOT_INSPECTED & cond_JACK_PRESENCE_NOT_INSPECTED)
-nuseds[cond_0_to_NA,]
-sum(cond_0_to_NA) # 0
-sum(cond_0 & cond_ADULT_PRESENCE_NOT_INSPECTED) # 5 ; if we only consider ADULT_PRESENCE
-
-cond_NA_to_0 <- cond_NA & (cond_ADULT_PRESENCE_NONE_OBSERVED | cond_JACK_PRESENCE_NONE_OBSERVED)
-sum(cond_NA_to_0) # 36397
-sum(cond_NA & cond_ADULT_PRESENCE_NONE_OBSERVED) # 35964 ; if we only consider ADULT_PRESENCE
-
-(sum(cond_0_to_NA) + sum(cond_NA_to_0)) / nrow(nuseds) * 100
-
-nuseds$MAX_ESTIMATE[cond_0_to_NA] <- NA
-nuseds$MAX_ESTIMATE[cond_NA_to_0] <- 0
-
-# Remove rows with NAs
-sum(is.na(nuseds$MAX_ESTIMATE)) # 116595 152992 155984
-sum(nuseds$MAX_ESTIMATE == 0 & !is.na(nuseds$MAX_ESTIMATE)) # 39389 2992
-nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
-
+# 
 colToKeep <- c("region","SPECIES","cu_name_pse","cuid","POP_ID","cu_name_dfo","CU_NAME",
                "SYSTEM_SITE","GFE_ID","X_LONGT","Y_LAT","streamid",
                "Year","MAX_ESTIMATE",
@@ -116,7 +144,7 @@ sum(is.na(nuseds$cuid)) / nrow(nuseds) * 100 # 0.708 0.716 0.67
 sum(is.na(nuseds$POP_ID))   # 0
 sum(is.na(nuseds$GFE_ID))   # 0
 
-length(unique(nuseds$cuid))     # 391 390 390
+length(unique(nuseds$cuid))     # 391
 length(unique(nuseds$streamid)) # 6767 6767
 length(unique(nuseds$POP_ID))   # 6009 6009
 
@@ -125,6 +153,8 @@ cond <- is.na(nuseds$cuid)
 CU_NAME_noCuid <- nuseds[cond,c("region","SPECIES","CU_NAME")] |> unique()
 CU_NAME_noCuid 
 length(CU_NAME_noCuid$CU_NAME) # 22 CUS
+
+#'* Remove populations without a cuid * 
 
 # How many "populations" do not have a CUID?
 length(unique(nuseds$POP_ID[is.na(nuseds$cuid)])) # 82
@@ -138,7 +168,7 @@ sum(is.na(nuseds$GFE_ID))   # 0
 
 length(unique(nuseds$streamid)) # 6766
 length(unique(nuseds$GFE_ID))   # 2300
-length(unique(nuseds$cuid))     # 390 389 
+length(unique(nuseds$cuid))     # 390 
 unique(nuseds$region)
 
 # check if there are duplicated streamid
@@ -149,7 +179,7 @@ any(duplicated(data_check$streamid)) # FALSE
 fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
 
 nuseds$region |> unique() |> length()
-nuseds$cuid |> unique() |> length()    # 389
+nuseds$cuid |> unique() |> length()    # 390
 nuseds$streamid |> unique() |> length()    # 6766
 
 #'* Import the file where streamid are associated to region *
@@ -679,13 +709,14 @@ for(sh_i in 1:length(names(files_l))){
   sheetName <- names(files_l)[sh_i]
   sheet <- as.data.frame(files_l[[sheetName]])
   write.xlsx(sheet, 
-             file = paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"),
+             file = paste0(wd_data_output,"/populationAssessed_catches_data_",option_0s_NAs,".xlsx"),
              sheetName = sheetName, 
              row.names = FALSE,
              append = append,
              showNA = T)
   print(sh_i)
 }
+
 
 
 ###############################################################################
