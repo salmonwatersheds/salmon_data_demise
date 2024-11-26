@@ -86,9 +86,11 @@ cond_JACK_PRESENCE_NOT_INSPECTED <- nuseds$JACK_PRESENCE == "NOT INSPECTED"
 cond_0_to_NA <- cond_0 & (cond_ADULT_PRESENCE_NOT_INSPECTED & cond_JACK_PRESENCE_NOT_INSPECTED)
 nuseds[cond_0_to_NA,]
 sum(cond_0_to_NA) # 0
+sum(cond_0 & cond_ADULT_PRESENCE_NOT_INSPECTED) # 5 ; if we only consider ADULT_PRESENCE
 
 cond_NA_to_0 <- cond_NA & (cond_ADULT_PRESENCE_NONE_OBSERVED | cond_JACK_PRESENCE_NONE_OBSERVED)
 sum(cond_NA_to_0) # 36397
+sum(cond_NA & cond_ADULT_PRESENCE_NONE_OBSERVED) # 35964 ; if we only consider ADULT_PRESENCE
 
 (sum(cond_0_to_NA) + sum(cond_NA_to_0)) / nrow(nuseds) * 100
 
