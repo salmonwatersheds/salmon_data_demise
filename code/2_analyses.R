@@ -142,7 +142,7 @@ par(mar = c(4.5,4.5,3,4.5))
 plot(NA, type = "l", lwd = 2, bty = "u",
      xlim = c(year_min,year_max), #ylim = c(range(data_total$count)),
      ylab = "", xlab = "Year",
-     yaxs = "i", ylim = c(0, 2800))
+     yaxs = "i", ylim = c(0, max(data_total$count)))
 mtext(side = 2, line = 3,  "Number of populations monitored", col = "#1962A0")
 # catches
 
@@ -163,6 +163,8 @@ plot(x = catch$year[cond_yr & cond_total],
      ylim = c(0, 44.8), #SP: Need to set ylim so that horizontal lines match axes ticks for populations on left
      lwd = 2, col = "#9E163C",type = "l",bty = "u",yaxt = 'n', ylab = '',xlab='', yaxs = "i", xpd = NA)
 axis(side = 4, at = seq(0, 40, 8))
+# axis(side = 4, at = seq(0, 36, 6))
+
 mtext(text = "Canadian catch (millions of salmon)", side = 4, cex = 1, line = 2.5, col = "#9E163C")
 # legend("bottom",c("Monitoring","Fishing"), lwd = 2, bty = 'n',
 #        col = c("black", "#9E163C"))
@@ -259,8 +261,15 @@ if(figures_print){
   dev.off()
 }
 
-#-----
-# Even/odd pink monitoring across regions: which is dominant?
+# FIGURE S3: Even/odd pink monitoring across regions: which is dominant? -----
+# 
+
+coef <- .9
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Number_Pink_populations_regions.jpeg"),
+       width = 21.59 * coef, height = 18 * coef, units = 'cm', res = 300)
+}
+
 par(mfrow = c(3,3), mar = c(3,4,1,1), oma = c(2,2,1,0))
 z <- data_rg_sp %>% filter(species == "Pink")
 for(r in 1:length(regions)){
@@ -273,6 +282,11 @@ for(r in 1:length(regions)){
 }
 mtext(side = 2, outer = TRUE, "Number of pink salmon populations monitored")
 legend(2040, 50, pch = c(1, 19), c("Even year", "Odd year"), xpd = NA, bty = "n")
+
+if(figures_print){
+  dev.off()
+}
+
 #
 #
 # Figure 3: trends 1986 to 2022 per regions > species ---------
@@ -427,7 +441,11 @@ for(sp in species){
       pval <- "*"
     }
   }
-  legend("topleft",paste0(letters[i],") ",sp),bty='n')
+  if(sp == "Sockeye"){
+    legend("topright",paste0(letters[i],") ",sp),bty='n')
+  }else{
+    legend("topleft",paste0(letters[i],") ",sp),bty='n')
+  }
   legend("bottomright",
          legend = bquote(rho~"="~.(round(cor_spear$estimate,2))~" "~.(pval)~" "), 
          bty = "n")

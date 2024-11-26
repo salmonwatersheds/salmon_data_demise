@@ -4,7 +4,7 @@
 #' The goal of the script is to 
 #' 
 #' Files imported:
-#' - nuseds_cuid_streamid_20240419.csv
+#' - nuseds_20240419.csv
 #' 
 #' Files produced: 
 #' - Number_Prop_populationsAssessed_total.csv
@@ -31,21 +31,75 @@ source("code/functions.R")
 
 wd_data_input <- paste0(getwd(),"/data_input")
 
-
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
 #' must be downloaded at https://zenodo.org/records/14194639 and placed in the
 #' /data_input folder.
 
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_20240419.csv"), header = T)
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2024-11-25.csv"), 
+                   header = T)
+# nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_20240419.csv"), header = T)
 head(nuseds)
+nrow(nuseds) # 306823
+
+cond <- nuseds$region == "Northern Transboundary"
+nuseds$region[cond] <- "Transboundary"
 
 #' IMPORTANT NOTE: streamid = unique cuid & GFE_ID combination
 #' The name 'streamid' is miss-leading as it seems to characterise a stream only
 #' but it characterises a unique CU & location association.
 
+
+#'* Replace false 0s by NAs and vice versa *
+#'  
+
+cond_NA <- is.na(nuseds$MAX_ESTIMATE)
+sum(cond_NA) # 152992
+cond_0 <- nuseds$MAX_ESTIMATE == 0 & !cond_NA
+sum(cond_0)  # 2992
+
+table(nuseds$ADULT_PRESENCE[cond_0])
+# NONE OBSERVED NOT INSPECTED       PRESENT 
+#          2885             5           102 
+# --> set the 5 not inspected to NAs
+
+table(nuseds$ADULT_PRESENCE[cond_NA])
+# "" NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+# 30         35964         96798         16848          3352 
+# --> set the 35964 to 0s
+
+table(nuseds$JACK_PRESENCE[cond_0])
+#       NONE OBSERVED NOT INSPECTED       PRESENT 
+#  1813           665            36           478 
+# --> set the 36 not inspected to NAs
+
+table(nuseds$JACK_PRESENCE[cond_NA])
+#    "" NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+# 15971          2178          4460            91        130292 
+# --> set the 2178 to 0s
+
+cond_ADULT_PRESENCE_NONE_OBSERVED <- nuseds$ADULT_PRESENCE == "NONE OBSERVED"
+cond_ADULT_PRESENCE_NOT_INSPECTED <- nuseds$ADULT_PRESENCE == "NOT INSPECTED"
+cond_JACK_PRESENCE_NONE_OBSERVED <- nuseds$JACK_PRESENCE == "NONE OBSERVED"
+cond_JACK_PRESENCE_NOT_INSPECTED <- nuseds$JACK_PRESENCE == "NOT INSPECTED"
+
+cond_0_to_NA <- cond_0 & (cond_ADULT_PRESENCE_NOT_INSPECTED & cond_JACK_PRESENCE_NOT_INSPECTED)
+nuseds[cond_0_to_NA,]
+sum(cond_0_to_NA) # 0
+sum(cond_0 & cond_ADULT_PRESENCE_NOT_INSPECTED) # 5 ; if we only consider ADULT_PRESENCE
+
+cond_NA_to_0 <- cond_NA & (cond_ADULT_PRESENCE_NONE_OBSERVED | cond_JACK_PRESENCE_NONE_OBSERVED)
+sum(cond_NA_to_0) # 36397
+sum(cond_NA & cond_ADULT_PRESENCE_NONE_OBSERVED) # 35964 ; if we only consider ADULT_PRESENCE
+
+(sum(cond_0_to_NA) + sum(cond_NA_to_0)) / nrow(nuseds) * 100
+
+nuseds$MAX_ESTIMATE[cond_0_to_NA] <- NA
+nuseds$MAX_ESTIMATE[cond_NA_to_0] <- 0
+
 # Remove rows with NAs
-sum(is.na(nuseds$MAX_ESTIMATE)) # 155984
+sum(is.na(nuseds$MAX_ESTIMATE)) # 116595 152992 155984
+sum(nuseds$MAX_ESTIMATE == 0 & !is.na(nuseds$MAX_ESTIMATE)) # 39389 2992
 nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
 
 colToKeep <- c("region","SPECIES","cu_name_pse","cuid","POP_ID","cu_name_dfo","CU_NAME",
@@ -56,14 +110,15 @@ colToKeep <- c("region","SPECIES","cu_name_pse","cuid","POP_ID","cu_name_dfo","C
 nuseds <- nuseds[,colToKeep] 
 
 # Some checks
-sum(is.na(nuseds$streamid)) # 1011
-sum(is.na(nuseds$cuid))     # 1011
-sum(is.na(nuseds$cuid)) / nrow(nuseds) # 0.006702511
+sum(is.na(nuseds$streamid)) # 1347 1102 1011
+sum(is.na(nuseds$cuid))     # 1347 1102 1011
+sum(is.na(nuseds$cuid)) / nrow(nuseds) * 100 # 0.708 0.716 0.67
 sum(is.na(nuseds$POP_ID))   # 0
 sum(is.na(nuseds$GFE_ID))   # 0
 
-length(unique(nuseds$streamid)) # 6767
-length(unique(nuseds$POP_ID))   # 6009
+length(unique(nuseds$cuid))     # 391 390 390
+length(unique(nuseds$streamid)) # 6767 6767
+length(unique(nuseds$POP_ID))   # 6009 6009
 
 # Check CU_NAMEs without a cuid
 cond <- is.na(nuseds$cuid)
@@ -77,12 +132,13 @@ length(unique(nuseds$POP_ID[is.na(nuseds$cuid)])) # 82
 # remove them
 cond <- !is.na(nuseds$cuid)
 nuseds <- nuseds[cond,]
-nrow(nuseds) # 149828
+nrow(nuseds) # 188881 152729 149828
 sum(is.na(nuseds$streamid)) # 0
-sum(is.na(nuseds$GFE_ID)) # 0
+sum(is.na(nuseds$GFE_ID))   # 0
 
 length(unique(nuseds$streamid)) # 6766
 length(unique(nuseds$GFE_ID))   # 2300
+length(unique(nuseds$cuid))     # 390 389 
 unique(nuseds$region)
 
 # check if there are duplicated streamid
