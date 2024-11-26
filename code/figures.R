@@ -36,6 +36,27 @@ if(1 == 2){
   text(1:9, rep(0.8, 5), regions, srt = -90, xpd = NA, adj = 0, col = colours_rg, font = 2)
 }
 
+###############################################################################
+# Figure Sx: Patterns in zero counts for Fraser sockeye
+###############################################################################
+
+nuseds <- read.csv("data_input/2_nuseds_cuid_streamid_2024-11-25.csv")
+
+nuseds_FrSE <- nuseds %>% filter(region == "Fraser", SPECIES == "Sockeye")
+
+n_pop <- length(unique(nuseds_FrSE$streamid)) # 335 populations
+yr_range <- range(nuseds_FrSE$Year)
+par(mar = c(4, 4, 4, 1))
+plot(yr_range, c(0.5, n_pop+0.5), "n", yaxs = "i", ylab = "Population", xlab = "Year", bty = "l")
+polygon(x = c(1998.5, 2023, 2023, 1998.5), y = c(0.5, 0.5, 360, 360), col = grey(0.8), border = NA, xpd = NA)
+abline(v = seq(1940, 2020, 10), lty = 3, col = grey(0.6))
+abline(h = seq(20,330,20), lty = 3, col = grey(0.6))
+for(i in 1:335){
+  dat.i <- nuseds_FrSE %>% filter(streamid == unique(nuseds_FrSE$streamid)[i])
+  points(dat.i$Year, rep(i, nrow(dat.i)), pch = 19, col = ifelse(dat.i$MAX_ESTIMATE == 0, 2, 1), cex = 0.5, xpd = NA)
+}
+text(2010, 350, "Zeroes appear starting\n in 1999", xpd = NA, cex = 0.8)
+legend(1940, 380, pch = 19, col = c(1,2), title = "MAX_ESTIMATE", c("Non-zero", "Zero"), xpd = NA, cex = 0.8)
 
 ###############################################################################
 # Figure Sx: Even/odd monitoring by region
@@ -129,3 +150,8 @@ abline(h = 1:9)
 text(-6.7, 1:9+0.8, rev(regions), adj = 0)
 legend(-6, 11, pch = 19, pt.cex = 1.5, col = colours_sp, legend = species, ncol = 5, xpd = NA, bty = "n")
 dev.off()
+
+###############################################################################
+# Set colour palettes for regions and species
+###############################################################################
+
