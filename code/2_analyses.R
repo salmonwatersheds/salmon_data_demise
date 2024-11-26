@@ -1013,3 +1013,44 @@ if(figures_print){
 }
 
 #
+# Figure S7: Patterns in zero counts for Fraser sockeye ------
+#
+
+#'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
+#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' /data_input folder.
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2024-11-25.csv"), 
+                   header = T)
+
+nuseds_FrSE <- nuseds %>% filter(region == "Fraser", SPECIES == "Sockeye")
+
+n_pop <- length(unique(nuseds_FrSE$streamid)) # 335 populations
+yr_range <- range(nuseds_FrSE$Year)
+
+pch <- 15 
+
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Fraser_Sockeye_NAs_0s.jpeg"),
+       width = 21.59 * .8, height = 21.59, units = 'cm', res = 300)
+}
+par(mar = c(4, 4, 4, 1))
+plot(yr_range, c(0.5, n_pop+0.5), "n", yaxs = "i", ylab = "Population", xlab = "Year", bty = "l")
+polygon(x = c(1998.5, 2023, 2023, 1998.5), y = c(0.5, 0.5, 360, 360), col = grey(0.8), border = NA, xpd = NA)
+abline(v = seq(1940, 2020, 10), lty = 3, col = grey(0.6))
+abline(h = seq(20,330,20), lty = 3, col = grey(0.6))
+for(i in 1:335){
+  dat.i <- nuseds_FrSE %>% filter(streamid == unique(nuseds_FrSE$streamid)[i])
+  points(dat.i$Year, rep(i, nrow(dat.i)), pch = pch, 
+         col = ifelse(dat.i$MAX_ESTIMATE == 0, 2, 1), cex = 0.5, xpd = NA)
+}
+text(2010, 350, "Zeroes appear starting\n in 1999", xpd = NA, cex = 0.8)
+legend(1940, 370, pch = pch, col = c(1,2), bty = "n",
+       title = "MAX_ESTIMATE", c("Non-zero", "Zero"), xpd = NA, cex = 0.8)
+
+if(figures_print){
+  dev.off()
+}
+
+
+
