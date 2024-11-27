@@ -31,6 +31,8 @@ library(tidyr)
 library(dplyr)
 library(paletteer) # https://r-graph-gallery.com/color-palette-finder
 library(readxl)
+library(here)
+library(scales)
 
 source("code/functions.R")
 source("code/colours.R")
@@ -142,6 +144,38 @@ names(colours_rg) <- regions
 colours_seg <- "grey50"
 alpha_seg <- .5
 lty_seg <- 2
+
+
+#
+# FIGURE 0: Base plot for timeline figure (coastwide monitoring and catch) -------
+#
+
+d = read.csv(here("data_output","Number_populationsAssessed_total.csv"))
+c = read.csv(here("data_output","NPAFC_Catch_Stat-1925-2023.csv"), skip=1)
+total_catch = c[c$Country=="Canada" & c$Reporting.Area=="Whole country" & c$Species=="Total", 1:ncol(c)]
+tc = as.numeric(gsub(",","",total_catch[1,7:ncol(total_catch)]))
+
+if (figures_print) { png(here("figures","2024-nov-salmon-monitoring-timeline.png"), width=8, height=5, units="in",res=750) }
+
+par(mar=c(4,4,3,4))
+plot(d$Year, d$count, bty="n", xlab="Year", ylab="",
+     ylim=c(0,3000),xlim=c(1915,2025), xaxt="n", yaxt="n",type="l",col="white")
+box(bty="u")
+axis(1, at=seq(1915,2025,10), labels=TRUE)
+axis(2, at=seq(0,3000,500), labels=TRUE, col.ticks ="#1962A0", col.axis="#1962A0")
+mtext("Number of populations monitored", side=2, col="#1962A0", line=2.5)
+
+key.years=c(1934,1954,1985,2005)
+lines(d$Year, d$count, lwd=4, col=alpha("#1962A0",0.7))
+points(d[d$Year%in%key.years,]$Year,d[d$Year%in%key.years,]$count, lwd=3, pch=1,cex=2, col="black")
+
+par(new=TRUE)
+plot(1925:2023, tc, type="l", lwd=3, col=alpha("#9E6a5A", 0.7), axes=FALSE, bty="n",xlab="", ylab="", ylim=c(0,45000),lty=1)
+axis(4, at=seq(0,45000,5000), labels=seq(0,45,5), col.ticks ="#9E6a5A", col.axis="#9E6a5A")
+mtext("Commercial fisheries catch (millions of fish)", side=4, col="#9E6a5A", line=2.5)
+
+if (figures_print) { dev.off() }
+
 
 #
 # FIGURE 1: Number populations monitored vs catches ------
