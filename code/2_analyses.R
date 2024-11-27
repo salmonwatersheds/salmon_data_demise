@@ -75,11 +75,17 @@ head(catch)
 
 filename <- "populationAssessed_catches_data_remove_NAs"
 
+data_total_0 <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                          sheet = "populations_total") |> as.data.frame()
+
 data_rg_sp_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                          sheet = "populations_regions_species") |> as.data.frame()
 
 data_sp_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                         sheet = "populations_species") |> as.data.frame()
+
+data_rg_0 <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                       sheet = "populations_regions") |> as.data.frame()
 
 #
 # Define the order of the regions and species -------
@@ -203,7 +209,7 @@ for(rg in regions){
   i <- which(rg == regions)
   side1 <- side3 <- .5
   side2 <- 2
-  xlab <- ""
+  xlab <- ylab <- ""
   xaxt <- "n"
   yaxt <- "s"
   if(i %in% length(regions):(length(regions) - 2)){ # bottom plots
@@ -721,23 +727,52 @@ years_even <- years[years %% 2 == 0]
 coef <- .9
 if(figures_print){
   jpeg(paste0(wd_figures,"/Number_Pink_populations_regions.jpeg"),
-       width = 21.59 * coef, height = 18 * coef, units = 'cm', res = 300)
+       width = 21.59 * 1, height = 21.59 * .8, units = 'cm', res = 300)
 }
 par(mfrow = c(3,2), mar = c(4,4,2,1), oma = c(0,2,1,0))
+layout(matrix(1:6,nrow = 3, byrow = T), widths = c(1.08,1), heights = c(1.1,1,1.3))
+count <- 1
 for(rg in regions){
+  # rg <- regions[3]
   cond_rg <- data_pk$region == rg
   if(any(cond_rg) & rg != "Transboundary"){
-    plot(x = data_pk$year[cond_rg],y = data_pk$count[cond_rg], "l", 
-         col = colours_rg[rg], xlab = "", ylab = "", xlim = c(1950, 2023))
+    
+    xaxt <- "n"
+    side1 <- side3 <- .5
+    side2 <- 2
+    ylab <- xlab <- ""
+    if(count %in% 1:2){ # top plots
+      side3 <- 2
+    }
+    if(count %in% c(1,3,5)){ # left side plots
+      side2 <- 4.5
+      ylab <- "Number of populations monitored"
+    }
+    if(count %in% 5:6){ # bottom plots
+      xaxt <- "s"
+      xlab <- "Year"
+      side1 <- 4.5
+    }
+    
+    par(mar = c(side1,side2,side3,.5))
+    plot(x = data_pk$year[cond_rg],y = data_pk$count[cond_rg], "l", xaxt = xaxt,
+         col = colours_rg[rg], xlab = xlab, ylab = ylab, xlim = c(1950, 2023))
     abline(h = pretty(data_pk$count[cond_rg]), lty = 2, col = "#00000030")
     abline(v = seq(1950, 2023, 10), lty = 2, col = "#00000030")
     points(x = data_pk$year[cond_rg],y = data_pk$count[cond_rg], 
            pch = ifelse(data_pk$year[cond_rg] %in% years_even, 19, 21), 
            col = colours_rg[rg], bg = "white")
-    mtext(side = 3, line = 0.5, paste0(letters[r], ") ",rg), adj = 0)
+    # mtext(side = 3, line = 0.5, paste0(letters[count], ") ",rg), adj = 0)
+    legend("topleft",paste0(letters[count], ") ",rg), bty = "n")
+    if(count %in% 1:2){
+      axis(side = 3)
+    }
+    if(count == 6){
+      legend("topright",c("even","odd"), pch = c(19,21), bg = "white", bty = 'n')
+    }
+    count <- count + 1
   }
 }
-mtext(side = 2, outer = TRUE, "Number of populations monitored")
 
 if(figures_print){
   dev.off()
@@ -1052,5 +1087,91 @@ if(figures_print){
   dev.off()
 }
 
+#
+# FIGURE S NOT IN PAPER: Proportion of populations monitored WITH Os ------
+#
 
+alpha <- .7
+
+lwd <- .5 # for the grid segments
+
+y_min <- min(data_total$year) - 6
+
+coef <- 0.8
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Proportion_populations_monitored_total_regions_species_WITH_0s.jpeg"),
+       width = 21.59 * coef, height = 27.94 * coef, units = 'cm', res = 300)
+}
+m <- matrix(1:3, ncol = 1)
+layout(m, heights = c(1,1,1.2))
+#' Proportion of the total number of CUs with at least one population monitored:
+par(mar = c(0.5,4.5,0.5,.5))
+plot(NA, las = 1, ylim = c(0,1), xlim = c(y_min,max(data_total_0$year)),
+     ylab = "Proportion of populations monitored", xlab = "", xaxt = 'n')
+# vertical segments
+segments(x0 = (y_min:max(data_total_0$year))[(y_min:max(data_total_0$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total_0$year))[(y_min:max(data_total_0$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+#
+lines(x = data_total_0$year, y = data_total_0$proportion, lwd = 2)
+legend("topleft","a)", bty = "n")
+legend("topleft",c(NA,"Total"), col = c(NA,"black"), lwd = 2, bty = "n")
+
+# Proportion of CUs monitored per year for each region:
+plot(NA, las = 1, ylim = c(0,1), xlim = c(y_min,max(data_total_0$year)),
+     ylab = "Proportion of populations monitored", xlab = "", xaxt = 'n')
+# vertical segments
+segments(x0 = (y_min:max(data_total_0$year))[(y_min:max(data_total_0$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total_0$year))[(y_min:max(data_total_0$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+#
+for(rg in regions){
+  cond <- data_rg_0$region == rg
+  lines(x = data_rg_0$year[cond], y = data_rg_0$proportion[cond], 
+        lwd = 2, col = colour_transparency_fun(colours = colours_rg[rg], alpha = alpha))
+}
+legend("topleft","b)", bty = "n")
+legend("topleft",c("",regions), col = c(NA,colours_rg[regions]), lwd = 2, bty = "n")
+
+# Proportion of CUs monitored per year for each species:
+par(mar = c(4.5,4.5,0.5,.5))
+plot(NA, las = 1, ylim = c(0,1), xlim = c(y_min,max(data_total_0$year)),
+     ylab = "Proportion of populations monitored", xlab = "Year")
+# vertical segments
+segments(x0 = (y_min:max(data_total_0$year))[(y_min:max(data_total_0$year)) %% 10 == 0], 
+         x1 = (y_min:max(data_total_0$year))[(y_min:max(data_total_0$year)) %% 10 == 0], 
+         y0 = 0, y1 = 1.2, lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+# horizontal segments
+segments(x0 = 1900, x1 = 2030, 
+         y0 = (0:10)[(0:10) %% 2 == 0]/10, y1 = (0:10)[(0:10) %% 2 == 0]/10, 
+         lwd = lwd, lty = lty_seg,
+         col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+#
+for(sp in species_lines){
+  cond <- data_sp_0$species == sp
+  lines(x = data_sp_0$year[cond], y = data_sp_0$proportion[cond],
+        lwd = 2, col = colour_transparency_fun(colours = colours_sp[sp],alpha = alpha))
+}
+legend("topleft","c)", bty = "n")
+legend("topleft",c("",species), col = c(NA,colours_sp[species]), lwd = 2, bty = "n")
+if(figures_print){
+  dev.off()
+}
+
+#
+# ------
+# 
 
