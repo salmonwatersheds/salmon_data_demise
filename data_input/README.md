@@ -13,6 +13,8 @@
 
 - **nuseds_cuid_streamid_2024-11-25.csv**: the cleaned version of the New Salmon Escapement Database (NuSEDS) 
 
+- **nuseds_cuid_streamid_2024-11-25_definitions.csv**: the definitions of the fields in nuseds_cuid_streamid_2024-11-25.csv
+
 *** IMPORTANT ***
 
 The **nuseds_cuid_streamid_2024-11-25.csv** file must be downloaded from https://zenodo.org/records/14194638 and placed in the **/data_input** repository to run 1_datasets.R

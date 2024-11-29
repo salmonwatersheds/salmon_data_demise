@@ -1,5 +1,7 @@
 
-Code, datasets and figures associated to the manuscript **Monitoring for fisheries or for fish? Declines in monitoring of salmon spawners continue despite a conservation crisis**
+Code, datasets and figures associated to the manuscript:
+
+## Monitoring for fisheries or for fish? Declines in monitoring of salmon spawners continue despite a conservation crisis
 
 **Authorship:**
 
