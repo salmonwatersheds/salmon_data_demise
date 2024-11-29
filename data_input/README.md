@@ -7,14 +7,14 @@
 
 - **conservationunits_decoder.csv**: the list of CUs shown in the Pacific Salmon Explorer (https://salmonexplorer.ca/)
 
-- **se_boundary_regions.shp .cpg .dbf . prj .sbn .sbx .xml .shx**: the shape files delineating the different regions
+- **se_boundary/se_boundary_regions.shp .cpg .dbf . prj .sbn .sbx .xml .shx**: the shape files delineating the different regions
 
 - **NPAFC_Catch_Stat-1925-2023.xlsx**: the catch data from the NPAFC Statistics (https://www.npafc.org/statistics/)
 
-- **nuseds_cuid_streamid_20240419.csv**: the cleaned version of the New Salmon Escapement Database (NuSEDS) 
+- **nuseds_cuid_streamid_2024-11-25.csv**: the cleaned version of the New Salmon Escapement Database (NuSEDS) 
 
 *** IMPORTANT ***
 
-The **nuseds_cuid_streamid_20240419.csv** file must be downloaded from https://zenodo.org/records/14194639 and placed in the **/data_input** repository to run 1_datasets.R
+The **nuseds_cuid_streamid_2024-11-25.csv** file must be downloaded from https://zenodo.org/records/14194638 and placed in the **/data_input** repository to run 1_datasets.R
 
 ****************

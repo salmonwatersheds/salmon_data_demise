@@ -1,16 +1,15 @@
 
 
 #'******************************************************************************
-#' The goal of the script is to 
+#' The goal of the script is to make summary datasets from the cleaned NuSEDS
+#' dataset to be used in 2_analyses.R.
 #' 
 #' Files imported:
-#' - nuseds_20240419.csv
+#' - nuseds_cuid_streamid_2024-11-25.csv                 # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
 #' 
 #' Files produced: 
-#' - Number_Prop_populationsAssessed_total.csv
-#' - Number_Prop_populationsAssessed_regions.csv
-#' - Number_Prop_populationsAssessed_species.csv
-#' - Number_Prop_populationsAssessed_regions_species.csv
+#' - populationAssessed_catches_data_remove_0s_NAs.xlsx  # The summary files where both 0s and NAs counts were removed (results presented in the main text)
+#' - populationAssessed_catches_data_",option_NAs.xlsx   # The summary files where only NAs counts were removed (results presented in the supporting information)
 #' 
 #'******************************************************************************
 
@@ -33,7 +32,7 @@ source("code/functions.R")
 #' - option 2: remove only the NAs
 #' - option 3: replace NAs with 0s and 0s with NAs using the fields ADULT_PRESENCE and JACK_PRESENCE (--> not assessed)
 
-i_option <- 1
+i_option <- 2
 option_0s_NAs <- c("remove_0s_NAs","remove_NAs","fix_0s_NAs")[i_option]
 
 # Import source files ------
@@ -126,7 +125,7 @@ if(option_0s_NAs == "remove_0s_NAs"){
   sum(nuseds$MAX_ESTIMATE == 0 & !is.na(nuseds$MAX_ESTIMATE)) # 39389
   nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
   nrow(nuseds) # 190228
-
+  
 }
 
 # 
@@ -541,7 +540,7 @@ for(rg in regions){
       
       cond_rg_sp_CUs_odd <- cond_rg_sp_CUs & grepl("odd",nuseds$cu_name_pse)
       cond_rg_sp_CUs_even <- cond_rg_sp_CUs & grepl("even",nuseds$cu_name_pse)
-    
+      
       nb_CU_total_odd <- length(unique(nuseds$cuid[cond_rg_sp_CUs_odd]))
       proportion_CU_odd <- sapply(years_odd,function(y){
         cond <- nuseds$region == rg & nuseds$SPECIES == sp & nuseds$Year == y &
@@ -719,120 +718,3 @@ for(sh_i in 1:length(names(files_l))){
 
 
 
-###############################################################################
-# Reported Statistics
-###############################################################################
-
-years <- 1980:1990
-populations <- sapply(X = years, function(yr){
-  cond_y <- nuseds$Year == yr
-  out <- length(unique(nuseds$streamid[cond_y]))
-  names(out) <- yr
-  return(out)
-})
-populations
-# 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
-# 2307 2322 2310 2315 2340 2652 2745 2459 2436 2440 2441 
-
-streams <- sapply(X = years, function(yr){
-  cond_y <- nuseds$Year == yr
-  out <- length(unique(nuseds$GFE_ID[cond_y]))
-  names(out) <- yr
-  return(out)
-})
-streams
-# 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
-# 1192 1224 1208 1187 1215 1356 1369 1294 1298 1341 1306 
-
-
-#------------------------------------------------------------------------------
-# Average loss of populations per year since 1986
-#------------------------------------------------------------------------------
-
-data_total <- read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data.xlsx"),
-                         sheet = "populationsAssessed_total") |> as.data.frame()
-
-data_total <- read.csv("data_output/Number_Prop_populationsAssessed_total.csv")
-cond_min <- 1986 <= data_total$year
-lm <- lm(data_total$count[cond_min] ~ data_total$year[cond_min])
-lm
-
-
-#------------------------------------------------------------------------------
-# Monitoring of indicator stocks
-#------------------------------------------------------------------------------
-
-# Indicator systems and associated streamid for the Pacific Salmon Comission's Chinook Technical Committee:
-# NWVI indicators:
-# Colonial-Cayeagle, 1438
-# Tashish, 1542
-# Artlish, and 1541
-# Kaouk 1540
-# SWVI indicators:
-# Bedwell-Ursus, 2017
-# Megin,  1497
-# Moyeha 1494
-# Marble (Area 27); 1440
-# Leiner, 1518
-# Burman 1504
-# Tahsis (Area 25); 1519
-# Sarita, 1463
-# Nahmint (Area 23); 1474
-# San Juan (Area 20).1452
-# Phillips River 1948
-# Cowichan 1443
-# Nanaimo (fall) 1978
-ctc_indicators <- c(1438, 1542, 1541, 1540, 2017, 1497, 1494, 1440, 1518, 1504, 1519, 1463, 1474, 1452, 1948, 1443, 1978)
-
-# Filter NuSEDS to VIMI Chinook
-nuseds_vimiCK <- nuseds %>% filter(region == "Vancouver Island & Mainland Inlets", SPECIES == "Chinook")
-length(unique(nuseds_vimiCK$streamid)) # 263
-ctc_indicators %in% nuseds_vimiCK$streamid
-
-# Summarize monitoring 
-summary_vimiCK <- nuseds_vimiCK %>% 
-  group_by(streamid) %>%
-  summarise(nYearsData = length(streamid), 
-            meanSpawners = round(exp(mean(log(MAX_ESTIMATE), na.rm = TRUE)))) %>%
-  arrange(-nYearsData)
-
-# Visualize monitoring of each stream through time (points = monitored, red = indicator)
-plot(c(1926,2022), c(1,100), "n", ylab = "Population", xlab = "Year")
-for(i in 1:263){
-  z <- nuseds_vimiCK %>% filter(streamid == summary_vimiCK$streamid[i])
-  points(z$Year, rep(i, length(z$Year)), col = ifelse(summary_vimiCK$streamid[i] %in% ctc_indicators, 2, 1), pch = ifelse(summary_vimiCK$streamid[i] %in% ctc_indicators, 19, 1), cex = 0.5)
-}
-abline(h = seq(0, 100, 10))
-summary_vimiCK$ctc_indicator <- summary_vimiCK$streamid %in% ctc_indicators
-
-summary_vimiCK[1:30,]
-
-# How many indicator streams are in top 30 monitored
-sum(summary_vimiCK$ctc_indicator[1:30])
-
-# How many years of data for indicator stocks?
-mean(summary_vimiCK$nYearsData[summary_vimiCK$ctc_indicator == TRUE])
-
-# How many streams total?
-dim(summary_vimiCK)[1]
-
-# Mean number of years for non indicators
-mean(summary_vimiCK$nYearsData[summary_vimiCK$ctc_indicator == FALSE])
-
-# How many non-indicators have been monitored in the past decade?
-maxYr <- nuseds_vimiCK %>% filter(streamid %in% ctc_indicators == FALSE) %>%
-  group_by(streamid) %>%
-  summarise(max(Year))
-
-# What percent have not been monitored in the past decade?
-length(which(maxYr$`max(Year)` < 2013))/length(maxYr$`max(Year)`)
-
-#------------------------------------------------------------------------------
-# Where is there a potential reporting bias?
-#------------------------------------------------------------------------------
-
-nuseds_YT <- nuseds %>% filter(region == "Yukon") %>%
-  group_by(streamid) %>%
-  summarise(maxYr = max(Year), SYSTEM_SITE = unique(SYSTEM_SITE))
-
-max(nuseds_YT$maxYr)

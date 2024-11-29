@@ -1,16 +1,17 @@
 
 
 #'******************************************************************************
-#' The goal of the script is to 
+#' The goal of the script is to generate the figures and extra summary statistics.
 #' 
 #' Files imported:
-#' - Number_Prop_populationsAssessed_total.csv            # created in 1_dataset.R
-#' - Number_Prop_populationsAssessed_regions.csv          # created in 1_dataset.R
-#' - Number_Prop_populationsAssessed_species.csv          # created in 1_dataset.R
-#' - Number_Prop_populationsAssessed_regions_species.csv  # created in 1_dataset.R
+#' 
+#' - nuseds_cuid_streamid_2024-11-25.csv                # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
+#' - region_survey.csv                                  # the region - populations (field "streamid") associations; created in 0_assign-regions.R
+#' - populationAssessed_catches_data_remove_0s_NAs.xlsx # The summary files where both 0s and NAs counts were removed (results presented in the main text); created in 1_datasets.R
+#' - populationAssessed_catches_data_",option_NAs.xlsx  # The summary files where only NAs counts were removed (results presented in the supporting information); created in 1_datasets.R
 #' 
 #' Files produced: 
-#' 
+#' - all the figures except FIGURE 1: spawner survey map
 #' 
 #'******************************************************************************
 
@@ -95,23 +96,8 @@ data_rg_0 <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
 # regions <- unique(data_rg$region)
 species <- unique(data_sp$species)
 
-# Retain the order of the most monitored regions at the global scale: NOT ANYMORE
-# x_max <- sapply(regions, function(rg){
-#   cond <- data_rg$region == rg
-#   return(max(data_rg$count[cond]))
-# })
-# 
-# regions <- regions[rev(order(x_max))]
-
 regions <- c("Yukon","Transboundary","Haida Gwaii","Nass","Skeena","Central Coast",
              "Vancouver Island & Mainland Inlets","Fraser","Columbia")
-
-# for the species: alphabetic order is good
-# x_max <- sapply(species, function(sp){
-#   cond <- data_sp$species == sp
-#   return(max(data_sp$count[cond]))
-# })
-# species <- species[rev(order(x_max))]
 
 species <- species[order(species)]
 
@@ -134,99 +120,55 @@ colours_sp <- c(
   Sockeye = "#9E163C"
 ) # building on intuitive palette suggested by Eric
 
-# Bruno's palette:
-# colours_rg <- paletteer_d("peRReo::planb", n = length(regions), type = "discrete", ) # Monet Panb 
 colours_rg <- paletteer_d("ltc::crbhits",n = length(regions)) # SP: not in love with this one; feel free to change
 names(colours_rg) <- regions
-
 
 # Backgrond segments parameters
 colours_seg <- "grey50"
 alpha_seg <- .5
 lty_seg <- 2
 
-
 #
-# FIGURE 0: Base plot for timeline figure (coastwide monitoring and catch) -------
+#
+# FIGURE 1: spawner survey map: produced in 0_assign-regions.R -------
+#
+# NA
+# 
+# FIGURE 2: Number populations monitored vs catches -------
 #
 
-d = read.csv(here("data_output","Number_populationsAssessed_total.csv"))
-c = read.csv(here("data_output","NPAFC_Catch_Stat-1925-2023.csv"), skip=1)
-total_catch = c[c$Country=="Canada" & c$Reporting.Area=="Whole country" & c$Species=="Total", 1:ncol(c)]
-tc = as.numeric(gsub(",","",total_catch[1,7:ncol(total_catch)]))
-
-if (figures_print) { png(here("figures","2024-nov-salmon-monitoring-timeline.png"), width=8, height=5, units="in",res=750) }
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Number_populations_monitored_catches.jpeg"), 
+      width = 20.32,height = 12.7,units = "cm",res = 300)
+}
 
 par(mar=c(4,4,3,4))
-plot(d$Year, d$count, bty="n", xlab="Year", ylab="",
+plot(data_total$year, data_total$count, bty="n", xlab="Year", ylab="", bty = "u",
      ylim=c(0,3000),xlim=c(1915,2025), xaxt="n", yaxt="n",type="l",col="white")
-box(bty="u")
 axis(1, at=seq(1915,2025,10), labels=TRUE)
 axis(2, at=seq(0,3000,500), labels=TRUE, col.ticks ="#1962A0", col.axis="#1962A0")
 mtext("Number of populations monitored", side=2, col="#1962A0", line=2.5)
 
 key.years=c(1934,1954,1985,2005)
-lines(d$Year, d$count, lwd=4, col=alpha("#1962A0",0.7))
-points(d[d$Year%in%key.years,]$Year,d[d$Year%in%key.years,]$count, lwd=3, pch=1,cex=2, col="black")
+lines(data_total$year, data_total$count, lwd=4, col=alpha("#1962A0",0.7))
+points(x = data_total[data_total$year %in% key.years,]$year,
+       y = data_total[data_total$year %in% key.years,]$count, 
+       lwd=3, pch=1,cex=2, col="black")
 
-par(new=TRUE)
-plot(1925:2023, tc, type="l", lwd=3, col=alpha("#9E6a5A", 0.7), axes=FALSE, bty="n",xlab="", ylab="", ylim=c(0,45000),lty=1)
-axis(4, at=seq(0,45000,5000), labels=seq(0,45,5), col.ticks ="#9E6a5A", col.axis="#9E6a5A")
+par(new = TRUE)
+cond_total <- catch$species == "Total"
+plot(x = catch$year[cond_total], y = catch$count[cond_total]/1000000, type="l", lwd=3, col = alpha("#9E6a5A", 0.7), 
+     axes = FALSE, bty = "n",xlab = "", ylab = "", ylim = c(0,45),lty = 1)
+axis(4, at = seq(0,45,5), labels = seq(0,45,5), col.ticks = "#9E6a5A", 
+     col.axis = "#9E6a5A")
 mtext("Commercial fisheries catch (millions of fish)", side=4, col="#9E6a5A", line=2.5)
 
-if (figures_print) { dev.off() }
-
-
-#
-# FIGURE 1: Number populations monitored vs catches ------
-#
-
-year_min <- 1915
-year_max <- max(data_total$year)
-
-coef <- 1
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Number_populations_monitored_catches.jpeg"),
-       width = 21.59 * coef, height = 21.59 * coef * 2/3, units = 'cm', res = 300)
-  # quartz(width = 7.615, height = 4, pointsize = 10)
-}
-layout(mat = matrix(1))
-par(mar = c(4.5,4.5,3,4.5))
-plot(NA, type = "l", lwd = 2, bty = "u",
-     xlim = c(year_min,year_max), #ylim = c(range(data_total$count)),
-     ylab = "", xlab = "Year",
-     yaxs = "i", ylim = c(0, max(data_total$count)))
-mtext(side = 2, line = 3,  "Number of populations monitored", col = "#1962A0")
-# catches
-
-segments_horizontal_fun(y_range = range(data_total$count), x_range = c(1900,2030), 
-                        lty = lty_seg, colour = colours_seg, alpha = alpha_seg, lwd = 0.8)
-segments(x0 = (year_min:year_max)[(year_min:year_max) %% 10 == 0],
-         x1 = (year_min:year_max)[(year_min:year_max) %% 10 == 0],
-         y0 = -100, y1 = max(data_total$count),
-         lwd = 0.8, lty = lty_seg, col = colour_transparency_fun(colours_seg,alpha = alpha_seg))
-lines(x = data_total$year, y = data_total$count, lwd = 2, xpd = NA, col = "#1962A0")
-#
-par(new = TRUE)
-cond_yr <- catch$year <= max(catch$year) &  catch$year >= min(catch$year)
-cond_total <- catch$species == "Total"
-plot(x = catch$year[cond_yr & cond_total], 
-     y =  catch$count[cond_yr & cond_total] * 10^-6, 
-     xlim = c(year_min,year_max),
-     ylim = c(0, 44.8), #SP: Need to set ylim so that horizontal lines match axes ticks for populations on left
-     lwd = 2, col = "#9E163C",type = "l",bty = "u",yaxt = 'n', ylab = '',xlab='', yaxs = "i", xpd = NA)
-axis(side = 4, at = seq(0, 40, 8))
-# axis(side = 4, at = seq(0, 36, 6))
-
-mtext(text = "Canadian catch (millions of salmon)", side = 4, cex = 1, line = 2.5, col = "#9E163C")
-# legend("bottom",c("Monitoring","Fishing"), lwd = 2, bty = 'n',
-#        col = c("black", "#9E163C"))
 if(figures_print){
   dev.off()
 }
 
 #
-# FIGURE 2: Number populations monitored per years per region > species --------
+# FIGURE 3: Number populations monitored per years per region > species --------
 #
 
 lwd <- .5 # for the grid segments
@@ -314,7 +256,7 @@ if(figures_print){
   dev.off()
 }
 
-# FIGURE 3: trends 1986 to 2022 per regions > species ---------
+# FIGURE 4: trends 1986 to 2022 per regions > species ---------
 #
 
 year_min <- 1986
@@ -375,7 +317,7 @@ if(figures_print){
 }
 
 #
-# FIGURE 4: Correlation btw Number population monitored vs. catch ---------
+# FIGURE 5: Correlation btw Number population monitored vs. catch ---------
 #
 
 years <- min(data_total$year):max(data_total$year)
@@ -495,7 +437,7 @@ if(figures_print){
 }
 
 #
-# FIGURE 5: Proportion of CUs monitored (i.e. at least 1 population) --------
+# FIGURE 6: Proportion of CUs monitored (i.e. at least 1 population) --------
 #
 
 alpha <- .7
@@ -1082,7 +1024,7 @@ if(figures_print){
 }
 
 #
-# Figure S7: Patterns in zero counts for Fraser sockeye ------
+# FIGURE S7: Patterns in zero counts for Fraser sockeye ------
 #
 
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
@@ -1206,6 +1148,184 @@ if(figures_print){
 }
 
 #
-# ------
-# 
+# Reported Statistics ------
+#
 
+#'* Proportion of 0s ~ region and species *
+# 
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2024-11-25.csv"), 
+                   header = T)
+head(nuseds)
+nrow(nuseds) # 306823
+
+cond <- nuseds$region == "Northern Transboundary"
+nuseds$region[cond] <- "Transboundary"
+
+# remove rows with cuid = NA
+cond_remove <- is.na(nuseds$cuid)
+sum(cond_remove) # 1998
+nuseds <- nuseds[!cond_remove,]
+
+# bring region_survey
+region_survey <- read.csv("data_output/region_survey.csv")
+head(region_survey)
+
+# Merge region_survey assignment from 0_assign-regions.R that assigns PSE region
+# to survey sites based on exact location (rather than CU assignment)
+nuseds <- nuseds %>% left_join(region_survey, by = "streamid")
+
+cond_NA <- is.na(nuseds$MAX_ESTIMATE)
+sum(cond_NA) # 152096
+cond_0 <- nuseds$MAX_ESTIMATE == 0 & !cond_NA
+sum(cond_0)  # 2901
+
+# Per regions and species:
+# Note that we use the field "region" (i.e. the CUs' region) and not "region_survey"
+# (i.e. the surveys' locations) because the region_survey.csv ws created using
+# the nuseds data without the 0s.
+rg_sp_0 <- matrix(NA,nrow = length(regions), ncol = length(species))
+colnames(rg_sp_0) <- species
+rownames(rg_sp_0) <- regions
+for(rg in regions){   # rg <- regions[8]
+  for(sp in species){ # sp <- species[5]
+    cond_rg_sp <- nuseds$region_survey == rg & nuseds$SPECIES == sp
+    out <- round(sum(cond_rg_sp & cond_0) / sum(cond_0) * 100,1)
+    rg_sp_0[which(rg == regions),which(sp == species)] <- out
+  }
+}
+
+total_rg <- rowSums(rg_sp_0)
+rg_sp_0 <- cbind(rg_sp_0,total_rg)
+total_sp <- colSums(rg_sp_0)
+total_sp <- rbind(rg_sp_0,total_sp)
+total_sp
+
+#                                    Chinook Chum Coho Pink Sockeye total_rg
+# Yukon                                  0.0  0.1  0.0  0.0     0.0      0.1
+# Transboundary                          0.0  0.0  0.1  0.0     0.6      0.7
+# Haida Gwaii                            0.0  0.0  0.0  0.0     0.0      0.0
+# Nass                                   0.0  0.0  0.0  0.0     0.0      0.0
+# Skeena                                 0.0  0.0  0.0  0.0     0.0      0.0
+# Central Coast                          0.0  0.2  0.1  0.1     0.0      0.4
+# Vancouver Island & Mainland Inlets     2.7  3.7  3.8  3.8     3.1     17.1
+# Fraser                                 7.6  1.0 12.8  3.3    57.1     81.8
+# Columbia                               0.0  0.0  0.0  0.0     0.0      0.0
+# total_sp                              10.3  5.0 16.8  7.2    60.8    100.1
+
+
+#'* Number of populations and streams per year until 1990 *
+#'
+#'
+
+# remove the NAs and 0s
+nuseds <- nuseds[!cond_NA & !cond_0,]
+nrow(nuseds) # 150839
+
+years <- 1980:1990
+populations <- sapply(X = years, function(yr){
+  cond_y <- nuseds$Year == yr
+  out <- length(unique(nuseds$streamid[cond_y]))
+  names(out) <- yr
+  return(out)
+})
+populations
+# 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
+# 2308 2323 2311 2316 2341 2653 2746 2460 2437 2441 2442 
+
+streams <- sapply(X = years, function(yr){
+  cond_y <- nuseds$Year == yr
+  out <- length(unique(nuseds$GFE_ID[cond_y]))
+  names(out) <- yr
+  return(out)
+})
+streams
+# 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
+# 1195 1224 1211 1187 1218 1363 1381 1294 1299 1346 1310
+
+
+#'*  Average loss of populations per year since 1986 *
+
+cond_min <- 1986 <= data_total$year
+lm <- lm(data_total$count[cond_min] ~ data_total$year[cond_min])
+lm
+
+# Coefficients:
+#   (Intercept)  data_total$year[cond_min]  
+#      86889.25                     -42.51  
+
+#'* Monitoring of indicator stocks *
+
+# Indicator systems and associated streamid for the Pacific Salmon Comission's Chinook Technical Committee:
+# NWVI indicators:
+# Colonial-Cayeagle, 1438
+# Tashish, 1542
+# Artlish, and 1541
+# Kaouk 1540
+# SWVI indicators:
+# Bedwell-Ursus, 2017
+# Megin,  1497
+# Moyeha 1494
+# Marble (Area 27); 1440
+# Leiner, 1518
+# Burman 1504
+# Tahsis (Area 25); 1519
+# Sarita, 1463
+# Nahmint (Area 23); 1474
+# San Juan (Area 20).1452
+# Phillips River 1948
+# Cowichan 1443
+# Nanaimo (fall) 1978
+ctc_indicators <- c(1438, 1542, 1541, 1540, 2017, 1497, 1494, 1440, 1518, 1504, 1519, 1463, 1474, 1452, 1948, 1443, 1978)
+
+# Filter NuSEDS to VIMI Chinook
+nuseds_vimiCK <- nuseds %>% 
+  filter(region == "Vancouver Island & Mainland Inlets", SPECIES == "Chinook")
+length(unique(nuseds_vimiCK$streamid)) # 264
+ctc_indicators %in% nuseds_vimiCK$streamid
+
+# Summarize monitoring 
+summary_vimiCK <- nuseds_vimiCK %>% 
+  group_by(streamid) %>%
+  summarise(nYearsData = length(streamid), 
+            meanSpawners = round(exp(mean(log(MAX_ESTIMATE), na.rm = TRUE)))) %>%
+  arrange(-nYearsData)
+
+# Visualize monitoring of each stream through time (points = monitored, red = indicator)
+plot(c(1926,2022), c(1,100), "n", ylab = "Population", xlab = "Year")
+for(i in 1:263){
+  z <- nuseds_vimiCK %>% filter(streamid == summary_vimiCK$streamid[i])
+  points(z$Year, rep(i, length(z$Year)), col = ifelse(summary_vimiCK$streamid[i] %in% ctc_indicators, 2, 1), pch = ifelse(summary_vimiCK$streamid[i] %in% ctc_indicators, 19, 1), cex = 0.5)
+}
+abline(h = seq(0, 100, 10))
+summary_vimiCK$ctc_indicator <- summary_vimiCK$streamid %in% ctc_indicators
+
+summary_vimiCK[1:30,]
+
+# How many indicator streams are in top 30 monitored
+sum(summary_vimiCK$ctc_indicator[1:30])
+
+# How many years of data for indicator stocks?
+mean(summary_vimiCK$nYearsData[summary_vimiCK$ctc_indicator == TRUE])
+
+# How many streams total?
+dim(summary_vimiCK)[1]
+
+# Mean number of years for non indicators
+mean(summary_vimiCK$nYearsData[summary_vimiCK$ctc_indicator == FALSE])
+
+# How many non-indicators have been monitored in the past decade?
+maxYr <- nuseds_vimiCK %>% filter(streamid %in% ctc_indicators == FALSE) %>%
+  group_by(streamid) %>%
+  summarise(max(Year))
+
+# What percent have not been monitored in the past decade?
+length(which(maxYr$`max(Year)` < 2013))/length(maxYr$`max(Year)`)
+
+
+#'*  Where is there a potential reporting bias? *
+
+nuseds_YT <- nuseds %>% filter(region == "Yukon") %>%
+  group_by(streamid) %>%
+  summarise(maxYr = max(Year), SYSTEM_SITE = unique(SYSTEM_SITE))
+
+max(nuseds_YT$maxYr)

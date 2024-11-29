@@ -1,10 +1,25 @@
-###############################################################################
-# Assign NuSEDS populations to PSE regions based on locations
-###############################################################################
+
+#'******************************************************************************
+#' The goal of the script is assign NuSEDS populations to PSE regions based on 
+#' locations.
+#' 
+#' Files imported:
+#' - nuseds_cuid_streamid_2024-11-25.csv                 # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
+#' - se_boundary_regions.shp                             # the shape files for the regions as defined in the PSE (https://www.salmonexplorer.ca/)
+#' 
+#' Files produced: 
+#' - region_survey.csv                                   # the region - populations (field "streamid") associations
+#' - map.jpeg                                            # Figure 1 in the main text
+#' - populationAssessed_catches_data_",option_NAs.xlsx   # The summary files where only NAs counts were removed (results presented in the supporting information)
+#' 
+#'******************************************************************************
+
+#'TODO TO CLEAN MORE
 
 
 library(sf)
 library(dplyr)
+library(PNWColors)            # not needed to produce the final figure
 source("code/functions.R")
 
 wd_data_input <- paste0(getwd(),"/data_input")
@@ -24,7 +39,8 @@ sf_use_s2(FALSE)
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
 #' must be downloaded at https://zenodo.org/records/14194639 and placed in the
 #' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_20240419.csv"), header = T)
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2024-11-25.csv"), 
+                   header = T)
 
 # Create spatial variable of survey sites
 nuseds_loc <- nuseds %>% 
@@ -52,13 +68,17 @@ length(unique(nuseds_loc$streamid))
 # There are some streamid's missing
 nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]
 
-plot(st_geometry(regions_spat), col = paste0(pnw_palette("Bay", n = 9), 30), border = pnw_palette("Bay", n = 9))
+plot(st_geometry(regions_spat), col = paste0(pnw_palette("Bay", n = 9), 30), 
+     border = pnw_palette("Bay", n = 9))
 plot(st_geometry(nuseds_loc), pch = 21, col = 1, lwd = 0.5, add = TRUE, cex =0.8)
 
-plot(st_geometry(nuseds_loc), add =TRUE, col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_survey, regions_spat$region)], pch = 19, cex = 0.5)
+plot(st_geometry(nuseds_loc), add =TRUE, 
+     col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_survey, regions_spat$region)], 
+     pch = 19, cex = 0.5)
 #plot(st_geometry(nuseds_loc), add =TRUE, col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_cu, regions_spat$region)], pch = 19, cex = 0.5)
 
-plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), add =TRUE, col = 1, pch = 19, cex = 0.5)
+plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), 
+     add =TRUE, col = 1, pch = 19, cex = 0.5)
 
 # Case of being too close to the boundary...
 plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), col = 1)
@@ -66,7 +86,9 @@ plot(st_geometry(regions_spat), border = pnw_palette("Bay", n = 9), col = NA, ad
 
 # Assign those
 nuseds_loc$region_cu <- nuseds$region[match(nuseds_loc$streamid, nuseds$streamid)]
-plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_cu[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE)], regions_spat$region)], add = TRUE, pch = 19, cex = 0.5)
+plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), 
+     col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_cu[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE)], regions_spat$region)], 
+     add = TRUE, pch = 19, cex = 0.5)
 
 #------------------------------------------------------------------------------
 # Some misassignments based on CU regions for VIMI vs CC
@@ -149,7 +171,8 @@ nuseds$region_survey <- nuseds_loc$region_survey[match(nuseds$streamid, nuseds_l
 
 rivers_low <- readRDS("~/Salmon Watersheds Dropbox/Stephanie Peacock/X Drive/1_PROJECTS/1_Active/Climate Change/Data & Analysis/ccva/freshwater/data/spatial/layers/watercourse_lowRes.rds")
 
-# Shoreline
+# Shoreline COMMENT OUT - TO CITE 
+#' TODO add a comment for user to download the shape file
 shoreline <- st_read("~/Documents/Mapping/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
   st_transform(crs = 4269) %>%
   st_crop(ymin = 40, ymax = 70, xmin = -160, xmax = -105)
