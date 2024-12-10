@@ -6,6 +6,7 @@
 #' 
 #' Files imported:
 #' - nuseds_cuid_streamid_2024-11-25.csv                 # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
+#' - region_survey.csv                                   # the region - populations (field "streamid") associations; created in 0_assign-regions.R
 #' 
 #' Files produced: 
 #' - populationAssessed_catches_data_remove_0s_NAs.xlsx  # The summary files where both 0s and NAs counts were removed (results presented in the main text)
