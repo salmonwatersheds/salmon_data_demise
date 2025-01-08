@@ -30,7 +30,7 @@ wd_data_output <- paste0(getwd(),"/data_output")
 #------------------------------------------------------------------------------
 
 # Load region shapefile
-regions_spat <- st_read(paste0(wd_data_input,"/se_boundary_regions.shp")) %>%
+regions_spat <- st_read(paste0(wd_data_input,"/se_boundary/se_boundary_regions.shp")) %>%
   st_transform(crs = 4269)
 
 sf_use_s2(FALSE)
