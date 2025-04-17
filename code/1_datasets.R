@@ -33,7 +33,7 @@ source("code/functions.R")
 #' - option 2: remove only the NAs
 #' - option 3: replace NAs with 0s and 0s with NAs using the fields ADULT_PRESENCE and JACK_PRESENCE (--> not assessed)
 
-i_option <- 1
+i_option <- 2
 option_0s_NAs <- c("remove_0s_NAs","remove_NAs","fix_0s_NAs")[i_option]
 
 # Import source files ------
@@ -227,7 +227,7 @@ nrow(pop_NA)                   # corresponding to 82 populations
 sum(is.na(nuseds$cuid))        # corresponding number of data points
 
 #
-# associate the region_survey ------
+# Associate the region_survey ------
 #
 
 #' the file contain the "region" = CU-related region and "region_survey" = 
@@ -504,8 +504,8 @@ for(sp in species){
     nb_CU_total_odd <- length(unique(nuseds[cond_sp_odd & !cond_cuid_NA,]$cuid))
     proportion_CU_odd <- count_CU_odd/nb_CU_total_odd
     
-    nb_CU_total_odd <- length(unique(nuseds[cond_sp_odd & !cond_cuid_NA,]$cuid))
-    proportion_CU_odd <- count_CU_odd/nb_CU_total_odd
+    nb_CU_total_even <- length(unique(nuseds[cond_sp_even & !cond_cuid_NA,]$cuid))
+    proportion_CU_even <- count_CU_even/nb_CU_total_even
     
     data_pink <- data.frame(year = c(years_odd,years_even), 
                             count_pop = c(count_odd,count_even), 

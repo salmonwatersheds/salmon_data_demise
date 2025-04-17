@@ -38,43 +38,41 @@ library(scales)
 source("code/functions.R")
 source("code/colours.R")
 
-figures_print <- F
+figures_print <- T
 
 #
 # Import files ------
 
-# Counts and proportions of populations and CUs assessed across regions and species
-
+#'* Counts and proportions of populations and CUs assessed across regions and species *
 filename <- "populationAssessed_catches_data_remove_0s_NAs"
 
 data_total <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                       sheet = "populations_total") |> as.data.frame()
 head(data_total)
 
-# Counts and proportions of populations and CUs assessed per regions
+#'* Counts and proportions of populations and CUs assessed per regions
 data_rg <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                      sheet = "populations_regions") |> as.data.frame()
 
 head(data_rg)
 
-# Counts and proportions of populations and CUs assessed per species
+#'* Counts and proportions of populations and CUs assessed per species
 data_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                       sheet = "populations_species") |> as.data.frame()
 
 head(data_sp)
 
-# Counts and proportions of populations and CUs assessed per regions and species
+#'* Counts and proportions of populations and CUs assessed per regions and species
 data_rg_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                          sheet = "populations_regions_species") |> as.data.frame()
 head(data_rg_sp)
 
-# Import the catch data
+#'* Import the catch data
 catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                      sheet = "catches_species_total") |> as.data.frame()
 head(catch)
 
-# Counts and proportions of populations and CUs assessed per regions and species WITH Os
-
+#'* Counts and proportions of populations and CUs assessed per regions and species WITH Os *
 filename <- "populationAssessed_catches_data_remove_NAs"
 
 data_total_0 <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
@@ -88,6 +86,31 @@ data_sp_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
 
 data_rg_0 <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                        sheet = "populations_regions") |> as.data.frame()
+
+#'* Import the landing value per species per kg *
+# https://www.pac.dfo-mpo.gc.ca/analyses-econom-analysis/analyses/econ-perspective-salmon-saumon-eng.html
+
+value_sp <- read.csv(paste0(wd_data_input,"/landed-value-valeur-debarquement-eng.csv"), 
+                     header = T)
+head(value_sp)
+colnames(value_sp)[1] <- "Year"
+for(c in 2:ncol(value_sp)){
+  value_sp[,c] <- as.numeric(gsub("\\$","",value_sp[,c]))
+}
+
+#'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
+#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' /data_input folder.
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+                   header = T)
+
+nuseds$region[nuseds$region == "Northern Transboundary"] <- "Transboundary"
+
+# edit the field streamid --> population_id to avoid confusion
+# the field is a unique combination between a CU (cuid) and a stream location (GFE_ID)
+# = a popualation
+colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
 
 #
 # Define the order of the regions and species -------
@@ -1153,18 +1176,7 @@ if(figures_print){
 }
 
 #
-# FIGURE S???: barplot  ------
-
-#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
-#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
-#' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
-                   header = T)
-
-nrow(nuseds) # 312539
-
-cond <- nuseds$region == "Northern Transboundary"
-nuseds$region[cond] <- "Transboundary"
+# FIGURE S???: barplot ESTIMATE_CLASSIFICATION ------
 
 # 
 cond_NA <- is.na(nuseds$MAX_ESTIMATE)
@@ -1255,14 +1267,7 @@ legend(x = -1, y = max_val * 1.2, ncol = 2, fill = estCol, legend = ec_levels,
 if(figures_print){
   dev.off()
 }
-
-
-
-
-
-
-
-
+#
 # Reported Statistics ------
 #
 
