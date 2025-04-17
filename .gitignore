@@ -5,17 +5,24 @@
 
 code/figures.R
 code/analyses_draft.R
+code/a_nuseds_collation.html
+code/a_nuseds_collation.rmd
+code/b_nuseds_cuid_streamid.r
 
 figures/archives
 figures/archives 2
 figures/archives 3 before 0s
 figures/archives 4 after 0s
 figures/archives 5 0s NAs fix
+figures/archive 1st submission
 figures/README.md
 figures_EMA
 
 data_input/nuseds_cuid_streamid_20240419.csv
 data_input/nuseds_cuid_streamid_2024-11-21.csv
 data_input/nuseds_cuid_streamid_2024-11-25.csv
+data_input/nuseds_cuid_streamid_2025-04-15.csv
+
+data_output/archive 1st submission
 
 ignore

@@ -39,34 +39,54 @@ sf_use_s2(FALSE)
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
 #' must be downloaded at https://zenodo.org/records/14194639 and placed in the
 #' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2024-11-25.csv"), 
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
                    header = T)
+
+nuseds$region[nuseds$region == "Northern Transboundary"] <- "Transboundary"
+
+# there
+sum(is.na(nuseds$cuid))     # 
+sum(is.na(nuseds$streamid)) # 
+
 
 # Create spatial variable of survey sites
 nuseds_loc <- nuseds %>% 
-  filter(!is.na(cuid)) %>%
-  distinct(SPECIES, POP_ID, cuid, cu_name_pse, streamid, sys_nm_final, latitude_final, longitude_final) %>%
-  st_as_sf(coords = c("longitude_final", "latitude_final"), crs = 4269)
+  # filter(!is.na(cuid)) %>%
+  # distinct(SPECIES, POP_ID, cuid, cu_name_pse, streamid, sys_nm, GFE_ID, Y_LAT, X_LONGT) %>%
+  distinct(region,SPECIES, POP_ID, cuid, cu_name_pse, sys_nm, GFE_ID, Y_LAT, X_LONGT) %>%
+  st_as_sf(coords = c("X_LONGT","Y_LAT"), crs = 4269)
 
-dim(nuseds_loc) # 6766 "populations" 
+dim(nuseds_loc) # 7031  6766 "populations" 
 
 #------------------------------------------------------------------------------
 # Assign region to each population based on location
 #------------------------------------------------------------------------------
 
 pop_regions <- st_intersection(nuseds_loc, regions_spat)
+nrow(pop_regions) # 6171 6092
 
-# Match regions back to orignal NuSEDS data (called "region_survey")
-nuseds$region_survey <- pop_regions$region[match(nuseds$streamid, pop_regions$streamid)]
-nuseds_loc$region_survey <- pop_regions$region[match(nuseds_loc$streamid, pop_regions$streamid)]
+length(unique(nuseds$GFE_ID)) # 2361
+
+# Match regions back to original NuSEDS data (called "region_survey")
+# nuseds$region_survey <- pop_regions$region[match(nuseds$streamid, pop_regions$streamid)]
+# nuseds_loc$region_survey <- pop_regions$region[match(nuseds_loc$streamid, pop_regions$streamid)]
+nuseds$region_survey <- pop_regions$region[match(nuseds$GFE_ID, pop_regions$GFE_ID)]
+nuseds_loc$region_survey <- pop_regions$region[match(nuseds_loc$GFE_ID, pop_regions$GFE_ID)]
+
+cond <- nuseds$region != nuseds$region_survey
+unique(nuseds[cond,c("region","region_survey","sys_nm","GFE_ID","Y_LAT","X_LONGT")])
+
 
 # There are some that are not matched...
 sum(is.na(pop_regions$region))
-length(unique(pop_regions$streamid))
-length(unique(nuseds_loc$streamid))
+sum(is.na(nuseds$region_survey)) # 40765
+sum(is.na(nuseds_loc$region_survey)) # 860
+sum(is.na(nuseds_loc$region)) # 0
+# length(unique(pop_regions$streamid))
+# length(unique(nuseds_loc$streamid))
 
 # There are some streamid's missing
-nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]
+# nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]
 
 plot(st_geometry(regions_spat), col = paste0(pnw_palette("Bay", n = 9), 30), 
      border = pnw_palette("Bay", n = 9))
@@ -74,21 +94,22 @@ plot(st_geometry(nuseds_loc), pch = 21, col = 1, lwd = 0.5, add = TRUE, cex =0.8
 
 plot(st_geometry(nuseds_loc), add =TRUE, 
      col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_survey, regions_spat$region)], 
-     pch = 19, cex = 0.5)
+     pch = 19, cex = 0.3)
 #plot(st_geometry(nuseds_loc), add =TRUE, col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_cu, regions_spat$region)], pch = 19, cex = 0.5)
 
-plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), 
-     add =TRUE, col = 1, pch = 19, cex = 0.5)
+# plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), 
+#      add =TRUE, col = 1, pch = 19, cex = 0.5)
 
 # Case of being too close to the boundary...
-plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), col = 1)
+# plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), col = 1)
+plot(st_geometry(nuseds_loc[is.na(nuseds_loc$region_survey),]), col = 1)
 plot(st_geometry(regions_spat), border = pnw_palette("Bay", n = 9), col = NA, add = TRUE)
 
 # Assign those
-nuseds_loc$region_cu <- nuseds$region[match(nuseds_loc$streamid, nuseds$streamid)]
-plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), 
-     col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_cu[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE)], regions_spat$region)], 
-     add = TRUE, pch = 19, cex = 0.5)
+# nuseds_loc$region_cu <- nuseds$region[match(nuseds_loc$streamid, nuseds$streamid)]
+# plot(st_geometry(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),]), 
+#      col = pnw_palette("Bay", n = 9)[match(nuseds_loc$region_cu[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE)], regions_spat$region)], 
+#      add = TRUE, pch = 19, cex = 0.5)
 
 #------------------------------------------------------------------------------
 # Some misassignments based on CU regions for VIMI vs CC
@@ -99,77 +120,74 @@ regions_buffed <- st_buffer(regions_spat, dist = 0.1)
 
 # Assign new regions one-by-one
 # Start with VIMI
-pop_regions_VIMI <- st_intersection(nuseds_loc[which(nuseds_loc$streamid %in% pop_regions$streamid == FALSE),], regions_buffed[regions_buffed$region == "Vancouver Island & Mainland Inlets",]) # distance is in m?
+rg <- "Vancouver Island & Mainland Inlets"
+cond_NA <- is.na(nuseds_loc$region_survey)
+cond_rg <- regions_buffed$region == rg
+pop_rg <- st_intersection(nuseds_loc[cond_NA,],regions_buffed[cond_rg,])
+nuseds_loc$region_survey[nuseds_loc$GFE_ID %in% pop_rg$GFE_ID] <- rg
+nuseds$region_survey[nuseds$GFE_ID %in% pop_rg$GFE_ID] <- rg
 
-# plot(st_geometry(pop_regions_VIMI), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Vancouver Island & Mainland Inlets")], add = TRUE)
+rg <- "Fraser"
+cond_NA <- is.na(nuseds_loc$region_survey)
+cond_rg <- regions_buffed$region == rg
+pop_rg <- st_intersection(nuseds_loc[cond_NA,],regions_buffed[cond_rg,])
+nuseds_loc$region_survey[nuseds_loc$GFE_ID %in% pop_rg$GFE_ID] <- rg
+nuseds$region_survey[nuseds$GFE_ID %in% pop_rg$GFE_ID] <- rg
 
-nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_VIMI$streamid] <- "Vancouver Island & Mainland Inlets"
+rg <- "Haida Gwaii"
+cond_NA <- is.na(nuseds_loc$region_survey)
+cond_rg <- regions_buffed$region == rg
+pop_rg <- st_intersection(nuseds_loc[cond_NA,],regions_buffed[cond_rg,])
+nuseds_loc$region_survey[nuseds_loc$GFE_ID %in% pop_rg$GFE_ID] <- rg
+nuseds$region_survey[nuseds$GFE_ID %in% pop_rg$GFE_ID] <- rg
 
-# Fraser
-pop_regions_Fraser <- st_intersection(nuseds_loc[is.na(nuseds_loc$region_survey),], regions_buffed[regions_buffed$region == "Fraser",]) # distance is in m?
-plot(st_geometry(pop_regions_Fraser), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Fraser")], add = TRUE)
+rg <- "Central Coast"
+cond_NA <- is.na(nuseds_loc$region_survey)
+cond_rg <- regions_buffed$region == rg
+pop_rg <- st_intersection(nuseds_loc[cond_NA,],regions_buffed[cond_rg,])
+nuseds_loc$region_survey[nuseds_loc$GFE_ID %in% pop_rg$GFE_ID] <- rg
+nuseds$region_survey[nuseds$GFE_ID %in% pop_rg$GFE_ID] <- rg
 
-nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_Fraser$streamid] <- "Fraser"
+rg <- "Nass"
+cond_NA <- is.na(nuseds_loc$region_survey)
+cond_rg <- regions_buffed$region == rg
+pop_rg <- st_intersection(nuseds_loc[cond_NA,],regions_buffed[cond_rg,])
+nuseds_loc$region_survey[nuseds_loc$GFE_ID %in% pop_rg$GFE_ID] <- rg
+nuseds$region_survey[nuseds$GFE_ID %in% pop_rg$GFE_ID] <- rg
 
-# Haida Gwaii
-pop_regions_HG <- st_intersection(nuseds_loc[is.na(nuseds_loc$region_survey),], regions_buffed[regions_buffed$region == "Haida Gwaii",]) # distance is in m?
-plot(st_geometry(pop_regions_HG), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Haida Gwaii")], add = TRUE)
+rg <- "Skeena"
+cond_NA <- is.na(nuseds_loc$region_survey)
+cond_rg <- regions_buffed$region == rg
+pop_rg <- st_intersection(nuseds_loc[cond_NA,],regions_buffed[cond_rg,])
+nuseds_loc$region_survey[nuseds_loc$GFE_ID %in% pop_rg$GFE_ID] <- rg
+nuseds$region_survey[nuseds$GFE_ID %in% pop_rg$GFE_ID] <- rg
 
-nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_HG$streamid] <- "Haida Gwaii"
-
-# Central Coast
-pop_regions_CC <- st_intersection(nuseds_loc[is.na(nuseds_loc$region_survey),], regions_buffed[regions_buffed$region == "Central Coast",]) # distance is in m?
-plot(st_geometry(pop_regions_CC), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Central Coast")], add = TRUE)
-
-nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_CC$streamid] <- "Central Coast"
-
-# Plot remaining
-plot(st_geometry(nuseds_loc[is.na(nuseds_loc$region_survey),]))
-plot(st_geometry(regions_spat), border = pnw_palette("Bay", n = 9), col = paste0(pnw_palette("Bay", n = 9), 40), add = TRUE)
-
-# Nass
-pop_regions_Nass <- st_intersection(nuseds_loc[is.na(nuseds_loc$region_survey),], regions_buffed[regions_buffed$region == "Nass",]) # distance is in m?
-plot(st_geometry(pop_regions_Nass), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Nass")], add = TRUE)
-
-nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_Nass$streamid] <- "Nass"
-
-# Skeena
-pop_regions_Skeena <- st_intersection(nuseds_loc[is.na(nuseds_loc$region_survey),], regions_buffed[regions_buffed$region == "Skeena",]) # distance is in m?
-plot(st_geometry(pop_regions_Skeena), pch = 19, col = pnw_palette("Bay", n = 9)[which(regions_buffed$region == "Skeena")], add = TRUE)
-
-nuseds_loc$region_survey[nuseds_loc$streamid %in% pop_regions_Skeena$streamid] <- "Skeena"
-
-# Any left?
+# any left?
 sum(is.na(nuseds_loc$region_survey)) # No!
+sum(is.na(nuseds$region_survey)) # No!
 
 # How many are mismatched?
-plot(st_geometry(nuseds_loc[which(nuseds_loc$region_cu != nuseds_loc$region_survey),]))
+plot(st_geometry(nuseds_loc[which(nuseds_loc$region != nuseds_loc$region_survey),]))
 plot(st_geometry(regions_spat), border = pnw_palette("Bay", n = 9), col = paste0(pnw_palette("Bay", n = 9), 40), add = TRUE)
 
-nuseds_loc[which(nuseds_loc$region_cu != nuseds_loc$region_survey),]
-
-tapply(nuseds_loc$SPECIES[which(nuseds_loc$region_cu != nuseds_loc$region_survey)], nuseds_loc$SPECIES[which(nuseds_loc$region_cu != nuseds_loc$region_survey)], length)
-
-nuseds_loc %>%
-  filter(region_cu != region_survey, SPECIES == "Coho")
-
-#------------------------------------------------------------------------------
-# Write CSV of streamid <-> region_survey
-#------------------------------------------------------------------------------
+# Write CSV of streamid <-> region_survey ------
 
 output <- nuseds_loc %>% 
   as.data.frame() %>% 
-  select(streamid, region_survey)
+  select(region,region_survey,GFE_ID) %>%
+  unique()
+
+nrow(output) # 2454
 
 write.csv(output, file = "data_output/region_survey.csv", row.names = FALSE)
 
-nuseds$region_survey <- nuseds_loc$region_survey[match(nuseds$streamid, nuseds_loc$streamid)]
+# 
+# Plot regions and monitoring locations --------
 
-#------------------------------------------------------------------------------
-# Plot regions and monitoring locations
-#------------------------------------------------------------------------------
 
 rivers_low <- readRDS("~/Salmon Watersheds Dropbox/Stephanie Peacock/X Drive/1_PROJECTS/1_Active/Climate Change/Data & Analysis/ccva/freshwater/data/spatial/layers/watercourse_lowRes.rds")
+
+rivers_low <- "C:/Users/bcarturan/Salmon Watersheds Dropbox/Bruno Carturan/X Drive/1_Active/Climate Change/Data & Analysis/ccva/freshwater/data/spatial/layers/watercourse_lowRes.rds"
 
 # Shoreline COMMENT OUT - TO CITE 
 #' TODO add a comment for user to download the shape file

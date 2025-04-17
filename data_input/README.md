@@ -11,7 +11,9 @@
 
 - **NPAFC_Catch_Stat-1925-2023.xlsx**: the catch data from the NPAFC Statistics (https://www.npafc.org/statistics/)
 
-- **nuseds_cuid_streamid_2024-11-25.csv**: the cleaned version of the New Salmon Escapement Database (NuSEDS) 
+- **NuSEDS_escapement_data_collated_2025-04-15.csv**: the cleaned version of the New Salmon Escapement Database (NuSEDS) with 0s kept
+
+- **nuseds_cuid_streamid_2025-04-15.csv**: the cleaned NuSEDS data with associated `cuid` and `cu_name_pse` used as in the PSE 
 
 - **nuseds_cuid_streamid_2024-11-25_definitions.csv**: the definitions of the fields in nuseds_cuid_streamid_2024-11-25.csv
 
