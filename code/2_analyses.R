@@ -73,7 +73,6 @@ catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
                      sheet = "catches_species_total") |> as.data.frame()
 head(catch)
 
-
 # Counts and proportions of populations and CUs assessed per regions and species WITH Os
 
 filename <- "populationAssessed_catches_data_remove_NAs"
