@@ -710,10 +710,12 @@ head(dataExport)
 
 Number_Prop_populationsAssessed_regions_species <- dataExport
 
-cond <- Number_Prop_populationsAssessed_regions_species$region == "Fraser" & Number_Prop_populationsAssessed_regions_species$species == "Pink"
+cond <- Number_Prop_populationsAssessed_regions_species$region == "Fraser" & 
+  Number_Prop_populationsAssessed_regions_species$species == "Pink"
 Number_Prop_populationsAssessed_regions_species$count_pop[cond]
 
-cond <- Number_Prop_populationsAssessed_regions_species$region == "Fraser" & Number_Prop_populationsAssessed_regions_species$species == "Coho"
+cond <- Number_Prop_populationsAssessed_regions_species$region == "Fraser" &
+  Number_Prop_populationsAssessed_regions_species$species == "Coho"
 Number_Prop_populationsAssessed_regions_species$count_pop[cond]
 
 

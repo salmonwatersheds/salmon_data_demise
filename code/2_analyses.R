@@ -38,7 +38,7 @@ library(scales)
 source("code/functions.R")
 source("code/colours.R")
 
-figures_print <- T
+figures_print <- F
 
 #
 # Import files ------
@@ -1267,6 +1267,128 @@ legend(x = -1, y = max_val * 1.2, ncol = 2, fill = estCol, legend = ec_levels,
 if(figures_print){
   dev.off()
 }
+#
+#
+# Linear regression: monitoring ~ cactch * value * time -----
+
+# The nodels to fit:
+# Monitoring effort ~ landed_catch * value
+# Monitoring effort ~ landed_catch → Monitoring varies with landed catch (the linear model version of our current correlation analysis)
+# Monitoring effort ~ species*time → Trend over time that’s different for different species
+# Monitoring effort ~ time → Trend over time in monitoring
+
+year_min <- max(min(data_sp_0$year),min(catch$year),min(value_sp$Year))
+year_max <- min(max(data_sp_0$year),max(catch$year),max(value_sp$Year))
+
+colnames(value_sp)[colnames(value_sp) == "Year"]
+
+years <- year_min:year_max
+
+data <- data_sp_0[data_sp_0$year %in% years,c("species","year","count_pop")]
+data$count_catch <- NA
+data$value_kg <- NA
+for(yr in years){
+  # yr <- years[1]
+  for(sp in unique(data_sp_0$species)){
+    # sp <- unique(data_sp_0$species)[1]
+    cond <- catch$species == sp & catch$year == yr
+    count_catch <- catch$count[cond]
+    
+    cond <- value_sp$Year == yr
+    value_kg <- value_sp[cond,sp]
+    
+    cond <- data$species == sp & data$year == yr
+    data$count_catch[cond] <- count_catch
+    data$value_kg[cond] <- value_kg
+  }
+}
+
+lm1 <- lm(count_pop ~ count_catch * value_kg, data = data)
+summary(lm1)
+# Coefficients:
+#                        Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)           5.005e+02  2.451e+01  20.420  < 2e-16 ***
+# count_catch          -4.030e-06  3.637e-06  -1.108   0.2687    
+# value_kg             -2.217e+01  4.112e+00  -5.393  1.3e-07 ***
+# count_catch:value_kg  1.690e-06  8.558e-07   1.975   0.0491 * 
+
+anova(lm1)
+#                         Df   Sum Sq Mean Sq F value    Pr(>F)    
+# count_catch            1   165949  165949  5.2694   0.02231 *  
+# value_kg               1   869766  869766 27.6177 2.611e-07 ***
+# count_catch:value_kg   1   122825  122825  3.9001   0.04909 *  
+# Residuals            341 10739135   31493    
+
+lm2 <- lm(count_pop ~ count_catch, data = data)
+summary(lm2)
+# Coefficients:
+#                        Estimate Std. Error t value Pr(>|t|)    
+#      (Intercept) 3.838e+02  1.312e+01  29.239   <2e-16 ***
+#      count_catch 4.874e-06  2.213e-06   2.203   0.0283 *  
+
+anova(lm2)
+#                         Df   Sum Sq Mean Sq F value    Pr(>F)    
+#            count_catch   1   165949  165949  4.8519 0.02828 *
+# Residuals   343 11731726   34203  
+
+AIC(lm1,lm2)
+
+lm3 <- lm(count_pop ~ species * year, data = data)
+summary(lm3)
+# Coefficients:
+#                        Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)          -900.4144   983.4878  -0.916  0.36057    
+# speciesChum         12960.6738  1390.8617   9.318  < 2e-16 ***
+# speciesCoho         13468.8846  1390.8617   9.684  < 2e-16 ***
+# speciesPink          7646.3375  1390.8617   5.498 7.65e-08 ***
+# speciesSockeye      -4194.3617  1390.8617  -3.016  0.00276 ** 
+# year                    0.5630     0.4952   1.137  0.25635    
+# speciesChum:year       -6.3396     0.7003  -9.053  < 2e-16 ***
+# speciesCoho:year       -6.6143     0.7003  -9.445  < 2e-16 ***
+# speciesPink:year       -3.7733     0.7003  -5.388 1.34e-07 ***
+# speciesSockeye:year     2.1465     0.7003   3.065  0.00235 **  
+
+anova(lm3)
+# Df  Sum Sq Mean Sq F value    Pr(>F)    
+# species        4 7242127 1810532 269.771 < 2.2e-16 ***
+# year           1  757765  757765 112.908 < 2.2e-16 ***
+# species:year   4 1649479  412370  61.444 < 2.2e-16 ***
+# Residuals    335 2248306    6711  
+
+lm4 <- lm(count_pop ~ year, data = data)
+summary(lm4)
+# Coefficients:
+#                         Estimate Std. Error t value Pr(>|t|)    
+# (Intercept) 5075.8924   967.5479   5.246 2.73e-07 ***
+# year          -2.3531     0.4872  -4.830 2.06e-06 ***
+
+anova(lm4)
+#            Df   Sum Sq Mean Sq F value    Pr(>F)    
+# year        1   757765  757765  23.332 2.058e-06 ***
+# Residuals 343 11139911   32478  
+
+AIC(lm3,lm4)
+
+
+
+lm5 <- lm(count_pop ~ count_catch + value_kg + year, data = data)
+summary(lm5)
+# Coefficients:
+#               Estimate Std. Error t value Pr(>|t|) 
+# (Intercept)  5.088e+03  9.554e+02   5.325 1.84e-07 ***
+# count_catch -7.558e-07  2.207e-06  -0.342    0.732    
+# value_kg    -1.787e+01  3.208e+00  -5.571 5.14e-08 ***
+# year        -2.314e+00  4.797e-01  -4.824 2.13e-06 ***
+
+anova(lm5)
+#              Df   Sum Sq Mean Sq F value    Pr(>F)    
+# count_catch   1   165949  165949  5.5653   0.01888 *  
+# value_kg      1   869766  869766 29.1685 1.247e-07 ***
+# year          1   693801  693801 23.2673 2.129e-06 ***
+# Residuals   341 10168159   29819  
+
+AIC(lm1,lm2,lm5)
+
 #
 # Reported Statistics ------
 #
