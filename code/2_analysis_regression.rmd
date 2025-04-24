@@ -1,0 +1,1000 @@
+---
+title: "2_analysis_regression"
+author: "Bruno S. Carturan.....TO COMPLETE"
+date: "2025-04-22"
+output:
+  html_document:
+    toc: true                  # Adds a table of contents to the document
+    toc_float: true           # Makes the table of contents float on the side as the reader scrolls.
+    toc_collapsed: true        # Starts the table of contents in a collapsed state.
+    toc_depth: 3               # Specifies the depth of headers (e.g., ##, ###) to include in the table of contents.
+    number_sections: true      # 
+    theme: journal  # lumen
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+```{r, include=FALSE}
+
+rm(list = ls())
+graphics.off()
+
+wd <- gsub("code","",getwd())
+
+wd_figures <- paste0(wd,"figures")
+wd_data_input <- paste0(wd,"data_input")
+wd_data_output <- paste0(wd,"data_output")
+
+library(tidyr)
+library(dplyr)
+library(paletteer) # https://r-graph-gallery.com/color-palette-finder
+library(readxl)
+library(here)
+library(scales)
+library(AICcmodavg) # for AICc
+library(car)
+library(MASS)
+library(psych)
+
+source("functions.R")
+source("colours.R")
+
+figures_print <- F
+
+#
+# Import files
+
+#'* Counts and proportions of populations and CUs assessed across regions and species *
+filename <- "populationAssessed_catches_data_remove_0s_NAs"
+
+data_total <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                      sheet = "populations_total") |> as.data.frame()
+head(data_total)
+
+#'* Counts and proportions of populations and CUs assessed per regions
+data_rg <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                     sheet = "populations_regions") |> as.data.frame()
+
+head(data_rg)
+
+#'* Counts and proportions of populations and CUs assessed per species
+data_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                      sheet = "populations_species") |> as.data.frame()
+
+head(data_sp)
+
+#'* Counts and proportions of populations and CUs assessed per regions and species
+data_rg_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                         sheet = "populations_regions_species") |> as.data.frame()
+head(data_rg_sp)
+
+#'* Import the catch data
+catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                     sheet = "catches_species_total") |> as.data.frame()
+head(catch)
+
+#'* Import the landing value per species per kg *
+# https://www.pac.dfo-mpo.gc.ca/analyses-econom-analysis/analyses/econ-perspective-salmon-saumon-eng.html
+
+value_sp <- read.csv(paste0(wd_data_input,"/landed-value-valeur-debarquement-eng.csv"), 
+                     header = T)
+head(value_sp)
+colnames(value_sp)[1] <- "Year"
+for(c in 2:ncol(value_sp)){
+  value_sp[,c] <- as.numeric(gsub("\\$","",value_sp[,c]))
+}
+
+#'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
+#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' /data_input folder.
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+                   header = T)
+
+nuseds$region[nuseds$region == "Northern Transboundary"] <- "Transboundary"
+
+# edit the field streamid --> population_id to avoid confusion
+# the field is a unique combination between a CU (cuid) and a stream location (GFE_ID)
+# = a popualation
+colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
+
+#
+```
+
+```{r, include=FALSE}
+year_min <- max(min(data_sp$year),min(catch$year),min(value_sp$Year))
+year_max <- min(max(data_sp$year),max(catch$year),max(value_sp$Year))
+years <- year_min:year_max
+
+data <- data_sp[data_sp$year %in% years,c("species","year","count_pop")]
+data$count_catch <- NA
+data$value_kg <- NA
+for(yr in years){
+  # yr <- years[1]
+  for(sp in unique(data_sp$species)){
+    # sp <- unique(data_sp_0$species)[1]
+    cond <- catch$species == sp & catch$year == yr
+    count_catch <- catch$count[cond]
+    
+    cond <- value_sp$Year == yr
+    value_kg <- value_sp[cond,sp]
+    
+    cond <- data$species == sp & data$year == yr
+    data$count_catch[cond] <- count_catch
+    data$value_kg[cond] <- value_kg
+  }
+}
+
+data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
+```
+
+The analysis in the section is done from `r min(data$year)` to `r max(data$year)`.
+
+# Check collinearity of explanatory variables
+
+```{r, echo=FALSE, fig.height=6, fig.width=8}
+panel.cor <- function(x, y){
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- round(cor(x, y), digits=2)
+    txt <- paste0("R = ", r)
+    # cex.cor <- 1.3/strwidth(txt)
+    # text(0.5, 0.5, txt, cex = cex.cor * r)
+    text(0.5, 0.5, txt, cex = 1)
+}
+
+upper.panel<-function(x, y){
+  points(x,y, pch = 19, col = species_cols_light[data$species])
+}
+
+pairs(data[,c("count_pop","year","count_catch","value_kg")],
+      upper.panel = upper.panel,
+      lower.panel = panel.cor)
+
+pairs.panels(data[,c("count_pop","year","count_catch","value_kg")], 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+```
+
+There is no strong correlation among the explanatory variables.
+
+# Models definition and selection
+
+The suggested models to compared are:
+
+- nb populations monitored ~ landed_catch * value
+- nb populations monitored ~ landed_catch
+- nb populations monitored ~ species * time
+- nb populations monitored ~ time
+
+I decided to also fit equivalent models but without the interactions to assess collinearity among predictors:
+ 
+- nb populations monitored ~ landed_catch + value
+- nb populations monitored ~ species + time
+
+Finally I decided to also fit a full model without interaction to be compared to the other ones:
+
+- nb populations monitored ~ landed_catch * value + time + species
+
+The response variable is a count, hence fitting a GLM with a Poisson distribution is suggested but simple LM (assuming a Gaussian distribution of the response variable) can be enough if counts are far from 0s. So we try a LM first.
+
+## LM (Gaussian distribution)
+
+### Model definition
+
+The five different models:
+
+```{r}
+# lm_full_i <- lm(count_pop ~ count_catch * value_kg * year * species, data = data)
+
+lm_full <- lm(count_pop ~ count_catch + value_kg + year + species, data = data)
+
+lm_cv_i <- lm(count_pop ~ count_catch * value_kg, data = data)
+
+lm_cv <- lm(count_pop ~ count_catch + value_kg, data = data)
+
+lm_c <- lm(count_pop ~ count_catch, data = data)
+
+lm_sy_i <- lm(count_pop ~ species * year, data = data)
+
+lm_sy <- lm(count_pop ~ species + year, data = data)
+
+lm_y <- lm(count_pop ~ year, data = data)
+```
+
+```{r, include=FALSE}
+#sm_full_i <- summary(lm_full_i)
+sm_full <- summary(lm_full)
+sm_cv_i <- summary(lm_cv_i)
+sm_cv <- summary(lm_cv)
+sm_c <- summary(lm_c)
+sm_sy_i <- summary(lm_sy_i)
+sm_sy <- summary(lm_sy)
+sm_y <- summary(lm_y)
+```
+
+### Collinearity
+
+I use the variance inflation factor (VIF) and the generalized VIF (GVIF`^(1/(2*Df))`) to check the collinearity (the latter being used when `species` is present) in the models wihout interactions. (GVIF`^(1/(2*Df))` with the model with interactions is always = 1 because the interactions concern all the explanatory variables.)
+
+There is an issue when VIF (or GVIF`^(1/(2*Df))`) > a threshold, which is usually comprised in [2.5;10] in the literature. We select the threshold = 3.
+
+No issue with `lm_full`:
+
+```{r}
+vif(lm_full)
+```
+No issue with `lm_cv`:
+
+```{r}
+vif(lm_cv)
+```
+No issue with `lm_sy`:
+
+```{r}
+vif(lm_sy)
+```
+
+There does not seem to be an issue with collinearity.
+
+### Model comparison
+
+Model comparison using AIC, AICc and R2:
+
+```{r, echo=FALSE}
+show <- AIC(lm_full,
+            lm_cv_i,
+            lm_cv,
+            lm_c,
+            lm_sy_i,
+            lm_sy,
+            lm_y)
+
+show$AICc <- c(AICc(lm_full),
+               AICc(lm_cv_i),
+               AICc(lm_cv),
+               AICc(lm_c),
+               AICc(lm_sy_i),
+               AICc(lm_sy),
+               AICc(lm_y))
+
+show$R2_adjusted <- c(round(c(sm_full$adj.r.squared,
+                              sm_cv_i$adj.r.squared,
+                              sm_cv$adj.r.squared,
+                              sm_c$adj.r.squared,
+                              sm_sy_i$adj.r.squared,
+                              sm_sy$adj.r.squared,
+                              sm_y$adj.r.squared),digits = 3))
+
+show <- show[order(show$AIC),]
+show
+```
+
+Most parsimonious model: `lm_sy_i`, according to AIC.
+
+### Model validation
+
+We will the residuals for both `lm_sy_i` and `lm_full`.
+
+For `lm_sy_i`:
+
+```{r, echo=FALSE}
+span <- .9
+
+# res <- rstandard(lm_sy_i)
+lm_selected <- lm_sy_i
+fit <- predict(lm_selected)
+
+res <- residuals(lm_selected)
+
+layout(matrix(1:4,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+#
+plot(lm_sy_i, which = 1)
+#
+qqnorm(res, main = "")
+qqline(res)
+
+plot(y = res, x = data$year, xlab = "Year", ylab = "Residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x =  data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Residuals")
+abline(0,0)
+
+#
+# plot(y = res, x = data$count_catch/1000000, xlab = "Catch (in millions of fish)", ylab = "Residuals")
+# abline(0,0)
+# #
+# plot(y = res, x = data$value_kg, xlab = "Value (in CAD per kg)", ylab = "Residuals")
+# abline(0,0)
+```
+
+For `lm_full`:
+
+```{r, echo=FALSE}
+lm_selected <- lm_full
+fit <- predict(lm_selected)
+
+res <- residuals(lm_selected)
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+#
+plot(lm_sy_i, which = 1)
+#
+qqnorm(res, main = "")
+qqline(res)
+x <- data$count_catch/1000000
+plot(y = res, x = x, xlab = "Catch (in millions of fish)", ylab = "Residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x =  data$count_catch[order(data$count_catch)]/1000000, 
+      y = smoothed[order(data$count_catch)], col = "red")
+
+plot(y = res, x = data$value_kg, xlab = "Value (CAD/kg)", ylab = "Residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$value_kg, span = span))
+lines(x =  data$value_kg[order(data$value_kg)], 
+      y = smoothed[order(data$value_kg)], col = "red")
+
+plot(y = res, x = data$year, xlab = "Year", ylab = "Residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x =  data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Residuals")
+abline(0,0)
+```
+
+There are issues in the the homocedasticity and normal distribution of the residuals. So we try a `glm` with a Poisson distribution and `log-link` function.
+
+## GLM Poisson distribution (with log-link function)
+
+### Model definition
+
+We define the same models as in the previous part:
+
+```{r}
+# glm_full_i <- glm(count_pop ~ count_catch * value_kg * year * species, data = data, family = poisson)
+
+glm_full <- glm(count_pop ~ count_catch + value_kg + year + species, data = data, 
+                family = poisson(link = "log"))
+
+glm_cv_i <- glm(count_pop ~ count_catch * value_kg, data = data, 
+                family = poisson(link = "log"))
+
+glm_cv <- glm(count_pop ~ count_catch + value_kg, data = data, 
+                family = poisson(link = "log"))
+
+glm_c <- glm(count_pop ~ count_catch, data = data, 
+             family = poisson(link = "log"))
+
+glm_sy_i <- glm(count_pop ~ species * year, data = data, 
+                family = poisson(link = "log"))
+
+glm_sy <- glm(count_pop ~ species + year, data = data, 
+              family = poisson(link = "log"))
+
+glm_y <- glm(count_pop ~ year, data = data, 
+             family = poisson(link = "log"))
+```
+
+### Collinearity
+
+No issue with `glm_full`:
+
+```{r}
+vif(glm_full)
+```
+
+No issue with `glm_cv`:
+
+```{r}
+vif(glm_cv)
+```
+
+No issue with `glm_sy`:
+
+```{r}
+vif(glm_sy)
+```
+
+### Model comparison
+
+We use AIC, AICc, the McFadden's pseudo-R2 anf the pseudo R2 = `(null - deviance - residual deviance)/null deviance` to compare models:
+
+```{r, echo=FALSE}
+glm_null <- glm(count_pop ~ 1, data = data, family = poisson(link = "log"))
+
+show <- AIC(glm_full,
+            glm_cv_i,
+            glm_cv,
+            glm_c,
+            glm_sy_i,
+            glm_sy,
+            glm_y)
+
+show$AICc <- c(AICc(glm_full),
+               AICc(glm_cv_i),
+               AICc(glm_cv),
+               AICc(glm_c),
+               AICc(glm_sy_i),
+               AICc(glm_sy),
+               AICc(glm_y))
+
+show$R2_McFadden <- lapply(X = list(glm_full,
+                                    glm_cv_i,
+                                    glm_cv,
+                                    glm_c,
+                                    glm_sy_i,
+                                    glm_sy,
+                                    glm_y),
+                           FUN = function(m){
+  out <- R2.McFadden.fun(model = m, model.null = glm_null)
+  return(round(out,3))
+}) |> unlist()
+
+show$R2_pseudo <- lapply(X = list(glm_full,
+                                  glm_cv_i,
+                                  glm_cv,
+                                  glm_c,
+                                  glm_sy_i,
+                                  glm_sy,
+                                  glm_y),
+                           FUN = function(m){
+  sm <- summary(m)
+  out <- (sm$null.deviance - sm$deviance)/sm$null.deviance
+  return(round(out,3))
+}) |> unlist()
+
+show <- show[order(show$AIC),]
+
+show
+```
+
+Most parsimonious model: `glm_sy_i`, according to AIC.
+
+### Model validation
+
+We will the residuals for both `glm_sy_i` and `glm_full`.
+
+For `glm_sy_i`:
+
+```{r, echo=FALSE}
+glm_selected <- glm_sy_i
+fit <- predict(glm_selected)
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:4,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+For `glm_full`:
+
+```{r, echo=FALSE}
+glm_selected <- glm_full
+
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+fit <- predict(glm_selected)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+x <- data$count_catch/1000000
+plot(y = res, x = x, xlab = "Catch (in millions of fish)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+plot(y = res, x = data$value_kg, xlab = "Value (in CAD per kg)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$value_kg, span = span))
+lines(x = data$value_kg[order(data$value_kg)], y = smoothed[order(data$value_kg)], col = "red")
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+There are patterns in the residuals for both models.
+
+### Overdispersion
+
+There is overdispersion as the residual deviance >> degrees of freedom.
+
+The ratio for `glm_full`:
+
+```{r, echo=FALSE}
+s_glm_sy_i <- summary(glm_sy_i)
+round(s_glm_sy_i$deviance / s_glm_sy_i$df.residual,2)
+```
+
+The ratio for `glm_full`:
+
+```{r, echo=FALSE}
+s_glm_full <- summary(glm_full)
+round(s_glm_full$deviance / s_glm_full$df.residual,2)
+```
+
+## GLM negative binomial distribution (with log-link function)
+
+### Model definition
+
+We define the same models as in the previous part:
+
+```{r}
+# glm_full_i <- glm(count_pop ~ count_catch * value_kg * year * species, data = data, family = poisson)
+
+glm_full <- glm.nb(count_pop ~ count_catch + value_kg + year + species, data = data, link = "log")
+
+glm_cv_i <- glm.nb(count_pop ~ count_catch * value_kg, data = data, link = "log")
+
+glm_cv <- glm.nb(count_pop ~ count_catch + value_kg, data = data, link = "log")
+
+glm_c <- glm.nb(count_pop ~ count_catch, data = data, link = "log")
+
+glm_sy_i <- glm.nb(count_pop ~ species * year, data = data, link = "log")
+
+glm_sy <- glm.nb(count_pop ~ species + year, data = data, link = "log")
+
+glm_y <- glm.nb(count_pop ~ year, data = data, link = "log")
+```
+
+### Collinearity
+
+No issue with `glm_full`:
+
+```{r}
+vif(glm_full)
+```
+
+No issue with `glm_cv`:
+
+```{r}
+vif(glm_cv)
+```
+
+No issue with `glm_sy`:
+
+```{r}
+vif(glm_sy)
+```
+
+### Model comparison
+
+We use AIC, AICc and the McFadden's pseudo-R2 to compare models:
+
+```{r, echo=FALSE}
+glm_null <- glm.nb(count_pop ~ 1, data = data, link = "log")
+
+show <- AIC(glm_full,
+            glm_cv_i,
+            glm_cv,
+            glm_c,
+            glm_sy_i,
+            glm_sy,
+            glm_y)
+
+show$AICc <- c(AICc(glm_full),
+               AICc(glm_cv_i),
+               AICc(glm_cv),
+               AICc(glm_c),
+               AICc(glm_sy_i),
+               AICc(glm_sy),
+               AICc(glm_y))
+
+show$R2_McFadden <- lapply(X = list(glm_full,
+                                    glm_cv_i,
+                                    glm_cv,
+                                    glm_c,
+                                    glm_sy_i,
+                                    glm_sy,
+                                    glm_y),
+                           FUN = function(m){
+  out <- R2.McFadden.fun(model = m, model.null = glm_null)
+  return(round(out,3))
+}) |> unlist()
+
+# pseudo-R2
+show$R2_pseudo <- lapply(X = list(glm_full,
+                                  glm_cv_i,
+                                  glm_cv,
+                                  glm_c,
+                                  glm_sy_i,
+                                  glm_sy,
+                                  glm_y),
+                           FUN = function(m){
+  sm <- summary(m)
+  out <- (sm$null.deviance - sm$deviance)/sm$null.deviance
+  return(round(out,3))
+}) |> unlist()
+
+show <- show[order(show$AIC),]
+
+show
+```
+
+Most parsimonious model: `glm_sy_i`, according to AIC.
+
+### Model validation
+
+We will the residuals for both `glm_sy_i` and `glm_full`.
+
+For `glm_sy_i`:
+
+```{r, echo=FALSE}
+glm_selected <- glm_sy_i
+fit <- predict(glm_selected)
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:4,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+For `glm_full`:
+
+```{r, echo=FALSE}
+glm_selected <- glm_full
+
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+fit <- predict(glm_selected)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+x <- data$count_catch/1000000
+plot(y = res, x = x, xlab = "Catch (in millions of fish)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+plot(y = res, x = data$value_kg, xlab = "Value (in CAD per kg)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$value_kg, span = span))
+lines(x = data$value_kg[order(data$value_kg)], y = smoothed[order(data$value_kg)], col = "red")
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+The patterns little improved.
+
+### Overdispersion
+
+There is overdispersion as the residual deviance >> degrees of freedom.
+
+The ratio for `glm_sy_i`:
+
+```{r, echo=FALSE}
+s_glm_sy_i <- summary(glm_sy_i)
+round(s_glm_sy_i$deviance / s_glm_sy_i$df.residual,2)
+```
+
+The ratio for `glm_full`:
+
+```{r, echo=FALSE}
+s_glm_full <- summary(glm_full)
+round(s_glm_full$deviance / s_glm_full$df.residual,2)
+```
+The issue with overdispersion is fixed.
+
+### Model parameters 
+
+For `glm_sy_i`:
+
+```{r}
+s_glm_sy_i
+```
+Notice that the coefficient for `year` is not significant...
+
+For `glm_full`:
+
+```{r}
+s_glm_full
+```
+Here all the parameters are significant.
+
+
+### Fit a full model with all interactions
+
+Until now I am not convinced that only `species` and `year` have a significant effect on `count_pop`. I do not think we have the data to formulate clear and distints hypotheses to validate or invalidate the effect of catch on monitoring.
+
+This is not a controlled experiment and there are certainly more factors at play than the ones considered in our models. Consequently the question should not be "does catch has an effect of not on monitoring" because we know it does, yet our approach kind invalidates it but in a week way.
+
+Rather, I believe we should approach this more as an exploration analysis and fit a more complex model and use it to predict `count_pop` as a function of `count_catch`.
+
+```{r}
+glm_full_i <- glm.nb(count_pop ~ count_catch * value_kg * year * species, data = data, link = "log")
+```
+
+```{r, echo=FALSE}
+
+show <- AIC(glm_full_i,
+            glm_full,
+            glm_cv_i,
+            glm_cv,
+            glm_c,
+            glm_sy_i,
+            glm_sy,
+            glm_y)
+
+show$AICc <- c(AICc(glm_full_i),
+               AICc(glm_full),
+               AICc(glm_cv_i),
+               AICc(glm_cv),
+               AICc(glm_c),
+               AICc(glm_sy_i),
+               AICc(glm_sy),
+               AICc(glm_y))
+
+show$R2_McFadden <- lapply(X = list(glm_full_i,
+                                    glm_full,
+                                    glm_cv_i,
+                                    glm_cv,
+                                    glm_c,
+                                    glm_sy_i,
+                                    glm_sy,
+                                    glm_y),
+                           FUN = function(m){
+  out <- R2.McFadden.fun(model = m, model.null = glm_null)
+  return(round(out,3))
+}) |> unlist()
+
+# pseudo-R2
+show$R2_pseudo <- lapply(X = list(glm_full_i,
+                                  glm_full,
+                                  glm_cv_i,
+                                  glm_cv,
+                                  glm_c,
+                                  glm_sy_i,
+                                  glm_sy,
+                                  glm_y),
+                           FUN = function(m){
+  sm <- summary(m)
+  out <- (sm$null.deviance - sm$deviance)/sm$null.deviance
+  return(round(out,3))
+}) |> unlist()
+
+show <- show[order(show$AIC),]
+show
+```
+
+The full model is buy far the best one according to AIC.
+
+Check overdispersion:
+
+```{r, echo=FALSE}
+s_glm_full_i <- summary(glm_full_i)
+round(s_glm_full_i$deviance / s_glm_full_i$df.residual,2)
+```
+
+Check the residuals:
+
+```{r, echo=FALSE}
+glm_selected <- glm_full_i
+
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+fit <- predict(glm_selected)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+x <- data$count_catch/1000000
+plot(y = res, x = x, xlab = "Catch (in millions of fish)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+plot(y = res, x = data$value_kg, xlab = "Value (in CAD per kg)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$value_kg, span = span))
+lines(x = data$value_kg[order(data$value_kg)], y = smoothed[order(data$value_kg)], col = "red")
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+There is an improvement in the residuals.
+
+Model parameters:
+
+```{r, echo=FALSE}
+summary(glm_full_i)
+```
+
+### Prediction 
+
+Prediction of monitoring effort as a function of catch with `glm_full_i`:
+
+```{r, echo=FALSE}
+model_selected <- glm_full_i
+
+y_max <- max(data$count_pop)
+y_min <- min(data$count_pop)
+
+years_3 <- c(1980,2000,2020)
+
+count <- 1
+layout(mat = matrix(1:6, nrow = 2, byrow = T), widths = c(1.2,1,1), heights = c(1,1.2))
+for(sp in unique(data$species)){
+  # sp <- "Sockeye
+  cond_sp <- data$species == sp
+  
+  x_max <- max(data$count_catch[cond_sp])
+  x_min <- min(data$count_catch[cond_sp])
+  
+  x_range <- round(x_min:x_max)
+  x_range <- unique(round(x_range/10000)*10000)
+  
+  col_yrs_3 <- c(colour_transparency_fun(species_cols_dark[sp],alpha = .3),
+                 colour_transparency_fun(species_cols_dark[sp],alpha = .6),
+                 colour_transparency_fun(species_cols_dark[sp],alpha = 1))
+  names(col_yrs_3) <- years_3
+  
+  side1 <- 3
+  side2 <- .5
+  xlabel <- ylabel <- ""
+  yaxt <- "n"
+  if(count %in% c(1,4)){
+    side2 <- 4.5
+    yaxt <- "s"
+    ylabel <- "Number of population monitored"
+  }
+  if(count > 3){
+    side1 <- 4.5
+    xlabel <- "Number of fish caught (in thousands)"
+  }
+  
+  par(mar = c(side1, side2, .5, .5))
+  plot(NA,xlim = c(x_min,x_max),ylim = c(y_min,y_max), xaxt = "n", yaxt = yaxt,
+       xlab = xlabel, ylab = ylabel)
+  xticks <- axTicks(1)
+  axis(side = 1, at = xticks, labels = xticks / 1000)
+
+  legend("topleft",legend = sp, bty = "n")
+  
+  for(yr in years_3){
+    # yr <- years_3[1]
+    nb_yr <- 0
+    yrs_range <- (yr-nb_yr):(yr+nb_yr)
+    cond_yr <- data$year %in% yrs_range
+    value_kg_median <- median(data$value_kg[cond_yr & cond_sp])
+    
+    data_new <- data.frame(species = sp,
+                           year = yr,
+                           value_kg = value_kg_median,
+                           count_catch = x_range)
+    
+    fit_se <- predict(object = model_selected,
+                      newdata = data_new, 
+                      type = "response", se.fit = T)
+    
+    CI_low <- fit_se$fit - 1.96 * fit_se$se.fit
+    CI_high <- fit_se$fit + 1.96 * fit_se$se.fit
+    
+    polygon(x = c(data_new$count_catch,rev(data_new$count_catch)), 
+            y = c(CI_low,rev(CI_high)), border = NA,
+            col = colour_transparency_fun(col_yrs_3[as.character(yr)],alpha = .2))
+    
+    lines(x = data_new$count_catch, y = fit_se$fit, col = col_yrs_3[as.character(yr)], lwd = 2)
+  }
+  count <- count + 1
+}
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+col_legend <- c(colour_transparency_fun("black",alpha = .3),
+                colour_transparency_fun("black",alpha = .6),
+                colour_transparency_fun("black",alpha = 1))
+legend("center",legend = years_3,col = col_legend, lwd = 2, bty = "n")
+mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
+```
+
+
+
+```{r, include=FALSE}
+# library(lme4)
+# glmm_full <- lme4::glmer.nb(count_pop ~ count_catch + value_kg + year + (1|species), data = data)
+# 
+# lme4::glmer.nb(count_pop ~ count_catch + (1|species), data = data)
+# 
+# lme4::glmer.nb(count_pop ~ year + (1|species), data = data)
+# 
+# # works
+# lme4::glmer.nb(count_pop ~ value_kg + (1|species), data = data)
+
+
+```
+
+
+
+

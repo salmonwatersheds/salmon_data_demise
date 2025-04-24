@@ -259,6 +259,25 @@ segments_horizontal_fun <- function(y_range, x_range,
 }
 
 
-
+# calculate the McFadden pseudo R squared
+# if the model is an average model, the weighted mean (using the weights used for the model averaging procedure, 
+# such as wAICc) of the pseudo R2 for each model is returned
+R2.McFadden.fun <- function(model,model.null){
+  require(diagis)
+  # http://www.glmj.org/archives/articles/Smith_v39n2.pdf
+  # https://web.archive.org/web/20130701052120/http://www.ats.ucla.edu:80/stat/mult_pkg/faq/general/Psuedo_RSquareds.htm
+  # https://stats.stackexchange.com/questions/82105/mcfaddens-pseudo-r2-interpretation
+  LL <- as.numeric(logLik(object = model))
+  LL.n <- as.numeric(logLik(object = model.null))
+  R.MF <- 1 - LL / LL.n
+  output <- R.MF
+  if(length(R.MF) > 1){ # for averaged models
+    output <- data.frame(w.mean=NA, w.SE= NA, nb.models= NA)
+    output[,1] <- sum(R.MF * model$msTable$weight)
+    output[,2] <- weighted_se(x = R.MF, w =  model$msTable$weight)
+    output[,3]<- nrow(model$msTable)
+  }
+  return(output)
+}
 
 
