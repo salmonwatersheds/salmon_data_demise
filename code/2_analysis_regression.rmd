@@ -105,17 +105,24 @@ colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
 ```
 
 ```{r, include=FALSE}
-year_min <- max(min(data_sp$year),min(catch$year),min(value_sp$Year))
-year_max <- min(max(data_sp$year),max(catch$year),max(value_sp$Year))
+dataset_selected <- data_sp # data_rg_sp
+
+year_min <- max(min(dataset_selected$year),min(catch$year),min(value_sp$Year))
+year_max <- min(max(dataset_selected$year),max(catch$year),max(value_sp$Year))
 years <- year_min:year_max
 
-data <- data_sp[data_sp$year %in% years,c("species","year","count_pop")]
+col_selected <- c("species","year","count_pop")
+if(any(grepl("region",colnames(dataset_selected)))){
+  col_selected <- c("region","species","year","count_pop")
+}
+
+data <- dataset_selected[dataset_selected$year %in% years,col_selected]
 data$count_catch <- NA
 data$value_kg <- NA
 for(yr in years){
   # yr <- years[1]
-  for(sp in unique(data_sp$species)){
-    # sp <- unique(data_sp_0$species)[1]
+  for(sp in unique(dataset_selected$species)){
+    # sp <- unique(dataset_selected$species)[1]
     cond <- catch$species == sp & catch$year == yr
     count_catch <- catch$count[cond]
     
@@ -134,6 +141,16 @@ data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","S
 The analysis in the section is done from `r min(data$year)` to `r max(data$year)`.
 
 # Check collinearity of explanatory variables
+
+We conduct the analysis on the dataset containing the number of population monitored (`count_pop`), the commercial catch (`count_catch`) and fish value (`value_kg`) per `species` and `year`:
+
+```{r,echo=FALSE}
+show <- head(data)
+rownames(show) <- NULL
+show
+```
+
+Check of collinearity:
 
 ```{r, echo=FALSE, fig.height=6, fig.width=8}
 panel.cor <- function(x, y){
@@ -182,7 +199,7 @@ Finally I decided to also fit a full model without interaction to be compared to
 
 - nb populations monitored ~ landed_catch * value + time + species
 
-The response variable is a count, hence fitting a GLM with a Poisson distribution is suggested but simple LM (assuming a Gaussian distribution of the response variable) can be enough if counts are far from 0s. So we try a LM first.
+The response variable is a count, hence fitting a GLM with a Poisson distribution is suggested but simple LM (assuming a Gaussian distribution of the response variable) can be enough if counts are far from 0. So we try a LM first.
 
 ## LM (Gaussian distribution)
 
@@ -191,8 +208,6 @@ The response variable is a count, hence fitting a GLM with a Poisson distributio
 The five different models:
 
 ```{r}
-# lm_full_i <- lm(count_pop ~ count_catch * value_kg * year * species, data = data)
-
 lm_full <- lm(count_pop ~ count_catch + value_kg + year + species, data = data)
 
 lm_cv_i <- lm(count_pop ~ count_catch * value_kg, data = data)
@@ -221,9 +236,9 @@ sm_y <- summary(lm_y)
 
 ### Collinearity
 
-I use the variance inflation factor (VIF) and the generalized VIF (GVIF`^(1/(2*Df))`) to check the collinearity (the latter being used when `species` is present) in the models wihout interactions. (GVIF`^(1/(2*Df))` with the model with interactions is always = 1 because the interactions concern all the explanatory variables.)
+We use the variance inflation factor (VIF) and the generalized VIF (GVIF`^(1/(2*Df))`) to check the collinearity (the latter being used when `species` is present) in the models without interactions (GVIF`^(1/(2*Df))` with the model with interactions is always = 1 because the interactions concern all the explanatory variables).
 
-There is an issue when VIF (or GVIF`^(1/(2*Df))`) > a threshold, which is usually comprised in [2.5;10] in the literature. We select the threshold = 3.
+There is an issue when VIF (or GVIF`^(1/(2*Df))`) > a threshold, which is usually comprised in [2.5; 10] in the literature. We select the threshold = 3.
 
 No issue with `lm_full`:
 
@@ -276,7 +291,7 @@ show <- show[order(show$AIC),]
 show
 ```
 
-Most parsimonious model: `lm_sy_i`, according to AIC.
+Most parsimonious model is `lm_sy_i`, according to AIC.
 
 ### Model validation
 
@@ -284,7 +299,7 @@ We will the residuals for both `lm_sy_i` and `lm_full`.
 
 For `lm_sy_i`:
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.width=8}
 span <- .9
 
 # res <- rstandard(lm_sy_i)
@@ -319,7 +334,7 @@ abline(0,0)
 
 For `lm_full`:
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.width=8}
 lm_selected <- lm_full
 fit <- predict(lm_selected)
 
@@ -360,11 +375,9 @@ There are issues in the the homocedasticity and normal distribution of the resid
 
 ### Model definition
 
-We define the same models as in the previous part:
+We define the same models as in the previous section:
 
 ```{r}
-# glm_full_i <- glm(count_pop ~ count_catch * value_kg * year * species, data = data, family = poisson)
-
 glm_full <- glm(count_pop ~ count_catch + value_kg + year + species, data = data, 
                 family = poisson(link = "log"))
 
@@ -414,53 +427,28 @@ We use AIC, AICc, the McFadden's pseudo-R2 anf the pseudo R2 = `(null - deviance
 ```{r, echo=FALSE}
 glm_null <- glm(count_pop ~ 1, data = data, family = poisson(link = "log"))
 
-show <- AIC(glm_full,
-            glm_cv_i,
-            glm_cv,
-            glm_c,
-            glm_sy_i,
-            glm_sy,
-            glm_y)
+list_glm <- list(glm_full,
+                 glm_cv_i,
+                 glm_cv,
+                 glm_c,
+                 glm_sy_i,
+                 glm_sy,
+                 glm_y)
 
-show$AICc <- c(AICc(glm_full),
-               AICc(glm_cv_i),
-               AICc(glm_cv),
-               AICc(glm_c),
-               AICc(glm_sy_i),
-               AICc(glm_sy),
-               AICc(glm_y))
+names(list_glm) <- c("glm_full",
+                     "glm_cv_i",
+                     "glm_cv",
+                     "glm_c",
+                     "glm_sy_i",
+                     "glm_sy",
+                     "glm_y")
 
-show$R2_McFadden <- lapply(X = list(glm_full,
-                                    glm_cv_i,
-                                    glm_cv,
-                                    glm_c,
-                                    glm_sy_i,
-                                    glm_sy,
-                                    glm_y),
-                           FUN = function(m){
-  out <- R2.McFadden.fun(model = m, model.null = glm_null)
-  return(round(out,3))
-}) |> unlist()
-
-show$R2_pseudo <- lapply(X = list(glm_full,
-                                  glm_cv_i,
-                                  glm_cv,
-                                  glm_c,
-                                  glm_sy_i,
-                                  glm_sy,
-                                  glm_y),
-                           FUN = function(m){
-  sm <- summary(m)
-  out <- (sm$null.deviance - sm$deviance)/sm$null.deviance
-  return(round(out,3))
-}) |> unlist()
-
-show <- show[order(show$AIC),]
+show <- AIC_R2_glm_fun(list_glm = list_glm, glm_null = glm_null)
 
 show
 ```
 
-Most parsimonious model: `glm_sy_i`, according to AIC.
+The most parsimonious model is `glm_sy_i`, according to AIC.
 
 ### Model validation
 
@@ -537,13 +525,13 @@ boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
 abline(0,0)
 ```
 
-There are patterns in the residuals for both models.
+There are improvements in the patterns of the residuals, espacially for `glm_full`, but it is still not great.
 
 ### Overdispersion
 
 There is overdispersion as the residual deviance >> degrees of freedom.
 
-The ratio for `glm_full`:
+The ratio for `glm_sy_i`:
 
 ```{r, echo=FALSE}
 s_glm_sy_i <- summary(glm_sy_i)
@@ -556,6 +544,7 @@ The ratio for `glm_full`:
 s_glm_full <- summary(glm_full)
 round(s_glm_full$deviance / s_glm_full$df.residual,2)
 ```
+That is too much dispersion. So we try with the negative binomial distribution.
 
 ## GLM negative binomial distribution (with log-link function)
 
@@ -564,8 +553,6 @@ round(s_glm_full$deviance / s_glm_full$df.residual,2)
 We define the same models as in the previous part:
 
 ```{r}
-# glm_full_i <- glm(count_pop ~ count_catch * value_kg * year * species, data = data, family = poisson)
-
 glm_full <- glm.nb(count_pop ~ count_catch + value_kg + year + species, data = data, link = "log")
 
 glm_cv_i <- glm.nb(count_pop ~ count_catch * value_kg, data = data, link = "log")
@@ -608,54 +595,28 @@ We use AIC, AICc and the McFadden's pseudo-R2 to compare models:
 ```{r, echo=FALSE}
 glm_null <- glm.nb(count_pop ~ 1, data = data, link = "log")
 
-show <- AIC(glm_full,
-            glm_cv_i,
-            glm_cv,
-            glm_c,
-            glm_sy_i,
-            glm_sy,
-            glm_y)
+list_glm <- list(glm_full,
+                 glm_cv_i,
+                 glm_cv,
+                 glm_c,
+                 glm_sy_i,
+                 glm_sy,
+                 glm_y)
 
-show$AICc <- c(AICc(glm_full),
-               AICc(glm_cv_i),
-               AICc(glm_cv),
-               AICc(glm_c),
-               AICc(glm_sy_i),
-               AICc(glm_sy),
-               AICc(glm_y))
+names(list_glm) <- c("glm_full",
+                     "glm_cv_i",
+                     "glm_cv",
+                     "glm_c",
+                     "glm_sy_i",
+                     "glm_sy",
+                     "glm_y")
 
-show$R2_McFadden <- lapply(X = list(glm_full,
-                                    glm_cv_i,
-                                    glm_cv,
-                                    glm_c,
-                                    glm_sy_i,
-                                    glm_sy,
-                                    glm_y),
-                           FUN = function(m){
-  out <- R2.McFadden.fun(model = m, model.null = glm_null)
-  return(round(out,3))
-}) |> unlist()
-
-# pseudo-R2
-show$R2_pseudo <- lapply(X = list(glm_full,
-                                  glm_cv_i,
-                                  glm_cv,
-                                  glm_c,
-                                  glm_sy_i,
-                                  glm_sy,
-                                  glm_y),
-                           FUN = function(m){
-  sm <- summary(m)
-  out <- (sm$null.deviance - sm$deviance)/sm$null.deviance
-  return(round(out,3))
-}) |> unlist()
-
-show <- show[order(show$AIC),]
+show <- AIC_R2_glm_fun(list_glm = list_glm, glm_null = glm_null)
 
 show
 ```
 
-Most parsimonious model: `glm_sy_i`, according to AIC.
+The most parsimonious model is `glm_sy_i`, according to AIC.
 
 ### Model validation
 
@@ -732,7 +693,7 @@ boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
 abline(0,0)
 ```
 
-The patterns little improved.
+The patterns little improved but are still not great.
 
 ### Overdispersion
 
@@ -757,14 +718,14 @@ The issue with overdispersion is fixed.
 
 For `glm_sy_i`:
 
-```{r}
+```{r, echo=FALSE}
 s_glm_sy_i
 ```
 Notice that the coefficient for `year` is not significant...
 
 For `glm_full`:
 
-```{r}
+```{r,echo=FALSE}
 s_glm_full
 ```
 Here all the parameters are significant.
@@ -772,9 +733,7 @@ Here all the parameters are significant.
 
 ### Fit a full model with all interactions
 
-Until now I am not convinced that only `species` and `year` have a significant effect on `count_pop`. I do not think we have the data to formulate clear and distints hypotheses to validate or invalidate the effect of catch on monitoring.
-
-This is not a controlled experiment and there are certainly more factors at play than the ones considered in our models. Consequently the question should not be "does catch has an effect of not on monitoring" because we know it does, yet our approach kind invalidates it but in a week way.
+Until now I am not convinced that only `species` and `year` have a significant effect on `count_pop` and that we should conclude that `catch` does not have a significant effect. I do not think we have the data to formulate clear and distinct hypotheses to validate or invalidate the effect of catch on monitoring. This is not a controlled experiment and there are certainly more factors at play than the ones considered in our models. Consequently the question should not be "does catch has an effect of not on monitoring" because it probably does, yet our approach kind invalidates it but in a weak way.
 
 Rather, I believe we should approach this more as an exploration analysis and fit a more complex model and use it to predict `count_pop` as a function of `count_catch`.
 
@@ -783,58 +742,32 @@ glm_full_i <- glm.nb(count_pop ~ count_catch * value_kg * year * species, data =
 ```
 
 ```{r, echo=FALSE}
+glm_null <- glm.nb(count_pop ~ 1, data = data, link = "log")
 
-show <- AIC(glm_full_i,
-            glm_full,
-            glm_cv_i,
-            glm_cv,
-            glm_c,
-            glm_sy_i,
-            glm_sy,
-            glm_y)
+list_glm <- list(glm_full_i,
+                 glm_full,
+                 glm_cv_i,
+                 glm_cv,
+                 glm_c,
+                 glm_sy_i,
+                 glm_sy,
+                 glm_y)
 
-show$AICc <- c(AICc(glm_full_i),
-               AICc(glm_full),
-               AICc(glm_cv_i),
-               AICc(glm_cv),
-               AICc(glm_c),
-               AICc(glm_sy_i),
-               AICc(glm_sy),
-               AICc(glm_y))
+names(list_glm) <- c("glm_full_i",
+                     "glm_full",
+                     "glm_cv_i",
+                     "glm_cv",
+                     "glm_c",
+                     "glm_sy_i",
+                     "glm_sy",
+                     "glm_y")
 
-show$R2_McFadden <- lapply(X = list(glm_full_i,
-                                    glm_full,
-                                    glm_cv_i,
-                                    glm_cv,
-                                    glm_c,
-                                    glm_sy_i,
-                                    glm_sy,
-                                    glm_y),
-                           FUN = function(m){
-  out <- R2.McFadden.fun(model = m, model.null = glm_null)
-  return(round(out,3))
-}) |> unlist()
+show <- AIC_R2_glm_fun(list_glm = list_glm, glm_null = glm_null)
 
-# pseudo-R2
-show$R2_pseudo <- lapply(X = list(glm_full_i,
-                                  glm_full,
-                                  glm_cv_i,
-                                  glm_cv,
-                                  glm_c,
-                                  glm_sy_i,
-                                  glm_sy,
-                                  glm_y),
-                           FUN = function(m){
-  sm <- summary(m)
-  out <- (sm$null.deviance - sm$deviance)/sm$null.deviance
-  return(round(out,3))
-}) |> unlist()
-
-show <- show[order(show$AIC),]
 show
 ```
 
-The full model is buy far the best one according to AIC.
+The full model with interactions is by far the best one according to AIC.
 
 Check overdispersion:
 
@@ -979,11 +912,11 @@ legend("center",legend = years_3,col = col_legend, lwd = 2, bty = "n")
 mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
 ```
 
-
-
 ```{r, include=FALSE}
 # library(lme4)
 # glmm_full <- lme4::glmer.nb(count_pop ~ count_catch + value_kg + year + (1|species), data = data)
+# 
+# glmm_full <- lme4::glmer.nb(count_pop ~ count_catch + value_kg + year + (year|species), data = data)
 # 
 # lme4::glmer.nb(count_pop ~ count_catch + (1|species), data = data)
 # 
@@ -991,8 +924,6 @@ mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
 # 
 # # works
 # lme4::glmer.nb(count_pop ~ value_kg + (1|species), data = data)
-
-
 ```
 
 

@@ -277,7 +277,44 @@ R2.McFadden.fun <- function(model,model.null){
     output[,2] <- weighted_se(x = R.MF, w =  model$msTable$weight)
     output[,3]<- nrow(model$msTable)
   }
+  
   return(output)
+}
+
+
+AIC_R2_glm_fun <- function(list_glm,glm_null){
+  
+  if(is.null(names(list_glm))){
+    print("The list of models should be named; names are given but are not descriptive")
+    m_names <- paste0("model_",1:length(list_glm))
+  }else{
+    m_names <- names(list_glm)
+  }
+  
+  out <- data.frame(model = m_names)
+  
+  out$AIC <- lapply(list_glm,function(m){
+    return(AIC(m))
+  }) |> unlist()
+  
+  out$AICc <- lapply(list_glm,function(m){
+    return(AICc(m))
+  }) |> unlist()
+  
+  out$R2_McFadden <- lapply(list_glm,function(m){
+    out <- R2.McFadden.fun(model = m, model.null = glm_null)
+    return(round(out,3))
+  }) |> unlist()
+  
+  out$R2_pseudo <- lapply(list_glm,function(m){
+    sm <- summary(m)
+    out <- (sm$null.deviance - sm$deviance)/sm$null.deviance
+    return(round(out,3))
+  }) |> unlist()
+  
+  out <- out[order(out$AIC),]
+  rownames(out) <- NULL
+  return(out)
 }
 
 
