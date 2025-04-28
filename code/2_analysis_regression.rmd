@@ -167,16 +167,34 @@ upper.panel<-function(x, y){
   points(x,y, pch = 19, col = species_cols_light[data$species])
 }
 
+panel.hist <- function(x){
+  usr <- par("usr")
+  par(usr = c(usr[1:2], 0, 1.5) )
+  h <- hist(x, plot = FALSE)
+  breaks <- h$breaks
+  nB <- length(breaks)
+  y <- h$counts
+  y_max <- max(y)
+  y <- y/y_max
+  rect(breaks[-nB], 0, breaks[-1], y, col = "#00AFBB")
+  
+  multiplier <- h$counts / h$density / y_max
+  dens <- density(x = x)
+  dens$y <- dens$y * multiplier[1] / max(y)
+  lines(x = dens, col = "red")
+}
+
 pairs(data[,c("count_pop","year","count_catch","value_kg")],
       upper.panel = upper.panel,
-      lower.panel = panel.cor)
+      lower.panel = panel.cor,
+      diag.panel =  panel.hist)
 
-pairs.panels(data[,c("count_pop","year","count_catch","value_kg")], 
-             method = "pearson", # correlation method
-             hist.col = "#00AFBB",
-             density = TRUE,  # show density plots
-             ellipses = TRUE # show correlation ellipses
-             )
+# pairs.panels(data[,c("count_pop","year","count_catch","value_kg")], 
+#              method = "pearson", # correlation method
+#              hist.col = "#00AFBB",
+#              density = TRUE,  # show density plots
+#              ellipses = TRUE # show correlation ellipses
+#              )
 ```
 
 There is no strong correlation among the explanatory variables.
@@ -912,6 +930,178 @@ legend("center",legend = years_3,col = col_legend, lwd = 2, bty = "n")
 mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
 ```
 
+## GLM neg bino + data transformation
+
+```{r}
+data$count_catch_sqrt <- sqrt(data$count_catch)
+data$value_kg_sqrt <- sqrt(data$value_kg)
+```
+
+```{r, echo=F}
+pairs(data[,c("count_pop","year","count_catch_sqrt","value_kg_sqrt")],
+      upper.panel = upper.panel,
+      lower.panel = panel.cor,
+      diag.panel =  panel.hist)
+```
+
+```{r}
+glm_full_i <- glm.nb(count_pop ~ count_catch_sqrt * value_kg_sqrt * year * species, data = data, link = "log")
+
+glm_full <- glm.nb(count_pop ~ count_catch_sqrt + value_kg_sqrt + year + species, data = data, link = "log")
+
+glm_cv_i <- glm.nb(count_pop ~ count_catch_sqrt * value_kg_sqrt, data = data, link = "log")
+
+glm_cv <- glm.nb(count_pop ~ count_catch_sqrt + value_kg_sqrt, data = data, link = "log")
+
+glm_c <- glm.nb(count_pop ~ count_catch_sqrt, data = data, link = "log")
+
+glm_sy_i <- glm.nb(count_pop ~ species * year, data = data, link = "log")
+
+glm_sy <- glm.nb(count_pop ~ species + year, data = data, link = "log")
+
+glm_y <- glm.nb(count_pop ~ year, data = data, link = "log")
+```
+
+```{r}
+glm_null <- glm.nb(count_pop ~ 1, data = data, link = "log")
+
+list_glm <- list(glm_full_i,
+                 glm_full,
+                 glm_cv_i,
+                 glm_cv,
+                 glm_c,
+                 glm_sy_i,
+                 glm_sy,
+                 glm_y)
+
+names(list_glm) <- c("glm_full_i",
+                     "glm_full",
+                     "glm_cv_i",
+                     "glm_cv",
+                     "glm_c",
+                     "glm_sy_i",
+                     "glm_sy",
+                     "glm_y")
+
+show <- AIC_R2_glm_fun(list_glm = list_glm, glm_null = glm_null)
+
+show
+```
+
+For `glm_sy_i`:
+
+```{r, echo=FALSE}
+glm_selected <- glm_sy_i
+fit <- predict(glm_selected)
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:4,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+For `glm_full`:
+
+```{r, echo=FALSE}
+glm_selected <- glm_full
+
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+fit <- predict(glm_selected)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+x <- data$count_catch_sqrt/1000000
+plot(y = res, x = x, xlab = "sqrt(Catch) (in millions of fish)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+plot(y = res, x = data$value_kg_sqrt, xlab = "sqrt(Value) (in CAD per kg)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$value_kg_sqrt, span = span))
+lines(x = data$value_kg_sqrt[order(data$value_kg_sqrt)], y = smoothed[order(data$value_kg_sqrt)], col = "red")
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+For `glm_full_i`:
+
+```{r, echo=FALSE}
+glm_selected <- glm_full_i
+
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+fit <- predict(glm_selected)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+x <- data$count_catch_sqrt/1000000
+plot(y = res, x = x, xlab = "sqrt(Catch) (in millions of fish)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+plot(y = res, x = data$value_kg_sqrt, xlab = "sqrt(Value) (in CAD per kg)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$value_kg_sqrt, span = span))
+lines(x = data$value_kg_sqrt[order(data$value_kg_sqrt)], y = smoothed[order(data$value_kg_sqrt)], col = "red")
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+
 ```{r, include=FALSE}
 # library(lme4)
 # glmm_full <- lme4::glmer.nb(count_pop ~ count_catch + value_kg + year + (1|species), data = data)
@@ -925,6 +1115,234 @@ mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
 # # works
 # lme4::glmer.nb(count_pop ~ value_kg + (1|species), data = data)
 ```
+
+
+# Altenative: predict monitoring probability
+
+```{r, include=FALSE}
+# nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
+# nuseds <- nuseds[nuseds$MAX_ESTIMATE != 0,]
+# 
+# # Provide populationid to population without a cuid
+# cond_NA <- is.na(nuseds$population_id)
+# pop_NA <- unique(nuseds[cond_NA,c("region","SPECIES_QUALIFIED","CU_NAME","POP_ID","GFE_ID")]) # same nb rows as unique(nuseds[cond_NA,c("POP_ID","GFE_ID")])
+# nrow(pop_NA)                   # corresponding to 82 populations
+# sum(is.na(nuseds$cuid))        # corresponding number of data points
+# 
+# val_max <- max(nuseds$population_id, na.rm = T)
+# for(r in 1:nrow(pop_NA)){
+#   # r <- 1
+#   POP_ID <- pop_NA$POP_ID[r]
+#   GFE_ID <- pop_NA$GFE_ID[r]
+#   
+#   cond <- nuseds$POP_ID == POP_ID & nuseds$GFE_ID == GFE_ID & is.na(nuseds$cuid)
+#   
+#   if(!all(is.na(nuseds$population_id[cond]))){
+#     print("population_id is not all NA - BREAK")
+#     break
+#   }else{
+#     val_max <- val_max + 1
+#     nuseds$population_id[cond] <- val_max
+#   }
+# }
+# 
+# sum(is.na(nuseds$population_id))
+# 
+# #
+# col_selected <- c("region","SPECIES","Year","population_id")
+# nuseds_cut <- nuseds[nuseds$Year %in% years,col_selected] |> unique()
+# colnames(nuseds_cut) <-  c("region","species","year","population_id")
+# 
+# nuseds_pop_monitored <- NULL
+# for(rg in unique(nuseds_cut$region)){
+#   # rg <- "Fraser"
+#   cond_rg <- nuseds_cut$region == rg
+#   for(sp in unique(nuseds_cut$species[cond_rg])){
+#     # sp <- "Sockeye"
+#     cond_rg_sp <- cond_rg & nuseds_cut$species == sp
+#     popids <- unique(nuseds_cut$population_id[cond_rg_sp])
+#     yrs <- unique(nuseds_cut$year[cond_rg_sp]) |> sort()
+#     
+#     d1 <- data.frame(region = rg,
+#                      species = sp, 
+#                      year = yrs)
+#     
+#     d2 <- merge(x = d1,y = popids, 
+#                all = T)
+#     
+#     colnames(d2) <- c("region","species","year","population_id")
+#     d2 <- d2[order(d2$population_id),]
+#     
+#     d3 <- unique(nuseds_cut[cond_rg_sp,])
+#     d3$monitored <- T
+#     
+#     d <- merge(x = d2,
+#                y = d3, 
+#                by = c("region","species","year","population_id"),
+#                all = T)
+#     
+#     d$monitored[is.na(d$monitored)] <- F
+#     
+#     if(is.null(nuseds_pop_monitored)){
+#       nuseds_pop_monitored <- d
+#     }else{
+#       nuseds_pop_monitored <- rbind(nuseds_pop_monitored,d)
+#     }
+#   }
+# }
+# 
+# nrow(nuseds_pop_monitored) # 471709
+# 
+# #
+# dataset_selected <- nuseds_pop_monitored
+# 
+# year_min <- max(min(dataset_selected$year),min(catch$year),min(value_sp$Year))
+# year_max <- min(max(dataset_selected$year),max(catch$year),max(value_sp$Year))
+# years <- year_min:year_max
+# 
+# data <- dataset_selected[dataset_selected$year %in% years,]
+# data$count_catch <- NA
+# data$value_kg <- NA
+# for(yr in years){
+#   # yr <- years[1]
+#   for(sp in unique(dataset_selected$species)){
+#     # sp <- unique(dataset_selected$species)[1]
+#     cond <- catch$species == sp & catch$year == yr
+#     count_catch <- catch$count[cond]
+#     
+#     cond <- value_sp$Year == yr
+#     value_kg <- value_sp[cond,sp]
+#     
+#     cond <- data$species == sp & data$year == yr
+#     data$count_catch[cond] <- count_catch
+#     data$value_kg[cond] <- value_kg
+#   }
+# }
+# 
+# data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
+# data$region <- factor(data$region,levels = c("Yukon","Transboundary","Haida Gwaii",
+#                                              "Nass","Skeena","Central Coast",
+#                                              "Vancouver Island & Mainland Inlets","Fraser","Columbia"))
+# #data$monitored[data$monitored] <- 1
+# 
+# 
+# show <- head(data)
+# rownames(show) <- NULL
+# show
+# 
+# 
+# plot(x = data$count_catch, y = data$monitored)
+# plot(x = data$value_kg, y = data$monitored)
+# # plot(x = data$year, y = data$monitored)
+# 
+# 
+# round(sum(data$monitored == 0)/nrow(data),3)
+# 
+# # library(lme4)
+# # glmm_full <- lme4::glmer(monitored ~ count_catch + value_kg + year + (1|species) + (1|region), 
+# #                          data = data, family = binomial(link = "logit"))
+# 
+# link <- c("logit","probit","cloglog")[3]
+# 
+# # Zuur 2009: "The clog–log may be an option if you have considerably more zeros than ones, or vice versa;"
+# 
+# glm_full <- glm(monitored ~ count_catch + value_kg + year + species + region, 
+#                 data = data, family = binomial(link = link))
+# 
+# glm_cvys <- glm(monitored ~ count_catch + value_kg + year + species, 
+#                 data = data, family = binomial(link = link))
+# 
+# glm_cvyr <- glm(monitored ~ count_catch + value_kg + year + region, 
+#                 data = data, family = binomial(link = link))
+# 
+# glm_cvrs <- glm(monitored ~ count_catch + value_kg + species + region, 
+#                 data = data, family = binomial(link = link))
+# 
+# glm_cvs_i <- glm(monitored ~ count_catch * value_kg * species, 
+#                 data = data, family = binomial(link = link))
+# 
+# glm_cvs_i_y <- glm(monitored ~ count_catch * value_kg * species + year, 
+#                 data = data, family = binomial(link = link))
+# 
+# glm_cvs_i_yr <- glm(monitored ~ count_catch * value_kg * species + year + region, 
+#                 data = data, family = binomial(link = link))
+# 
+# 
+# 
+# glm_null <- glm(monitored ~ 1, data = data, family = binomial(link = link))
+# 
+# list_glm <- list(glm_full,
+#                  glm_cvys,
+#                  glm_cvyr,
+#                  glm_cvrs,
+#                  glm_cvs_i,
+#                  glm_cvs_i_y,
+#                  glm_cvs_i_yr)
+# 
+# names(list_glm) <- c("glm_full",
+#                      "glm_cvys",
+#                      "glm_cvyr",
+#                      "glm_cvrs",
+#                      "glm_cvs_i",
+#                      "glm_cvs_i_y",
+#                      "glm_cvs_i_yr")
+# 
+# show <- AIC_R2_glm_fun(list_glm = list_glm, glm_null = glm_null)
+# 
+# show
+# 
+# 
+# plot(glm_full)
+# 
+# 
+# 
+# glm_selected <- glm_cvs_i_yr
+# 
+# res <- resid(glm_selected, type = "deviance")
+# 
+# layout(matrix(1:6,nrow = 2, byrow = T))
+# par(mar = c(4.5,4.5,.5,.5))
+# 
+# # plot(glm_full, which = 1)
+# fit <- predict(glm_selected)
+# plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+# abline(a = 0,b = 0)
+# # smoothed <- predict(loess(res ~ fit, span = span))
+# # lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+# 
+# qqnorm(res, main = "")
+# abline(a = 0, b = 1)
+# 
+# x <- data$count_catch/1000000
+# plot(y = res, x = x, xlab = "Catch (in millions of fish)", ylab = "Deviance residuals")
+# abline(0,0)
+# # smoothed <- predict(loess(res ~ x, span = span))
+# # lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+# 
+# #
+# plot(y = res, x = data$value_kg, xlab = "Value (in CAD per kg)", ylab = "Deviance residuals")
+# abline(0,0)
+# # smoothed <- predict(loess(res ~ data$value_kg, span = span))
+# # lines(x = data$value_kg[order(data$value_kg)], y = smoothed[order(data$value_kg)], col = "red")
+# 
+# #
+# plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+# abline(0,0)
+# # smoothed <- predict(loess(res ~ data$year, span = span))
+# # lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+# 
+# boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+# abline(0,0)
+```
+
+
+
+
+
+
+
+
+
 
 
 
