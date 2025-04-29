@@ -27,13 +27,12 @@ library(xlsx) # Package doesn't work..on mac?
 library(readxl)
 source("code/functions.R")
 
-
 #'* OPTION CONCERNING THE 0s and NAs *
 #' - option 1: remove both the NAs and Os (--> results in the main text)
 #' - option 2: remove only the NAs
 #' - option 3: replace NAs with 0s and 0s with NAs using the fields ADULT_PRESENCE and JACK_PRESENCE (--> not assessed)
 
-i_option <- 2
+i_option <- 1
 option_0s_NAs <- c("remove_0s_NAs","remove_NAs","fix_0s_NAs")[i_option]
 
 # Import source files ------
@@ -719,6 +718,135 @@ cond <- Number_Prop_populationsAssessed_regions_species$region == "Fraser" &
 Number_Prop_populationsAssessed_regions_species$count_pop[cond]
 
 
+#'* Count of surveys per species > stream_survey_quality *
+
+cond_cuid_NA <- is.na(nuseds$cuid) # same as above
+
+species <- nuseds$SPECIES |> unique()
+
+dataExport <- NULL
+for(sp in species){
+  # sp <- species[2]
+  # sp <- "Pink"
+  cond_sp <- nuseds$SPECIES == sp
+  
+  for(ssq in unique(nuseds$stream_survey_quality[cond_sp])){
+    # ssq <- unique(nuseds$stream_survey_quality[cond_sp])[1]
+    
+    if(is.na(ssq)){
+      cond_ssq <- is.na(nuseds$stream_survey_quality)
+    }else{
+      cond_ssq <- !is.na(nuseds$stream_survey_quality) & nuseds$stream_survey_quality == ssq
+    }
+    
+    if(sp == "Pink"){
+      
+      cond_sp_odd <- nuseds$SPECIES_QUALIFIED == "PKO"
+      cond_sp_even <- nuseds$SPECIES_QUALIFIED == "PKE"
+      
+      # count the number of populations
+      count_odd <- sapply(years_odd, function(y){
+        # y <- dataExport$year[50]
+        cond <- cond_sp_odd & cond_ssq & nuseds$Year == y
+        out <- length(nuseds$population_id[cond])
+        return(out)
+      })
+      
+      count_even <- sapply(years_even, function(y){
+        # y <- dataExport$year[50]
+        cond <- cond_sp_even & cond_ssq & nuseds$Year == y
+        out <- length(nuseds$population_id[cond])
+        return(out)
+      })
+      
+      # proportion populations assessed
+      nb_pop_total_odd <- length(unique(nuseds[cond_sp_odd & cond_ssq,]$population_id))
+      proportion_odd <- count_odd / nb_pop_total_odd
+      nb_pop_total_even <- length(unique(nuseds[cond_sp_even & cond_ssq,]$population_id))
+      proportion_even <- count_even / nb_pop_total_even
+      
+      # number of CUs assessed
+      count_CU_odd <- sapply(years_odd,function(y){
+        cond <- cond_sp_odd & cond_ssq & nuseds$Year == y
+        out <- length(unique(nuseds$cuid[cond & !cond_cuid_NA]))
+        return(out)
+      })
+      
+      count_CU_even <- sapply(years_even,function(y){
+        cond <- cond_sp_even & cond_ssq & nuseds$Year == y
+        out <- length(unique(nuseds$cuid[cond & !cond_cuid_NA]))
+        return(out)
+      })
+      
+      # proportion CUs assessed
+      nb_CU_total_odd <- length(unique(nuseds[cond_sp_odd & cond_ssq & !cond_cuid_NA,]$cuid))
+      proportion_CU_odd <- count_CU_odd/nb_CU_total_odd
+      
+      nb_CU_total_even <- length(unique(nuseds[cond_sp_even & cond_ssq & !cond_cuid_NA,]$cuid))
+      proportion_CU_even <- count_CU_even/nb_CU_total_even
+      
+      data_pink <- data.frame(year = c(years_odd,years_even), 
+                              count_pop = c(count_odd,count_even), 
+                              proportion_pop = c(proportion_odd,proportion_even),
+                              count_CU = c(count_CU_odd,count_CU_even),
+                              proportion_CU = c(proportion_CU_odd,proportion_CU_even))
+      
+      data_pink <- data_pink[order(data_pink$year),]
+      
+      count_pop <- data_pink$count_pop
+      proportion_pop <- data_pink$proportion_pop
+      count_CU <- data_pink$count_CU
+      proportion_CU <- data_pink$proportion_CU
+      
+    }else{ # if not pink
+      
+      # count populations
+      count_pop <- sapply(years, function(y){
+        # y <- dataExport$year[50]
+        cond <- cond_sp & cond_ssq & nuseds$Year == y
+        out <- length(nuseds$population_id[cond])
+        if(out != length(unique(nuseds$population_id[cond]))){
+          print("Duplicated population_id TO INVESTIGATE")
+        }
+        return(out)
+      })
+      
+      # proportion populations assessed
+      nb_pop_total <- length(unique(nuseds[cond_sp & cond_ssq,]$population_id))
+      proportion_pop <- count_pop / nb_pop_total
+      
+      # count number CUs
+      count_CU <- sapply(years,function(y){
+        cond <- cond_sp & cond_ssq & nuseds$Year == y
+        out <- length(unique(nuseds$cuid[cond & !cond_cuid_NA]))
+        return(out)
+      })
+      
+      # proportion CUs assessed
+      nb_CU_total <- length(unique(nuseds$cuid[cond_sp & cond_ssq & !cond_cuid_NA]))
+      proportion_CU <- count_CU/nb_CU_total
+      
+    }
+    
+    dataExportHere <- data.frame(species = sp,
+                                 stream_survey_quality = ssq,
+                                 year = years,
+                                 count_pop = count_pop,
+                                 proportion_pop = proportion_pop,
+                                 count_CU = count_CU,
+                                 proportion_CU = proportion_CU)
+    
+    if(is.null(dataExport)){
+      dataExport <- dataExportHere
+    }else{
+      dataExport <- rbind(dataExport,dataExportHere)
+    }
+  }
+}
+
+Number_Prop_populationsAssessed_species_ssq <- dataExport
+
+
 #'* Catches per species and total *
 
 unique(catch$Species)
@@ -796,6 +924,7 @@ files_l <- list(Number_Prop_populationsAssessed_total,
                 Number_Prop_populationsAssessed_species,
                 Number_Prop_populationsAssessed_regions_species,
                 Number_catches_species_total,
+                Number_Prop_populationsAssessed_species_ssq,
                 summary)
 
 names(files_l) <- c("populations_total",
@@ -803,6 +932,7 @@ names(files_l) <- c("populations_total",
                     "populations_species",
                     "populations_regions_species",
                     "catches_species_total",
+                    "Number_Prop_populationsAssessed_species_ssq",
                     "summary_regions")
 
 for(sh_i in 1:length(names(files_l))){
@@ -822,6 +952,11 @@ for(sh_i in 1:length(names(files_l))){
              showNA = T)
   print(sh_i)
 }
+
+
+
+
+
 
 
 
