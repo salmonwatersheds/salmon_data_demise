@@ -32,7 +32,7 @@ source("code/functions.R")
 #' - option 2: remove only the NAs
 #' - option 3: replace NAs with 0s and 0s with NAs using the fields ADULT_PRESENCE and JACK_PRESENCE (--> not assessed)
 
-i_option <- 2
+i_option <- 1
 option_0s_NAs <- c("remove_0s_NAs","remove_NAs","fix_0s_NAs")[i_option]
 
 # Import source files ------
@@ -931,7 +931,7 @@ names(files_l) <- c("populations_total",
                     "populations_regions",
                     "populations_species",
                     "populations_regions_species",
-                    "populations_species_ssp",
+                    "populations_species_ssq",
                     "catches_species_total",
                     "summary_regions")
 
