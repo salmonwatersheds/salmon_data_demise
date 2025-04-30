@@ -726,12 +726,13 @@ species <- nuseds$SPECIES |> unique()
 
 dataExport <- NULL
 for(sp in species){
-  # sp <- species[2]
+  # sp <- species[5]
   # sp <- "Pink"
   cond_sp <- nuseds$SPECIES == sp
   
   for(ssq in unique(nuseds$stream_survey_quality[cond_sp])){
     # ssq <- unique(nuseds$stream_survey_quality[cond_sp])[1]
+    # ssq <- NA
     
     if(is.na(ssq)){
       cond_ssq <- is.na(nuseds$stream_survey_quality)

@@ -32,7 +32,7 @@ library(tidyr)
 library(dplyr)
 library(paletteer) # https://r-graph-gallery.com/color-palette-finder
 library(readxl)
-library(here)
+# library(here)
 library(scales)
 library(AICcmodavg) # for AICc
 library(car)
@@ -70,6 +70,12 @@ head(data_sp)
 data_rg_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                          sheet = "populations_regions_species") |> as.data.frame()
 head(data_rg_sp)
+
+#'* Counts and proportions of populations and CUs assessed per regions and species
+data_sp_ssq <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                         sheet = "populations_species_ssq") |> as.data.frame()
+head(data_sp_ssq)
+
 
 #'* Import the catch data
 catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
@@ -1117,184 +1123,568 @@ abline(0,0)
 ```
 
 
-# Altenative: predict monitoring probability
+## Model dredging + averaging
+
+The objectives are exploratory rather than confirmatory.
+
+```{r}
+# https://bookdown.org/danielnettle2/bookdown/model-selection-and-model-averaging.html
+library(MuMIn)
+
+glm_full_i <- glm.nb(count_pop ~ count_catch_sqrt * value_kg_sqrt * year * species, data = data, link = "log")
+
+options(na.action = "na.fail")
+results <- model.sel(object = dredge(glm_full_i, beta = "none"), beta = "none")
+options(na.action = "na.omit")
+
+subset(results, delta < 10)
+```
+
+Select the model in the 0.95% confidence set:
+
+```{r}
+models.selected <- get.models(results, subset = cumsum(weight) <= .95)
+length(models.selected)
+```
+
+Model `glm_full_i` is the only model in the 0.95 confidence set.
+
+
+# Include stream_survey_quality
+
+We determined the number of populations surveyed per `species` and `stream_survey_quality`:
+
+```{r, echo=FALSE}
+head(data_sp_ssq)
+```
+
+The proportions of the different values of `stream_survey_quality` WITH `count_pop` = 0:
+
+```{r, echo=FALSE}
+sapply(X = unique(data_sp_ssq$stream_survey_quality),function(ssq){
+  if(is.na(ssq)){
+    cond <- is.na(data_sp_ssq$stream_survey_quality)
+  }else{
+    cond <- !is.na(data_sp_ssq$stream_survey_quality) & data_sp_ssq$stream_survey_quality == ssq
+  }
+  out <- round(sum(cond)/nrow(data_sp_ssq),2)
+})
+```
+
+The proportions of the different values of `stream_survey_quality` WITHOUT `count_pop` = 0:
+
+```{r, echo=FALSE}
+cond_0no <- data_sp_ssq$count_pop != 0
+sapply(X = unique(data_sp_ssq$stream_survey_quality[cond_0no]),function(ssq){
+  if(is.na(ssq)){
+    cond <- is.na(data_sp_ssq$stream_survey_quality[cond_0no])
+  }else{
+    cond <- !is.na(data_sp_ssq$stream_survey_quality[cond_0no]) & data_sp_ssq$stream_survey_quality[cond_0no] == ssq
+  }
+  out <- round(sum(cond)/nrow(data_sp_ssq[cond_0no,]),4)
+})
+```
+
+We can see in the figure below that `stream_survey_quality` started to be consistently reported from 1998. We consequently only consider data from this date.
+
+```{r, echo=FALSE, fig.cap = "Number of population among the stream survey quality categories over time", out.width = '100%'}
+knitr::include_graphics(paste0(wd,"/figures/Barplot_EstimateClassification.jpeg"))
+```
+
+We remove NA and "Unknown" values and data before 1998; the proportion of zeros counts is now very small:
+
+```{r, echo=FALSE}
+cond_NA <- is.na(data_sp_ssq$stream_survey_quality)
+cond_uk <- !cond_NA & data_sp_ssq$stream_survey_quality == "Unknown"
+cond_1998 <- data_sp_ssq$year >= 1998
+data_sp_ssq <- data_sp_ssq[!cond_NA & !cond_uk & cond_1998,]
+
+round(sum(data_sp_ssq$count_CU == 0)/nrow(data_sp_ssq),4)
+```
+
+We now create the categorical variable `stream_survey_quality_cat` such as:
+
+```{r, echo=FALSE}
+stream_survey_quality_cat <- 1:5
+names(stream_survey_quality_cat) <- c("Low","Medium-Low","Medium","Medium-High","High")
+data_sp_ssq$stream_survey_quality_cat <- NA
+for(ssq in unique(data_sp_ssq$stream_survey_quality)){
+  cond <- data_sp_ssq$stream_survey_quality == ssq
+  data_sp_ssq$stream_survey_quality_cat[cond] <- stream_survey_quality_cat[ssq]
+}
+data_sp_ssq$stream_survey_quality_cat <- factor(data_sp_ssq$stream_survey_quality_cat, levels = 1:5)
+stream_survey_quality_cat
+```
+
+After adding the catch and value dataset, we have:
 
 ```{r, include=FALSE}
-# nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
+dataset_selected <- data_sp_ssq
+
+year_min <- max(min(dataset_selected$year),min(catch$year),min(value_sp$Year))
+year_max <- min(max(dataset_selected$year),max(catch$year),max(value_sp$Year))
+years <- year_min:year_max
+
+col_selected <- c("species","year","count_pop","stream_survey_quality_cat")
+if(any(grepl("region",colnames(dataset_selected)))){
+  col_selected <- c("region","species","year","count_pop","stream_survey_quality_cat")
+}
+
+data <- dataset_selected[dataset_selected$year %in% years,col_selected]
+data$count_catch <- NA
+data$value_kg <- NA
+
+for(yr in years){
+  # yr <- years[1]
+  for(sp in unique(dataset_selected$species)){
+    # sp <- unique(dataset_selected$species)[1]
+    cond <- catch$species == sp & catch$year == yr
+    count_catch <- catch$count[cond]
+    
+    cond <- value_sp$Year == yr
+    value_kg <- value_sp[cond,sp]
+    
+    cond <- data$species == sp & data$year == yr
+    data$count_catch[cond] <- count_catch
+    data$value_kg[cond] <- value_kg
+  }
+}
+
+data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
+
+show <- head(data)
+rownames(show) <- NULL
+show
+```
+
+
+```{r, echo=FALSE}
+pairs(data[,c("count_pop","year","count_catch","value_kg","stream_survey_quality_cat")],
+      upper.panel = upper.panel,
+      lower.panel = panel.cor,
+      diag.panel =  panel.hist)
+```
+
+We log transform `count_catch` and `value_kg` to reduce their skewness:
+
+```{r, echo=FALSE}
+data$count_catch_log <- log(data$count_catch)
+data$value_kg_log <- log(data$value_kg)
+
+pairs(data[,c("count_pop","year","count_catch_log","value_kg_log","stream_survey_quality_cat")],
+      upper.panel = upper.panel,
+      lower.panel = panel.cor,
+      diag.panel =  panel.hist)
+```
+
+Let's fit the most complex model and alternative ones:
+
+```{r}
+glm_full_i <- glm.nb(count_pop ~ count_catch_log * value_kg_log * year * species + 
+                       stream_survey_quality_cat + stream_survey_quality_cat:year + stream_survey_quality_cat:species, 
+                     data = data, link = "log")
+
+glm_cys_i_qys_i <- glm.nb(count_pop ~ count_catch_log * year * species + 
+                       stream_survey_quality_cat + stream_survey_quality_cat:year + stream_survey_quality_cat:species, 
+                     data = data, link = "log")
+
+glm_syq_i <- glm.nb(count_pop ~ species * year * stream_survey_quality_cat, 
+                     data = data, link = "log")
+```
+
+Compare them:
+
+```{r, echo=FALSE}
+glm_null <- glm.nb(count_pop ~ 1, data = data, link = "log")
+
+list_glm <- list(glm_full_i,glm_cys_i_qys_i,glm_syq_i)
+
+names(list_glm) <- c("glm_full_i","glm_cys_i_qys_i","glm_syq_i")
+
+show <- AIC_R2_glm_fun(list_glm = list_glm, glm_null = glm_null)
+
+show
+```
+
+Looks like we do not need `count_catch` and `value_kg`...
+
+Check of the residuals of `glm_full_i`:
+
+```{r, echo=FALSE}
+glm_selected <- glm_full_i
+
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:9,nrow = 3, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+# plot(glm_full, which = 1)
+fit <- predict(glm_selected)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+x <- data$count_catch_log
+plot(y = res, x = x, xlab = "log(Catch)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+x <- data$value_kg_log
+plot(y = res, x = x, xlab = "log(Value) (in CAD per kg)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+plot(y = res, x = data$year, xlab = "Year", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ data$year, span = span))
+lines(x = data$year[order(data$year)], y = smoothed[order(data$year)], col = "red")
+
+boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+
+x <- factor(data$stream_survey_quality_cat, levels = 1:5)
+boxplot(res ~ x, xlab = "Stream survey quality", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+Looks pretty good.
+
+Model averaging:
+
+```{r}
+options(na.action = "na.fail")
+results <- model.sel(object = dredge(glm_full_i, beta = "none"), beta = "none")
+options(na.action = "na.omit")
+
+subset(results, delta <= 2)
+```
+
+The are many models in the 0.95% confidence set:
+
+```{r}
+models.selected <- get.models(results, subset = cumsum(weight) <= .95)
+length(models.selected)
+```
+
+The are only a few models with delta AIC <= 2:
+
+```{r}
+models.selected <- get.models(results, subset = delta <= 2)
+length(models.selected)
+```
+
+Let's average those:
+
+```{r}
+model_average <- model.avg(models.selected)
+summa <- summary(model_average)
+summa$coefmat.full
+```
+
+```{r, echo=FALSE}
+model.avg.output.full <-  as.data.frame(cbind(
+  summary(model_average)$coefmat.full[,c(1,3)],
+  confint(model_average,full=T,level=0.95)))
+
+model.avg.output.full$Estimate <- round(model.avg.output.full$Estimate,2)
+model.avg.output.full$`Adjusted SE` <- round(model.avg.output.full$`Adjusted SE`,3)
+model.avg.output.full$`2.5 %` <- round(model.avg.output.full$`2.5 %`,3)
+model.avg.output.full$`97.5 %` <- round(model.avg.output.full$`97.5 %`,3)
+model.avg.output.full
+```
+
+Prediction of the "full" averaged model (coefficients are averaged considering 0s when they are not present in model):
+
+```{r, echo=FALSE}
+y_max <- max(data$count_pop)
+y_min <- min(data$count_pop)
+
+year <- 2015
+
+colfunc <- colorRampPalette(c("firebrick3", "dodgerblue3"))
+cols_ssq <- colfunc(5)
+names(cols_ssq) <- 1:5
+
+count <- 1
+layout(mat = matrix(1:6, nrow = 2, byrow = T), widths = c(1.2,1,1), heights = c(1,1.2))
+for(sp in unique(data$species)){
+  # sp <- "Sockeye"
+  cond_sp <- data$species == sp
+  
+  x_max <- max(data$count_catch[cond_sp])
+  x_min <- min(data$count_catch[cond_sp])
+  
+  x_range <- round(x_min:x_max)
+  x_range <- unique(round(x_range/10000)*10000)
+  
+  side1 <- 3
+  side2 <- .5
+  xlabel <- ylabel <- ""
+  yaxt <- "n"
+  if(count %in% c(1,4)){
+    side2 <- 4.5
+    yaxt <- "s"
+    ylabel <- "Number of population monitored"
+  }
+  if(count > 3){
+    side1 <- 4.5
+    xlabel <- "Number of fish caught (in thousands)"
+  }
+  
+  par(mar = c(side1, side2, .5, .5))
+  plot(NA,xlim = c(x_min,x_max),ylim = c(y_min,y_max), xaxt = "n", yaxt = yaxt,
+       xlab = xlabel, ylab = ylabel)
+  xticks <- axTicks(1)
+  axis(side = 1, at = xticks, labels = xticks / 1000)
+  
+  legend("topleft",legend = sp, bty = "n")
+  
+  cond_yr <- data$year == year
+  
+  for(ssq in 1:5){
+    # ssq <- 5
+    
+    value_kg <- data$value_kg[cond_yr & cond_sp] |> unique()
+    
+    data_new <- data.frame(species = sp,
+                           year = year,
+                           stream_survey_quality_cat = ssq,
+                           value_kg = value_kg,
+                           value_kg_log = log(value_kg),
+                           count_catch = x_range,
+                           count_catch_log = log(x_range))
+    
+    data_new$stream_survey_quality_cat <- factor(data_new$stream_survey_quality_cat, 
+                                                  levels = 1:5)
+    
+    # pred <- data.frame(
+    #   model = sapply(models.selected, predict, newdata = data_new),
+    #   averaged.subset = predict(model_average, data_new, full = F),
+    #   averaged.full = predict(model_average, data_new, full = TRUE)
+    # )
+    
+    fit_se <- predict(object = model_average, full = T,
+                      newdata = data_new, 
+                      type = "response", se.fit = T)
+    
+    CI_low <- fit_se$fit - 1.96 * fit_se$se.fit
+    CI_high <- fit_se$fit + 1.96 * fit_se$se.fit
+    
+    polygon(x = c(data_new$count_catch,rev(data_new$count_catch)), 
+            y = c(CI_low,rev(CI_high)), border = NA,
+            col = colour_transparency_fun(cols_ssq[as.character(ssq)],alpha = .2))
+    
+    lines(x = data_new$count_catch, y = fit_se$fit, col = cols_ssq[as.character(ssq)], lwd = 2)
+  }
+  count <- count + 1
+}
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+legend("center",legend = rev(c("Low","Medium-Low","Medium","Medium-High","High")),
+       col = rev(cols_ssq), lwd = 2, bty = "n", title = "Stream survey quality")
+legend("bottom",paste0("Year = ",year), bty = "n")
+mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
+```
+
+# Altenative: predict monitoring probability
+
+## With same variables + regions
+
+The goal here is to predict the monitoring of individual populations as the function of `catch`, `value`, `year`, `species` and `region` using the cleaned NuSEDS data (we keep the 0s and the populations without a `cuid`).
+
+```{r, include=FALSE}
+nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
 # nuseds <- nuseds[nuseds$MAX_ESTIMATE != 0,]
-# 
-# # Provide populationid to population without a cuid
-# cond_NA <- is.na(nuseds$population_id)
-# pop_NA <- unique(nuseds[cond_NA,c("region","SPECIES_QUALIFIED","CU_NAME","POP_ID","GFE_ID")]) # same nb rows as unique(nuseds[cond_NA,c("POP_ID","GFE_ID")])
-# nrow(pop_NA)                   # corresponding to 82 populations
-# sum(is.na(nuseds$cuid))        # corresponding number of data points
-# 
-# val_max <- max(nuseds$population_id, na.rm = T)
-# for(r in 1:nrow(pop_NA)){
-#   # r <- 1
-#   POP_ID <- pop_NA$POP_ID[r]
-#   GFE_ID <- pop_NA$GFE_ID[r]
-#   
-#   cond <- nuseds$POP_ID == POP_ID & nuseds$GFE_ID == GFE_ID & is.na(nuseds$cuid)
-#   
-#   if(!all(is.na(nuseds$population_id[cond]))){
-#     print("population_id is not all NA - BREAK")
-#     break
-#   }else{
-#     val_max <- val_max + 1
-#     nuseds$population_id[cond] <- val_max
-#   }
-# }
-# 
-# sum(is.na(nuseds$population_id))
-# 
-# #
-# col_selected <- c("region","SPECIES","Year","population_id")
-# nuseds_cut <- nuseds[nuseds$Year %in% years,col_selected] |> unique()
-# colnames(nuseds_cut) <-  c("region","species","year","population_id")
-# 
-# nuseds_pop_monitored <- NULL
-# for(rg in unique(nuseds_cut$region)){
-#   # rg <- "Fraser"
-#   cond_rg <- nuseds_cut$region == rg
-#   for(sp in unique(nuseds_cut$species[cond_rg])){
-#     # sp <- "Sockeye"
-#     cond_rg_sp <- cond_rg & nuseds_cut$species == sp
-#     popids <- unique(nuseds_cut$population_id[cond_rg_sp])
-#     yrs <- unique(nuseds_cut$year[cond_rg_sp]) |> sort()
-#     
-#     d1 <- data.frame(region = rg,
-#                      species = sp, 
-#                      year = yrs)
-#     
-#     d2 <- merge(x = d1,y = popids, 
-#                all = T)
-#     
-#     colnames(d2) <- c("region","species","year","population_id")
-#     d2 <- d2[order(d2$population_id),]
-#     
-#     d3 <- unique(nuseds_cut[cond_rg_sp,])
-#     d3$monitored <- T
-#     
-#     d <- merge(x = d2,
-#                y = d3, 
-#                by = c("region","species","year","population_id"),
-#                all = T)
-#     
-#     d$monitored[is.na(d$monitored)] <- F
-#     
-#     if(is.null(nuseds_pop_monitored)){
-#       nuseds_pop_monitored <- d
-#     }else{
-#       nuseds_pop_monitored <- rbind(nuseds_pop_monitored,d)
-#     }
-#   }
-# }
-# 
-# nrow(nuseds_pop_monitored) # 471709
-# 
-# #
-# dataset_selected <- nuseds_pop_monitored
-# 
-# year_min <- max(min(dataset_selected$year),min(catch$year),min(value_sp$Year))
-# year_max <- min(max(dataset_selected$year),max(catch$year),max(value_sp$Year))
-# years <- year_min:year_max
-# 
-# data <- dataset_selected[dataset_selected$year %in% years,]
-# data$count_catch <- NA
-# data$value_kg <- NA
-# for(yr in years){
-#   # yr <- years[1]
-#   for(sp in unique(dataset_selected$species)){
-#     # sp <- unique(dataset_selected$species)[1]
-#     cond <- catch$species == sp & catch$year == yr
-#     count_catch <- catch$count[cond]
-#     
-#     cond <- value_sp$Year == yr
-#     value_kg <- value_sp[cond,sp]
-#     
-#     cond <- data$species == sp & data$year == yr
-#     data$count_catch[cond] <- count_catch
-#     data$value_kg[cond] <- value_kg
-#   }
-# }
-# 
-# data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
-# data$region <- factor(data$region,levels = c("Yukon","Transboundary","Haida Gwaii",
-#                                              "Nass","Skeena","Central Coast",
-#                                              "Vancouver Island & Mainland Inlets","Fraser","Columbia"))
-# #data$monitored[data$monitored] <- 1
-# 
-# 
-# show <- head(data)
-# rownames(show) <- NULL
-# show
-# 
-# 
+
+# Provide populationid to population without a cuid
+cond_NA <- is.na(nuseds$population_id)
+pop_NA <- unique(nuseds[cond_NA,c("region","SPECIES_QUALIFIED","CU_NAME","POP_ID","GFE_ID")]) # same nb rows as unique(nuseds[cond_NA,c("POP_ID","GFE_ID")])
+nrow(pop_NA)                   # corresponding to 82 populations
+sum(is.na(nuseds$cuid))        # corresponding number of data points
+
+val_max <- max(nuseds$population_id, na.rm = T)
+for(r in 1:nrow(pop_NA)){
+  # r <- 1
+  POP_ID <- pop_NA$POP_ID[r]
+  GFE_ID <- pop_NA$GFE_ID[r]
+
+  cond <- nuseds$POP_ID == POP_ID & nuseds$GFE_ID == GFE_ID & is.na(nuseds$cuid)
+
+  if(!all(is.na(nuseds$population_id[cond]))){
+    print("population_id is not all NA - BREAK")
+    break
+  }else{
+    val_max <- val_max + 1
+    nuseds$population_id[cond] <- val_max
+  }
+}
+
+sum(is.na(nuseds$population_id))
+
+#
+col_selected <- c("region","SPECIES","Year","population_id","stream_survey_quality")
+nuseds_cut <- nuseds[nuseds$Year %in% years,col_selected] |> unique()
+colnames(nuseds_cut) <-  c("region","species","year","population_id","stream_survey_quality")
+
+nuseds_pop_monitored <- NULL
+for(rg in unique(nuseds_cut$region)){
+  # rg <- "Fraser"
+  cond_rg <- nuseds_cut$region == rg
+  for(sp in unique(nuseds_cut$species[cond_rg])){
+    # sp <- "Sockeye"
+    cond_rg_sp <- cond_rg & nuseds_cut$species == sp
+    popids <- unique(nuseds_cut$population_id[cond_rg_sp])
+    yrs <- unique(nuseds_cut$year[cond_rg_sp]) |> sort()
+
+    d1 <- data.frame(region = rg,
+                     species = sp,
+                     year = yrs)
+
+    d2 <- merge(x = d1,y = popids,
+               all = T)
+
+    colnames(d2) <- c("region","species","year","population_id")
+    d2 <- d2[order(d2$population_id),]
+
+    d3 <- unique(nuseds_cut[cond_rg_sp,])
+    d3$monitored <- T
+
+    d <- merge(x = d2,
+               y = d3,
+               by = c("region","species","year","population_id"),
+               all = T)
+
+    d$monitored[is.na(d$monitored)] <- F
+
+    if(is.null(nuseds_pop_monitored)){
+      nuseds_pop_monitored <- d
+    }else{
+      nuseds_pop_monitored <- rbind(nuseds_pop_monitored,d)
+    }
+  }
+}
+
+nrow(nuseds_pop_monitored) # 471709
+
+#
+dataset_selected <- nuseds_pop_monitored
+
+year_min <- max(min(dataset_selected$year),min(catch$year),min(value_sp$Year))
+year_max <- min(max(dataset_selected$year),max(catch$year),max(value_sp$Year))
+years <- year_min:year_max
+
+data <- dataset_selected[dataset_selected$year %in% years,]
+data$count_catch <- NA
+data$value_kg <- NA
+for(yr in years){
+  # yr <- years[1]
+  for(sp in unique(dataset_selected$species)){
+    # sp <- unique(dataset_selected$species)[1]
+    cond <- catch$species == sp & catch$year == yr
+    count_catch <- catch$count[cond]
+
+    cond <- value_sp$Year == yr
+    value_kg <- value_sp[cond,sp]
+
+    cond <- data$species == sp & data$year == yr
+    data$count_catch[cond] <- count_catch
+    data$value_kg[cond] <- value_kg
+  }
+}
+
+data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
+data$region <- factor(data$region,levels = c("Yukon","Transboundary","Haida Gwaii",
+                                             "Nass","Skeena","Central Coast",
+                                             "Vancouver Island & Mainland Inlets","Fraser","Columbia"))
+#data$monitored[data$monitored] <- 1
+```
+
+The response variable `monitored` is binary:
+
+```{r, echo=FALSE}
+show <- head(data)
+show <- show[,colnames(show) != "stream_survey_quality"]
+rownames(show) <- NULL
+show
+```
+
+There are a majority of zeros in the dataset:
+
+```{r, echo=FALSE}
 # plot(x = data$count_catch, y = data$monitored)
 # plot(x = data$value_kg, y = data$monitored)
-# # plot(x = data$year, y = data$monitored)
-# 
-# 
-# round(sum(data$monitored == 0)/nrow(data),3)
-# 
-# # library(lme4)
-# # glmm_full <- lme4::glmer(monitored ~ count_catch + value_kg + year + (1|species) + (1|region), 
-# #                          data = data, family = binomial(link = "logit"))
-# 
-# link <- c("logit","probit","cloglog")[3]
-# 
-# # Zuur 2009: "The clog–log may be an option if you have considerably more zeros than ones, or vice versa;"
-# 
-# glm_full <- glm(monitored ~ count_catch + value_kg + year + species + region, 
+# plot(x = data$year, y = data$monitored)
+
+round(sum(!data$monitored)/nrow(data),3)
+```
+
+We fit a glm with a binomial distribution and clog-log link function, which is the appropriate function when there is more negative than positive outcomes and vice versa (Zuur et al., 2009).
+
+```{r}
+link <- c("logit","probit","cloglog")[3]
+
+# glm_full_i <- glm(monitored ~ count_catch * value_kg * year * species * region,
 #                 data = data, family = binomial(link = link))
-# 
-# glm_cvys <- glm(monitored ~ count_catch + value_kg + year + species, 
-#                 data = data, family = binomial(link = link))
-# 
-# glm_cvyr <- glm(monitored ~ count_catch + value_kg + year + region, 
-#                 data = data, family = binomial(link = link))
-# 
-# glm_cvrs <- glm(monitored ~ count_catch + value_kg + species + region, 
-#                 data = data, family = binomial(link = link))
-# 
-# glm_cvs_i <- glm(monitored ~ count_catch * value_kg * species, 
-#                 data = data, family = binomial(link = link))
-# 
-# glm_cvs_i_y <- glm(monitored ~ count_catch * value_kg * species + year, 
-#                 data = data, family = binomial(link = link))
-# 
-# glm_cvs_i_yr <- glm(monitored ~ count_catch * value_kg * species + year + region, 
-#                 data = data, family = binomial(link = link))
-# 
-# 
-# 
-# glm_null <- glm(monitored ~ 1, data = data, family = binomial(link = link))
-# 
-# list_glm <- list(glm_full,
-#                  glm_cvys,
-#                  glm_cvyr,
-#                  glm_cvrs,
-#                  glm_cvs_i,
-#                  glm_cvs_i_y,
-#                  glm_cvs_i_yr)
-# 
-# names(list_glm) <- c("glm_full",
-#                      "glm_cvys",
-#                      "glm_cvyr",
-#                      "glm_cvrs",
-#                      "glm_cvs_i",
-#                      "glm_cvs_i_y",
-#                      "glm_cvs_i_yr")
-# 
-# show <- AIC_R2_glm_fun(list_glm = list_glm, glm_null = glm_null)
-# 
-# show
-# 
-# 
+
+glm_full <- glm(monitored ~ count_catch + value_kg + year + species + region,
+                data = data, family = binomial(link = link))
+
+glm_cvys <- glm(monitored ~ count_catch + value_kg + year + species,
+                data = data, family = binomial(link = link))
+
+glm_cvyr <- glm(monitored ~ count_catch + value_kg + year + region,
+                data = data, family = binomial(link = link))
+
+glm_cvrs <- glm(monitored ~ count_catch + value_kg + species + region,
+                data = data, family = binomial(link = link))
+
+glm_cvs_i <- glm(monitored ~ count_catch * value_kg * species,
+                data = data, family = binomial(link = link))
+
+glm_cvs_i_y <- glm(monitored ~ count_catch * value_kg * species + year,
+                data = data, family = binomial(link = link))
+
+glm_cvs_i_yr <- glm(monitored ~ count_catch * value_kg * species + year + region,
+                data = data, family = binomial(link = link))
+```
+
+All these models explain very little of the variance:
+
+```{r, echo=FALSE}
+glm_null <- glm(monitored ~ 1, data = data, family = binomial(link = link))
+
+list_glm <- list(glm_full,
+                 glm_cvys,
+                 glm_cvyr,
+                 glm_cvrs,
+                 glm_cvs_i,
+                 glm_cvs_i_y,
+                 glm_cvs_i_yr)
+
+names(list_glm) <- c("glm_full",
+                     "glm_cvys",
+                     "glm_cvyr",
+                     "glm_cvrs",
+                     "glm_cvs_i",
+                     "glm_cvs_i_y",
+                     "glm_cvs_i_yr")
+
+show <- AIC_R2_glm_fun(list_glm = list_glm, glm_null = glm_null)
+
+show
+```
+
+These models don't seem to explain much variation in monitoring...
+
+```{r, include=FALSE}
 # plot(glm_full)
-# 
-# 
 # 
 # glm_selected <- glm_cvs_i_yr
 # 
@@ -1334,6 +1724,11 @@ abline(0,0)
 # boxplot(res ~ data$species, xlab = "Species", ylab = "Deviance residuals")
 # abline(0,0)
 ```
+
+
+
+
+
 
 
 
