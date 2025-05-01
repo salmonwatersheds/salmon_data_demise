@@ -34,11 +34,12 @@ library(paletteer) # https://r-graph-gallery.com/color-palette-finder
 library(readxl)
 # library(here)
 library(scales)
+library(MASS)   # for glm.nb
 
 source("code/functions.R")
 source("code/colours.R")
 
-figures_print <- F
+figures_print <- T
 
 #
 # Import files ------
@@ -453,6 +454,7 @@ for(nm in c("without_0s","with_0s")){
                          value_kg_sqrt:year, 
                        data = data_here, link = "log")
     
+    list_here <- list()
     list_here$glm_full <- list(glm_full)
     
     # glm_full <- glm(count_pop ~ count_catch_sqrt + value_kg_sqrt + year +
