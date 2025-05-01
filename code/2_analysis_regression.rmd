@@ -49,6 +49,7 @@ figures_print <- F
 
 #'* Counts and proportions of populations and CUs assessed across regions and species *
 filename <- "populationAssessed_catches_data_remove_0s_NAs"
+# filename <- "populationAssessed_catches_data_remove_NAs"
 
 data_total <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                       sheet = "populations_total") |> as.data.frame()
@@ -968,7 +969,7 @@ glm_sy <- glm.nb(count_pop ~ species + year, data = data, link = "log")
 glm_y <- glm.nb(count_pop ~ year, data = data, link = "log")
 ```
 
-```{r}
+```{r, echo=FALSE}
 glm_null <- glm.nb(count_pop ~ 1, data = data, link = "log")
 
 list_glm <- list(glm_full_i,
@@ -1194,12 +1195,146 @@ knitr::include_graphics(paste0(wd,"/figures/Barplot_EstimateClassification.jpeg"
 We remove NA and "Unknown" values and data before 1998; the proportion of zeros counts is now very small:
 
 ```{r, echo=FALSE}
+# data_sp_ssq <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+#                          sheet = "populations_species_ssq") |> as.data.frame()
+
 cond_NA <- is.na(data_sp_ssq$stream_survey_quality)
 cond_uk <- !cond_NA & data_sp_ssq$stream_survey_quality == "Unknown"
 cond_1998 <- data_sp_ssq$year >= 1998
 data_sp_ssq <- data_sp_ssq[!cond_NA & !cond_uk & cond_1998,]
 
 round(sum(data_sp_ssq$count_CU == 0)/nrow(data_sp_ssq),4)
+```
+
+Let's look at the change in monitoring per `stream survey quality` categories (observations with `MAX_ESTIMATE` = 0 removed):
+
+```{r, echo=FALSE}
+data_here <- data_sp_ssq
+
+years <- sort(unique(data_here$year))
+
+species <- unique(data_here$species)
+species <- species[order(species)]
+
+stream_survey_quality <- c("Low","Medium-Low","Medium","Medium-High","High")
+
+colfunc <- colorRampPalette(c("firebrick3", "dodgerblue3"))
+cols_ssq <- colfunc(length(stream_survey_quality))
+names(cols_ssq) <- stream_survey_quality
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+count <- 1
+for(sp in species){
+  # sp <- species[1]
+  cond_sp <- data_here$species == sp
+  
+  y_max <- sapply(stream_survey_quality,function(ssq){
+    cond <- data_here$stream_survey_quality == ssq
+    out <- max(data_here$count_pop[cond_sp & cond])
+    return(out)
+  }) |> max() * 1.1
+  
+  xlab <- ylab <- ""
+  xaxt <- "n"
+  side1 <- .5
+  side2 <- 2
+  if(count %in% 4:6){
+    xlab <- "Year"
+    side1 <- 5
+    xaxt <- "s"
+  }
+  if(count %in% c(1,4)){
+    ylab <- "Number populations monitored"
+    side2 <- 5
+  }
+  
+  par(mar = c(side1,side2,1,.5))
+  plot(NA, xlim = range(years), ylim = c(0,y_max), xlab = xlab, ylab = ylab, 
+       xaxt = xaxt)
+  legend("topleft",sp,bty = "n")
+  
+  for(ssq in stream_survey_quality){
+    # ssq <- stream_survey_quality[1]
+    cond_ssq <- data_here$stream_survey_quality == ssq
+    d <- data_here[cond_sp & cond_ssq,]
+    d <- d[order(d$year),]
+    lines(x = d$year, y = d$count_pop, col = cols_ssq[ssq], lwd = 1.5)
+  }
+  count <- count + 1
+}
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+legend("center",legend = rev(c("Low","Medium-Low","Medium","Medium-High","High")),
+       col = rev(cols_ssq), lwd = 2, bty = "n", title = "Stream survey quality")
+```
+
+Let's look at the change in monitoring per `stream survey quality` categories (observations with `MAX_ESTIMATE` = 0 present):
+
+```{r, echo=FALSE}
+
+data_sp_ssq_with0 <-  read_xlsx(paste0(wd_data_output,"/populationAssessed_catches_data_remove_NAs.xlsx"),
+                         sheet = "populations_species_ssq") |> as.data.frame()
+
+cond_NA <- is.na(data_sp_ssq_with0$stream_survey_quality)
+cond_uk <- !cond_NA & data_sp_ssq_with0$stream_survey_quality == "Unknown"
+cond_1998 <- data_sp_ssq_with0$year >= 1998
+data_sp_ssq_with0 <- data_sp_ssq_with0[!cond_NA & !cond_uk & cond_1998,]
+
+data_here <- data_sp_ssq_with0
+
+years <- sort(unique(data_here$year))
+
+species <- unique(data_here$species)
+species <- species[order(species)]
+
+stream_survey_quality <- c("Low","Medium-Low","Medium","Medium-High","High")
+
+colfunc <- colorRampPalette(c("firebrick3", "dodgerblue3"))
+cols_ssq <- colfunc(length(stream_survey_quality))
+names(cols_ssq) <- stream_survey_quality
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+count <- 1
+for(sp in species){
+  # sp <- species[1]
+  cond_sp <- data_here$species == sp
+  
+  y_max <- sapply(stream_survey_quality,function(ssq){
+    cond <- data_here$stream_survey_quality == ssq
+    out <- max(data_here$count_pop[cond_sp & cond])
+    return(out)
+  }) |> max() * 1.1
+  
+  xlab <- ylab <- ""
+  xaxt <- "n"
+  side1 <- .5
+  side2 <- 2
+  if(count %in% 4:6){
+    xlab <- "Year"
+    side1 <- 5
+    xaxt <- "s"
+  }
+  if(count %in% c(1,4)){
+    ylab <- "Number populations monitored"
+    side2 <- 5
+  }
+  
+  par(mar = c(side1,side2,1,.5))
+  plot(NA, xlim = range(years), ylim = c(0,y_max), xlab = xlab, ylab = ylab, 
+       xaxt = xaxt)
+  legend("topleft",sp,bty = "n")
+  
+  for(ssq in stream_survey_quality){
+    # ssq <- stream_survey_quality[1]
+    cond_ssq <- data_here$stream_survey_quality == ssq
+    d <- data_here[cond_sp & cond_ssq,]
+    d <- d[order(d$year),]
+    lines(x = d$year, y = d$count_pop, col = cols_ssq[ssq], lwd = 1.5)
+  }
+  count <- count + 1
+}
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+legend("center",legend = rev(c("Low","Medium-Low","Medium","Medium-High","High")),
+       col = rev(cols_ssq), lwd = 2, bty = "n", title = "Stream survey quality")
 ```
 
 We now create the categorical variable `stream_survey_quality_cat` such as:
@@ -1498,6 +1633,8 @@ mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
 ## With same variables + regions
 
 The goal here is to predict the monitoring of individual populations as the function of `catch`, `value`, `year`, `species` and `region` using the cleaned NuSEDS data (we keep the 0s and the populations without a `cuid`).
+
+We remove observations with `MAX_ESTIMATE` = NA, by keep the ones = 0.
 
 ```{r, include=FALSE}
 nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]

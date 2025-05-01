@@ -32,7 +32,7 @@ library(tidyr)
 library(dplyr)
 library(paletteer) # https://r-graph-gallery.com/color-palette-finder
 library(readxl)
-library(here)
+# library(here)
 library(scales)
 
 source("code/functions.R")
@@ -67,6 +67,10 @@ data_rg_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
                          sheet = "populations_regions_species") |> as.data.frame()
 head(data_rg_sp)
 
+# Counts and proportions of populations and CUs assessed per species and stream survey quality
+data_sp_ssq <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
+                         sheet = "populations_species_ssq") |> as.data.frame()
+
 #'* Import the catch data
 catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                      sheet = "catches_species_total") |> as.data.frame()
@@ -86,6 +90,9 @@ data_sp_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
 
 data_rg_0 <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                        sheet = "populations_regions") |> as.data.frame()
+
+data_sp_ssq_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
+                          sheet = "populations_species_ssq") |> as.data.frame()
 
 #'* Import the landing value per species per kg *
 # https://www.pac.dfo-mpo.gc.ca/analyses-econom-analysis/analyses/econ-perspective-salmon-saumon-eng.html
@@ -339,124 +346,293 @@ if(figures_print){
 }
 
 #
-# FIGURE 5: Correlation btw Number population monitored vs. catch ---------
-#
+# FIGURE 5 & S? glm negative binomial with --------
 
-years <- min(data_total$year):max(data_total$year)
-year_cut <- 1960
-
-plot_correlation <- T
-show_trendline <- F
-pval_show <- T
-
-# colour gradient for years
-colfunc_yr <- colorRampPalette(c("#1962A0","#9E163C"))
-data_yr_col <- data.frame(year =  year_cut:max(years),
-                          colours = colfunc_yr(length(year_cut:max(years))))
-data_yr_col$colours_trans <- colour_transparency_fun(data_yr_col$colours, alpha = .7)
-
-coef <- .9
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Correlation_Number_surveys_vs_Catches.jpeg"),
-       width = 21.59 * coef, height = 14 * coef, units = 'cm', res = 300)
-}
-layout(matrix(1:(length(species)+1), nrow = 2, byrow = T),  
-       widths =  c(1.13,1,1), heights = c(1,1.15))
-i <- 1
-for(sp in species){
-  # sp <- species[2]
+data_l <- list(data_sp,data_sp_0)
+names(data_l) <- c("without_0s","with_0s")
+glm_outputs_l <- list()
+i_0 <- 1
+for(nm in c("without_0s","with_0s")){
+  # nm <- c("without_0s","with_0s")[1]
   
-  # Catch
-  cond_sp_c <- catch$species == sp
-  data_c <- catch[cond_sp_c,c("year","count")]
-  colnames(data_c)[colnames(data_c) == "count"] <- "catch"
-  data_c$catch <- data_c$catch / 1000
-
-  # surveys
-  cond_sp <- data_sp$species == sp
-  data_s <- data_sp[cond_sp,c("year","count_pop")]
+  data <- data_l[nm][[1]]
   
-  # merge the two
-  data <- merge(x = data_c, y = data_s, by = "year", all = T)
-
-  # merge with data_yr_col
-  data <- merge(x = data, y = data_yr_col, by = "year", all = T)
-  
-  # Only select data points after 1960
-  cond <- data$year > year_cut
-  
-  x <- data$catch[cond]
-  y <- data$count_pop[cond]
-  
-  n <- min(c(sum(!is.na(x)),sum(!is.na(y)))) # number of data points
-  
-  side1 <- 2
-  side2 <- 2
-  xlab <- ylab <- ""
-  yaxt <- "s"
-  if(i > 3){
-    side1 <- 4.5
-    xlab <- "Catches (in thousands)"
-  }
-  if(i %in% c(1,4)){
-    side2 <- 4.5
-    ylab <- "Number of populations monitored"
-    # yaxt <- 's'
+  suffix <- ""
+  if(nm == "with_0s"){
+    suffix <- "_WITH_0s"
   }
   
-  par(mar = c(side1,side2,.5,.5))
-  plot(x = x, y = y, pch = 16, col = data$colours_trans[cond],
-       cex = 2, yaxt = yaxt, xlab = xlab, ylab = ylab, main = "")
-  #abline(a = 0, b = 1)
-  if(i == 3){
-    mtext("Catches (in thousands)",side = 1,line = 3,cex = .65)
-  }
+  # Add the values for catch and value
+  year_min <- max(min(data$year),min(catch$year),min(value_sp$Year))
+  year_max <- min(max(data$year),max(catch$year),max(value_sp$Year))
+  years <- year_min:year_max
   
-  # regression line
-  # m <- loess(surveys ~ catch, data = data[cond,], span = .5)
-  if(show_trendline){
-    m <- lm(surveys ~ catch, data = data[cond,])
-    y_m <- predict(m, newdata = data[cond,])
-    lines(x = x, y = y_m, lwd = 2)
-  }
-  cor_spear <- cor.test(x = x, y = y, method = "spearman")
-  pval <- ""
-  if(pval_show){
-    if(cor_spear$p.value < 0.001){
-      pval <- "***"
-    }else if(cor_spear$p.value < 0.01){
-      pval <- "**"
-    }else if(cor_spear$p.value < 0.05){
-      pval <- "*"
+  col_selected <- c("species","year","count_pop")
+  
+  data <- data[data$year %in% years,col_selected]
+  data$count_catch <- NA
+  data$value_kg <- NA
+  for(yr in years){
+    # yr <- years[1]
+    for(sp in unique(data$species)){
+      # sp <- unique(data$species)[1]
+      cond <- catch$species == sp & catch$year == yr
+      count_catch <- catch$count[cond]
+      
+      cond <- value_sp$Year == yr
+      value_kg <- value_sp[cond,sp]
+      
+      cond <- data$species == sp & data$year == yr
+      data$count_catch[cond] <- count_catch
+      data$value_kg[cond] <- value_kg
     }
   }
-  if(sp == "Sockeye"){
-    legend("topright",paste0(letters[i],") ",sp),bty='n')
-  }else{
-    legend("topleft",paste0(letters[i],") ",sp),bty='n')
+  data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
+  
+  # transform catch and value to reduce skewness
+  data$count_catch_sqrt <- sqrt(data$count_catch)
+  data$value_kg_sqrt <- sqrt(data$value_kg)
+  
+  # Figure collinearity
+  panel.cor <- function(x, y){
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- round(cor(x, y), digits=2)
+    txt <- paste0("R = ", r)
+    # cex.cor <- 1.3/strwidth(txt)
+    # text(0.5, 0.5, txt, cex = cex.cor * r)
+    text(0.5, 0.5, txt, cex = 1)
   }
-  legend("bottomright",
-         legend = bquote(rho~"="~.(round(cor_spear$estimate,2))~" "~.(pval)~" "), 
-         bty = "n")
-  # legend("bottomleft", legend = paste("n =",n), bty = "n") # it is the same number for all species
   
-  i <- i + 1
+  upper.panel<-function(x, y){
+    points(x,y, pch = 19, col = species_cols_light[data$species])
+  }
   
-  print(paste("***",sp,"***"))
-  print(cor_spear)
+  panel.hist <- function(x){
+    usr <- par("usr")
+    par(usr = c(usr[1:2], 0, 1.5) )
+    h <- hist(x, plot = FALSE)
+    breaks <- h$breaks
+    nB <- length(breaks)
+    y <- h$counts
+    y_max <- max(y)
+    y <- y/y_max
+    rect(breaks[-nB], 0, breaks[-1], y, col = "#00AFBB")
+    
+    multiplier <- h$counts / h$density / y_max
+    dens <- density(x = x)
+    dens$y <- dens$y * multiplier[1] / max(y)
+    lines(x = dens, col = "red")
+  }
   
+  if(figures_print){
+    jpeg(paste0(wd_figures,"/Collinearity_variable_glm",suffix,".jpeg"),
+         width = 22, height = 22, units = 'cm', res = 300)
+  }
+  pairs(data[,c("count_pop","year","count_catch_sqrt","value_kg_sqrt")],
+        upper.panel = upper.panel,
+        lower.panel = panel.cor,
+        diag.panel =  panel.hist)
+  if(figures_print){
+    dev.off()
+  }
+  
+  # Fit a glm binomial distribution (with log-link function) for each species
+  sp_glm_l <- list()
+  i_sp <- 1
+  for(sp in species){
+    # sp <- species[1]
+    data_here <- data[data$species == sp,]
+    
+    glm_vif <- glm.nb(count_pop ~ count_catch_sqrt + value_kg_sqrt + year, 
+                       data = data_here, link = "log")
+    
+    glm_full <- glm.nb(count_pop ~ count_catch_sqrt + value_kg_sqrt + year +
+                         count_catch_sqrt:value_kg_sqrt +
+                         count_catch_sqrt:year +
+                         value_kg_sqrt:year, 
+                       data = data_here, link = "log")
+    
+    list_here$glm_full <- list(glm_full)
+    
+    # glm_full <- glm(count_pop ~ count_catch_sqrt + value_kg_sqrt + year +
+    #                      count_catch_sqrt:value_kg_sqrt +
+    #                      count_catch_sqrt:year +
+    #                      value_kg_sqrt:year, 
+    #                    data = data_here, family = poisson(link = "log"))
+    # 
+    # glm_vif <- glm(count_pop ~ count_catch_sqrt + value_kg_sqrt + year, 
+    #                data = data_here, family = poisson(link = "log"))
+    
+    # Summary info
+    list_here$summary <- summary(glm_full)
+    
+    # pseudo R2
+    R2 <- (list_here$summary$null.deviance - list_here$summary$deviance)/list_here$summary$null.deviance
+    list_hereR2_pseudo <- R2
+    
+    # Check collinearity with variance inflation factor
+    print("VIF:")
+    print(vif(glm_vif))
+    list_here$VIF <- vif(glm_vif)
+    
+    # check overdispersion
+    print("Overdispersion:")
+    dispersion <- round(list_here$summary$deviance / list_here$summary$df.residual,2)
+    print(dispersion)
+    list_here$dispersion <- dispersion
+    
+    # Check the model residuals
+    span <- .9
+    res <- resid(glm_full, type = "deviance")
+    
+    if(figures_print){
+      jpeg(paste0(wd_figures,"/ResidualsDiagnostic_glm_",sp,suffix,".jpeg"),
+           width = 15, height = 10, units = 'cm', res = 300)
+    }
+    layout(matrix(1:6,nrow = 2, byrow = T))
+    par(mar = c(4.5,4.5,.5,.5))
+    
+    fit <- predict(glm_full)
+    plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+    abline(a = 0,b = 0)
+    smoothed <- predict(loess(res ~ fit, span = span))
+    lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+    
+    qqnorm(res, main = "")
+    abline(a = 0, b = 1)
+    
+    x <- data_here$count_catch/1000000
+    plot(y = res, x = x, xlab = "Catch (in millions of fish)", ylab = "Deviance residuals")
+    abline(0,0)
+    smoothed <- predict(loess(res ~ x, span = span))
+    lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+    
+    #
+    x <- data_here$value_kg
+    plot(y = res, x = x, xlab = "Value (in CAD per kg)", ylab = "Deviance residuals")
+    abline(0,0)
+    smoothed <- predict(loess(res ~ x, span = span))
+    lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+    
+    #
+    x <- data_here$year
+    plot(y = res, x = x, xlab = "Year", ylab = "Deviance residuals")
+    abline(0,0)
+    smoothed <- predict(loess(res ~ x, span = span))
+    lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+    
+    # 
+    plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+    legend("center",legend = sp,bty = "n")
+    
+    if(figures_print){
+      dev.off()
+    }
+    
+    #
+    sp_glm_l[[i_sp]] <- list_here
+    i_sp <- i_sp + 1
+  }
+  names(sp_glm_l) <- species
+  glm_outputs_l[[i_0]] <- sp_glm_l
+  names(glm_outputs_l)[i_0] <-  nm
+  i_0 <- i_0 + 1
+  
+  # FIGURE 5 
+  y_max <- max(data$count_pop)
+  y_min <- min(data$count_pop)
+  
+  years_3 <- c(1980,2000,2020)
+  
+  count <- 1
+  if(figures_print){
+    jpeg(paste0(wd_figures,"/Predictinon_glm",suffix,".jpeg"),
+         width = 20, height = 15, units = 'cm', res = 300)
+  }
+  layout(mat = matrix(1:6, nrow = 2, byrow = T), widths = c(1.22,1,1), heights = c(1,1.08))
+  for(sp in species){
+    # sp <- "Sockeye
+    
+    model_selected <- sp_glm_l[[sp]]$glm_full[[1]]
+    
+    cond_sp <- data$species == sp
+    
+    x_max <- max(data$count_catch[cond_sp])
+    x_min <- min(data$count_catch[cond_sp])
+    
+    x_range <- round(x_min:x_max)
+    x_range <- unique(round(x_range/10000)*10000)
+    
+    col_yrs_3 <- c(colour_transparency_fun(species_cols_dark[sp],alpha = .3),
+                   colour_transparency_fun(species_cols_dark[sp],alpha = .6),
+                   colour_transparency_fun(species_cols_dark[sp],alpha = 1))
+    names(col_yrs_3) <- years_3
+    
+    side1 <- 3
+    side2 <- .5
+    xlabel <- ylabel <- ""
+    yaxt <- "n"
+    if(count %in% c(1,4)){
+      side2 <- 4.5
+      yaxt <- "s"
+      ylabel <- "Number of population monitored"
+    }
+    if(count > 3){
+      side1 <- 4.5
+      xlabel <- "Number of fish caught (in thousands)"
+    }
+    
+    par(mar = c(side1, side2, .5, .5))
+    plot(NA,xlim = c(x_min,x_max),ylim = c(y_min,y_max), xaxt = "n", yaxt = yaxt,
+         xlab = xlabel, ylab = ylabel)
+    xticks <- axTicks(1)
+    axis(side = 1, at = xticks, labels = xticks / 1000)
+    
+    points(x = data$count_catch[cond_sp],y = data$count_pop[cond_sp], 
+           col = colour_transparency_fun("black",.5))
+    
+    legend("topleft",legend = sp, bty = "n")
+    
+    for(yr in years_3){
+      # yr <- years_3[1]
+      cond_yr <- data$year == yr
+      value_kg <- unique(data$value_kg[cond_yr & cond_sp])
+      
+      data_new <- data.frame(species = sp,
+                             year = yr,
+                             value_kg = value_kg,
+                             value_kg_sqrt = sqrt(value_kg),
+                             count_catch = x_range,
+                             count_catch_sqrt = sqrt(x_range))
+      
+      fit_se <- predict(object = model_selected,
+                        newdata = data_new, 
+                        type = "response", se.fit = T)
+      
+      CI_low <- fit_se$fit - 1.96 * fit_se$se.fit
+      CI_high <- fit_se$fit + 1.96 * fit_se$se.fit
+      
+      polygon(x = c(data_new$count_catch,rev(data_new$count_catch)), 
+              y = c(CI_low,rev(CI_high)), border = NA,
+              col = colour_transparency_fun(col_yrs_3[as.character(yr)],alpha = .2))
+      
+      lines(x = data_new$count_catch, y = fit_se$fit, col = col_yrs_3[as.character(yr)], lwd = 2)
+    }
+    count <- count + 1
+  }
+  plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+  col_legend <- c(colour_transparency_fun("black",alpha = .3),
+                  colour_transparency_fun("black",alpha = .6),
+                  colour_transparency_fun("black",alpha = 1))
+  legend("center",legend = years_3,col = col_legend, lwd = 2, bty = "n", title = "Years")
+  mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
+  if(figures_print){
+    dev.off()
+  }
 }
-# plot legend
-par(mar = c(10,3,8,3))
-plot(NA, ylim = c(0,1), xlim = range(data_yr_col$year), xaxt = 's', yaxt = 'n', 
-     xlab = "Year", ylab = "", xaxs = "i", yaxs = "i")
-for(yr in data_yr_col$year){
-  cond <- data_yr_col$year == yr
-  polygon(x = c(yr,yr + 1, yr + 1, yr),y = c(0,0,1,1),border = NA, col = data_yr_col$colours_trans[cond])
-}
-if(figures_print){
-  dev.off()
-}
+
+saveRDS(glm_outputs_l,paste0(wd_data_output,"/glm_outputs_list.rds"))
 
 #
 # FIGURE 6: Proportion of CUs monitored (i.e. at least 1 population) --------
@@ -1269,125 +1445,107 @@ if(figures_print){
 }
 #
 #
-# Linear regression: monitoring ~ cactch * value * time -----
+# Figure S???: Number pop monitored per species and stream survey quality since 1998 ----
 
-# The nodels to fit:
-# Monitoring effort ~ landed_catch * value
-# Monitoring effort ~ landed_catch → Monitoring varies with landed catch (the linear model version of our current correlation analysis)
-# Monitoring effort ~ species*time → Trend over time that’s different for different species
-# Monitoring effort ~ time → Trend over time in monitoring
+data_l <- list(data_sp_ssq,data_sp_ssq_0)
+names(data_l) <- c("without_0s","with_0s") 
 
-year_min <- max(min(data_sp_0$year),min(catch$year),min(value_sp$Year))
-year_max <- min(max(data_sp_0$year),max(catch$year),max(value_sp$Year))
+stream_survey_quality <- c("Low","Medium-Low","Medium","Medium-High","High")
 
-colnames(value_sp)[colnames(value_sp) == "Year"]
-
-years <- year_min:year_max
-
-data <- data_sp_0[data_sp_0$year %in% years,c("species","year","count_pop")]
-data$count_catch <- NA
-data$value_kg <- NA
-for(yr in years){
-  # yr <- years[1]
-  for(sp in unique(data_sp_0$species)){
-    # sp <- unique(data_sp_0$species)[1]
-    cond <- catch$species == sp & catch$year == yr
-    count_catch <- catch$count[cond]
+for(nm in c("without_0s","with_0s")){
+  # nm <- c("without_0s","with_0s")[1]
+  
+  data_here <- data_l[nm][[1]]
+  
+  data_here <- data_here[data_here$year >= 1998,]
+  data_here <- data_here[!is.na(data_here$stream_survey_quality),]
+  data_here <- data_here[data_here$stream_survey_quality != "Unknown",]
+  
+  years <- sort(unique(data_here$year))
+  
+  colfunc <- colorRampPalette(c("firebrick3", "dodgerblue3"))
+  cols_ssq <- colfunc(length(stream_survey_quality))
+  names(cols_ssq) <- stream_survey_quality
+  
+  suffix <- ""
+  if(nm == "with_0s"){
+    suffix <- "_WITH_0s"
+  }
+  
+  if(figures_print){
+    jpeg(paste0(wd_figures,"/Number_populations_monitored_species_rssq",suffix,".jpeg"),
+         width = 20, height = 15, units = 'cm', res = 300)
+  }
+  m <- matrix(c(1:(length(species) + 1)), ncol = 3, byrow = T)
+  layout(m, widths =  c(1.17,1,1), heights = c(1,1.23))
+  count <- 1
+  for(sp in species){
+    # sp <- species[1]
+    cond_sp <- data_here$species == sp
     
-    cond <- value_sp$Year == yr
-    value_kg <- value_sp[cond,sp]
+    y_max <- sapply(stream_survey_quality,function(ssq){
+      cond <- data_here$stream_survey_quality == ssq
+      out <- max(data_here$count_pop[cond_sp & cond])
+      return(out)
+    }) |> max() * 1.1
     
-    cond <- data$species == sp & data$year == yr
-    data$count_catch[cond] <- count_catch
-    data$value_kg[cond] <- value_kg
+    xlab <- ylab <- ""
+    xaxt <- "n"
+    side1 <- .5
+    side2 <- 2
+    if(count %in% 3:6){
+      xlab <- "Year"
+      if(count != 3){
+        side1 <- 5
+      }
+      xaxt <- "s"
+    }
+    if(count %in% c(1,4)){
+      ylab <- "Number populations monitored"
+      side2 <- 5
+    }
+    
+    par(mar = c(side1,side2,1,.5))
+    plot(NA, xlim = range(years), ylim = c(0,y_max), xlab = xlab, ylab = ylab, 
+         xaxt = xaxt)
+    legend("topleft",sp,bty = "n")
+    
+    nb_lines <- 5
+    if(sp %in% c("Pink")){ # ,"Vancouver Island & Mainland Inlets"
+      nb_lines <- 4
+    }
+    if(sp %in% c("Chinook")){ # ,"Vancouver Island & Mainland Inlets"
+      nb_lines <- 3
+    }
+    segments_horizontal_fun(y_range = c(0,y_max), 
+                            x_range = c(1998,2030), 
+                            lty = lty_seg, lwd = lwd, 
+                            nb_lines = nb_lines,
+                            colour = colours_seg, alpha = alpha_seg)
+    
+    xs <- min(data_here$year):max(range(data_here$year))
+    segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0],
+             y0 = 0, y1 = y_max, 
+             lty = lty_seg, lwd = lwd,
+             col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+    
+    for(ssq in stream_survey_quality){
+      # ssq <- stream_survey_quality[1]
+      cond_ssq <- data_here$stream_survey_quality == ssq
+      d <- data_here[cond_sp & cond_ssq,]
+      d <- d[order(d$year),]
+      lines(x = d$year, y = d$count_pop, col = cols_ssq[ssq], lwd = 1.5)
+    }
+    count <- count + 1
+  }
+  plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+  legend("center",legend = rev(c("Low","Medium-Low","Medium","Medium-High","High")),
+         col = rev(cols_ssq), lwd = 2, bty = "n", title = "Stream survey quality")
+  mtext("Year",side = 3,line = -2.5, cex = .7)
+  if(figures_print){
+    dev.off()
   }
 }
-
-lm1 <- lm(count_pop ~ count_catch * value_kg, data = data)
-summary(lm1)
-# Coefficients:
-#                        Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)           5.005e+02  2.451e+01  20.420  < 2e-16 ***
-# count_catch          -4.030e-06  3.637e-06  -1.108   0.2687    
-# value_kg             -2.217e+01  4.112e+00  -5.393  1.3e-07 ***
-# count_catch:value_kg  1.690e-06  8.558e-07   1.975   0.0491 * 
-
-anova(lm1)
-#                         Df   Sum Sq Mean Sq F value    Pr(>F)    
-# count_catch            1   165949  165949  5.2694   0.02231 *  
-# value_kg               1   869766  869766 27.6177 2.611e-07 ***
-# count_catch:value_kg   1   122825  122825  3.9001   0.04909 *  
-# Residuals            341 10739135   31493    
-
-lm2 <- lm(count_pop ~ count_catch, data = data)
-summary(lm2)
-# Coefficients:
-#                        Estimate Std. Error t value Pr(>|t|)    
-#      (Intercept) 3.838e+02  1.312e+01  29.239   <2e-16 ***
-#      count_catch 4.874e-06  2.213e-06   2.203   0.0283 *  
-
-anova(lm2)
-#                         Df   Sum Sq Mean Sq F value    Pr(>F)    
-#            count_catch   1   165949  165949  4.8519 0.02828 *
-# Residuals   343 11731726   34203  
-
-AIC(lm1,lm2)
-
-lm3 <- lm(count_pop ~ species * year, data = data)
-summary(lm3)
-# Coefficients:
-#                        Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)          -900.4144   983.4878  -0.916  0.36057    
-# speciesChum         12960.6738  1390.8617   9.318  < 2e-16 ***
-# speciesCoho         13468.8846  1390.8617   9.684  < 2e-16 ***
-# speciesPink          7646.3375  1390.8617   5.498 7.65e-08 ***
-# speciesSockeye      -4194.3617  1390.8617  -3.016  0.00276 ** 
-# year                    0.5630     0.4952   1.137  0.25635    
-# speciesChum:year       -6.3396     0.7003  -9.053  < 2e-16 ***
-# speciesCoho:year       -6.6143     0.7003  -9.445  < 2e-16 ***
-# speciesPink:year       -3.7733     0.7003  -5.388 1.34e-07 ***
-# speciesSockeye:year     2.1465     0.7003   3.065  0.00235 **  
-
-anova(lm3)
-# Df  Sum Sq Mean Sq F value    Pr(>F)    
-# species        4 7242127 1810532 269.771 < 2.2e-16 ***
-# year           1  757765  757765 112.908 < 2.2e-16 ***
-# species:year   4 1649479  412370  61.444 < 2.2e-16 ***
-# Residuals    335 2248306    6711  
-
-lm4 <- lm(count_pop ~ year, data = data)
-summary(lm4)
-# Coefficients:
-#                         Estimate Std. Error t value Pr(>|t|)    
-# (Intercept) 5075.8924   967.5479   5.246 2.73e-07 ***
-# year          -2.3531     0.4872  -4.830 2.06e-06 ***
-
-anova(lm4)
-#            Df   Sum Sq Mean Sq F value    Pr(>F)    
-# year        1   757765  757765  23.332 2.058e-06 ***
-# Residuals 343 11139911   32478  
-
-AIC(lm3,lm4)
-
-
-
-lm5 <- lm(count_pop ~ count_catch + value_kg + year, data = data)
-summary(lm5)
-# Coefficients:
-#               Estimate Std. Error t value Pr(>|t|) 
-# (Intercept)  5.088e+03  9.554e+02   5.325 1.84e-07 ***
-# count_catch -7.558e-07  2.207e-06  -0.342    0.732    
-# value_kg    -1.787e+01  3.208e+00  -5.571 5.14e-08 ***
-# year        -2.314e+00  4.797e-01  -4.824 2.13e-06 ***
-
-anova(lm5)
-#              Df   Sum Sq Mean Sq F value    Pr(>F)    
-# count_catch   1   165949  165949  5.5653   0.01888 *  
-# value_kg      1   869766  869766 29.1685 1.247e-07 ***
-# year          1   693801  693801 23.2673 2.129e-06 ***
-# Residuals   341 10168159   29819  
-
-AIC(lm1,lm2,lm5)
 
 #
 # Reported Statistics ------
@@ -1623,3 +1781,124 @@ max(nuseds_YT$maxYr)
 
 
 
+
+# FIGURE 5 OLD: Correlation btw Number population monitored vs. catch ---------
+#
+
+years <- min(data_total$year):max(data_total$year)
+year_cut <- 1960
+
+plot_correlation <- T
+show_trendline <- F
+pval_show <- T
+
+# colour gradient for years
+colfunc_yr <- colorRampPalette(c("#1962A0","#9E163C"))
+data_yr_col <- data.frame(year =  year_cut:max(years),
+                          colours = colfunc_yr(length(year_cut:max(years))))
+data_yr_col$colours_trans <- colour_transparency_fun(data_yr_col$colours, alpha = .7)
+
+coef <- .9
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Correlation_Number_surveys_vs_Catches.jpeg"),
+       width = 21.59 * coef, height = 14 * coef, units = 'cm', res = 300)
+}
+layout(matrix(1:(length(species)+1), nrow = 2, byrow = T),  
+       widths =  c(1.13,1,1), heights = c(1,1.15))
+i <- 1
+for(sp in species){
+  # sp <- species[2]
+  
+  # Catch
+  cond_sp_c <- catch$species == sp
+  data_c <- catch[cond_sp_c,c("year","count")]
+  colnames(data_c)[colnames(data_c) == "count"] <- "catch"
+  data_c$catch <- data_c$catch / 1000
+  
+  # surveys
+  cond_sp <- data_sp$species == sp
+  data_s <- data_sp[cond_sp,c("year","count_pop")]
+  
+  # merge the two
+  data <- merge(x = data_c, y = data_s, by = "year", all = T)
+  
+  # merge with data_yr_col
+  data <- merge(x = data, y = data_yr_col, by = "year", all = T)
+  
+  # Only select data points after 1960
+  cond <- data$year > year_cut
+  
+  x <- data$catch[cond]
+  y <- data$count_pop[cond]
+  
+  n <- min(c(sum(!is.na(x)),sum(!is.na(y)))) # number of data points
+  
+  side1 <- 2
+  side2 <- 2
+  xlab <- ylab <- ""
+  yaxt <- "s"
+  if(i > 3){
+    side1 <- 4.5
+    xlab <- "Catches (in thousands)"
+  }
+  if(i %in% c(1,4)){
+    side2 <- 4.5
+    ylab <- "Number of populations monitored"
+    # yaxt <- 's'
+  }
+  
+  par(mar = c(side1,side2,.5,.5))
+  plot(x = x, y = y, pch = 16, col = data$colours_trans[cond],
+       cex = 2, yaxt = yaxt, xlab = xlab, ylab = ylab, main = "")
+  #abline(a = 0, b = 1)
+  if(i == 3){
+    mtext("Catches (in thousands)",side = 1,line = 3,cex = .65)
+  }
+  
+  # regression line
+  # m <- loess(surveys ~ catch, data = data[cond,], span = .5)
+  if(show_trendline){
+    m <- lm(surveys ~ catch, data = data[cond,])
+    y_m <- predict(m, newdata = data[cond,])
+    lines(x = x, y = y_m, lwd = 2)
+  }
+  cor_spear <- cor.test(x = x, y = y, method = "spearman")
+  pval <- ""
+  if(pval_show){
+    if(cor_spear$p.value < 0.001){
+      pval <- "***"
+    }else if(cor_spear$p.value < 0.01){
+      pval <- "**"
+    }else if(cor_spear$p.value < 0.05){
+      pval <- "*"
+    }
+  }
+  if(sp == "Sockeye"){
+    legend("topright",paste0(letters[i],") ",sp),bty='n')
+  }else{
+    legend("topleft",paste0(letters[i],") ",sp),bty='n')
+  }
+  legend("bottomright",
+         legend = bquote(rho~"="~.(round(cor_spear$estimate,2))~" "~.(pval)~" "), 
+         bty = "n")
+  # legend("bottomleft", legend = paste("n =",n), bty = "n") # it is the same number for all species
+  
+  i <- i + 1
+  
+  print(paste("***",sp,"***"))
+  print(cor_spear)
+  
+}
+# plot legend
+par(mar = c(10,3,8,3))
+plot(NA, ylim = c(0,1), xlim = range(data_yr_col$year), xaxt = 's', yaxt = 'n', 
+     xlab = "Year", ylab = "", xaxs = "i", yaxs = "i")
+for(yr in data_yr_col$year){
+  cond <- data_yr_col$year == yr
+  polygon(x = c(yr,yr + 1, yr + 1, yr),y = c(0,0,1,1),border = NA, col = data_yr_col$colours_trans[cond])
+}
+if(figures_print){
+  dev.off()
+}
+
+#
