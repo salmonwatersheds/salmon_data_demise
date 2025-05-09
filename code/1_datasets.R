@@ -32,7 +32,7 @@ source("code/functions.R")
 #' - option 2: remove only the NAs
 #' - option 3: replace NAs with 0s and 0s with NAs using the fields ADULT_PRESENCE and JACK_PRESENCE (--> not assessed)
 
-i_option <- 1
+i_option <- 2
 option_0s_NAs <- c("remove_0s_NAs","remove_NAs","fix_0s_NAs")[i_option]
 
 # Import source files ------
@@ -136,6 +136,8 @@ cond_NA <- is.na(nuseds$MAX_ESTIMATE)
 sum(cond_NA) # 156507 152992
 cond_0 <- nuseds$MAX_ESTIMATE == 0 & !cond_NA
 sum(cond_0)  # 3449 2992
+
+sum(cond_0)/sum(!cond_NA) * 100
 
 if(option_0s_NAs == "remove_0s_NAs"){
   

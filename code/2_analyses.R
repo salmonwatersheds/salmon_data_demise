@@ -35,6 +35,7 @@ library(readxl)
 # library(here)
 library(scales)
 library(MASS)   # for glm.nb
+library(car)    # for vif()
 
 source("code/functions.R")
 source("code/colours.R")
@@ -354,7 +355,8 @@ names(data_l) <- c("without_0s","with_0s")
 glm_outputs_l <- list()
 i_0 <- 1
 for(nm in c("without_0s","with_0s")){
-  # nm <- c("without_0s","with_0s")[1]
+#for(nm in c("without_0s")){
+  # nm <- c("without_0s","with_0s")[2]
   
   data <- data_l[nm][[1]]
   
@@ -442,7 +444,7 @@ for(nm in c("without_0s","with_0s")){
   sp_glm_l <- list()
   i_sp <- 1
   for(sp in species){
-    # sp <- species[1]
+    # sp <- species[3]
     data_here <- data[data$species == sp,]
     
     glm_vif <- glm.nb(count_pop ~ count_catch_sqrt + value_kg_sqrt + year, 
@@ -471,7 +473,7 @@ for(nm in c("without_0s","with_0s")){
     
     # pseudo R2
     R2 <- (list_here$summary$null.deviance - list_here$summary$deviance)/list_here$summary$null.deviance
-    list_hereR2_pseudo <- R2
+    list_here$R2_pseudo <- R2
     
     # Check collinearity with variance inflation factor
     print("VIF:")
@@ -495,7 +497,7 @@ for(nm in c("without_0s","with_0s")){
     layout(matrix(1:6,nrow = 2, byrow = T))
     par(mar = c(4.5,4.5,.5,.5))
     
-    fit <- predict(glm_full)
+    fit <- predict(glm_full, )
     plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
     abline(a = 0,b = 0)
     smoothed <- predict(loess(res ~ fit, span = span))
@@ -538,14 +540,32 @@ for(nm in c("without_0s","with_0s")){
   }
   names(sp_glm_l) <- species
   glm_outputs_l[[i_0]] <- sp_glm_l
-  names(glm_outputs_l)[i_0] <-  nm
+  names(glm_outputs_l)[i_0] <- nm
   i_0 <- i_0 + 1
-  
+
   # FIGURE 5 
-  y_max <- max(data$count_pop)
+  y_max <- max(data$count_pop) 
   y_min <- min(data$count_pop)
   
   years_3 <- c(1980,2000,2020)
+  
+  # gradient colour for years
+  years <- sort(unique(data$year))
+  
+  # Option: one grey colour for all points
+  # col_points <- colour_transparency_fun("black",.5)
+  
+  # Option: grey gradient
+  # unit <- (.7 - .1)/length(years)
+  # col_points <- c()
+  # for(i in 1:length(years)){
+  #   col_points[i] <- colour_transparency_fun("black",.2 + unit * i)
+  # }
+  
+  # Option: red to blue gradient
+  colfunc_yr <- colorRampPalette(c("#9E163C","#1962A0"))
+  col_points <- colour_transparency_fun(colfunc_yr(length(years)),.5)
+  names(col_points) <- years
   
   count <- 1
   if(figures_print){
@@ -554,9 +574,9 @@ for(nm in c("without_0s","with_0s")){
   }
   layout(mat = matrix(1:6, nrow = 2, byrow = T), widths = c(1.22,1,1), heights = c(1,1.08))
   for(sp in species){
-    # sp <- "Sockeye
+    # sp <- "Sockeye"
     
-    model_selected <- sp_glm_l[[sp]]$glm_full[[1]]
+    model_selected <- glm_outputs_l[[nm]][[sp]]$glm_full[[1]]
     
     cond_sp <- data$species == sp
     
@@ -591,10 +611,13 @@ for(nm in c("without_0s","with_0s")){
     xticks <- axTicks(1)
     axis(side = 1, at = xticks, labels = xticks / 1000)
     
+    # data points
     points(x = data$count_catch[cond_sp],y = data$count_pop[cond_sp], 
-           col = colour_transparency_fun("black",.5))
+           col = col_points, pch = 16 ,cex = 1.5)
     
-    legend("topleft",legend = sp, bty = "n")
+    legend("topleft",legend = paste0(letters[count],") ",sp), bty = "n")
+    
+    # legend("bottomleft",paste0("n = ",sum(cond_sp)), bty = "n")
     
     for(yr in years_3){
       # yr <- years_3[1]
@@ -623,18 +646,119 @@ for(nm in c("without_0s","with_0s")){
     }
     count <- count + 1
   }
-  plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+  plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0,4))
   col_legend <- c(colour_transparency_fun("black",alpha = .3),
                   colour_transparency_fun("black",alpha = .6),
                   colour_transparency_fun("black",alpha = 1))
   legend("center",legend = years_3,col = col_legend, lwd = 2, bty = "n", title = "Years")
   mtext(text = "Number of fish caught (in thousands)", side = 3, cex = .7)
+  
+  yrs_points <- c("1960","1980","2000","2020")
+  x_points <- c(1,1.7,2.4,3.1)
+  points(x = x_points, y = rep(.8,4), pch = 16, cex = 1.5, col = col_points[yrs_points])
+  text(x = x_points, y = rep(.75,4), labels = yrs_points)
+  
   if(figures_print){
     dev.off()
   }
 }
 
 saveRDS(glm_outputs_l,paste0(wd_data_output,"/glm_outputs_list.rds"))
+glm_outputs_l <- readRDS(paste0(wd_data_output,"/glm_outputs_list.rds"))
+
+glm_outputs_l$without_0s$Chinook$glm_full$fitted.values
+
+# CHECK: pseudo-R2:
+for(sp in species){
+  print(sp)
+  print(round(glm_outputs_l$without_0s[[sp]]$R2_pseudo,3))
+}
+
+for(sp in species){
+  print(sp)
+  print(round(glm_outputs_l$with_0s[[sp]]$R2_pseudo,3))
+}
+
+# CHECK: overdispersion: should be < 1.5
+for(sp in species){
+  print(sp)
+  print(round(glm_outputs_l$with_0s[[sp]]$dispersion,3))
+}
+
+for(sp in species){
+  print(sp)
+  print(round(glm_outputs_l$without_0s[[sp]]$dispersion,3))
+}
+
+# CHECK: overdispersion: should be < 1.5
+for(sp in species){
+  print(sp)
+  print(round(glm_outputs_l$with_0s[[sp]]$VIF,3))
+}
+
+for(sp in species){
+  print(sp)
+  print(round(glm_outputs_l$without_0s[[sp]]$VIF,3))
+}
+
+
+# Export the summary information into a excel file:
+summary_l <- list()
+count <- 1
+for(nm in c("without_0s","with_0s")){
+  df_here <- NULL
+  for(sp in species){
+    summ <- glm_outputs_l[[nm]][[sp]]$summary[["coefficients"]]
+    out <- data.frame(species = sp, 
+                      parameters = rownames(summ),
+                      estimate = round(summ[,"Estimate"],2),
+                      SE = round(summ[,"Std. Error"],3),
+                      P_value = round(summ[,"Pr(>|z|)"],3))
+    
+    out$P_value <- sapply(summ[,"Pr(>|z|)"],function(pv){
+      out <- "."
+      if(pv < 0.001){
+        out <- "< 0.001"
+      }else if(pv < 0.01){
+        out <- "< 0.01"
+      }else if(pv < 0.05){
+        out <- "< 0.05"
+      }else{
+        out <- round(pv,2)
+      }
+      return(out)
+    })
+    
+    if(is.null(df_here)){
+      df_here <- out
+    }else{
+      df_here <- rbind(df_here,out)
+    }
+  }
+  summary_l[[count]] <- df_here
+  names(summary_l)[count] <- nm
+  count <- count + 1
+}
+
+for(sh_i in 1:length(names(summary_l))){
+  # sh_i <- 1
+  if(sh_i == 1){
+    append <- F
+  }else{
+    append <- T
+  }
+  sheetName <- names(summary_l)[sh_i]
+  sheet <- as.data.frame(summary_l[[sheetName]])
+  write.xlsx(sheet, 
+             file = paste0(wd_data_output,"/glm_summary_tables.xlsx"),
+             sheetName = sheetName, 
+             row.names = FALSE,
+             append = append,
+             showNA = T)
+  print(sh_i)
+}
+
+
 
 #
 # FIGURE 6: Proportion of CUs monitored (i.e. at least 1 population) --------
@@ -1577,6 +1701,20 @@ colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
 # sum(cond_remove) # 2020 1998
 # nuseds <- nuseds[!cond_remove,]
 
+# Attribute a population_id to the populations not associated with a cuid
+cond_popid_NA <- is.na(nuseds$population_id)
+length(unique(nuseds$CU_NAME[cond_popid_NA])) # 22
+length(unique(nuseds$POP_ID[cond_popid_NA])) # 82
+nrow(unique(nuseds[cond_popid_NA,c("IndexId","GFE_ID")])) # 82
+val <- max(nuseds$population_id,na.rm = T) + 1
+for(popid in unique(nuseds$POP_ID[cond_popid_NA])){
+  # popid <- unique(nuseds$POP_ID[cond_popid_NA])[1]
+  cond <- cond_popid_NA & nuseds$POP_ID == popid
+  nuseds$population_id[cond] <- val
+  val <- val + 1
+}
+sum(is.na(nuseds$population_id))  # 0
+
 # bring region_survey
 region_survey <- read.csv("data_output/region_survey.csv")
 head(region_survey)
@@ -1629,7 +1767,7 @@ total_sp
 # Columbia                               0.0   NA   NA   NA     0.0      0.0
 # total_sp                               9.7  6.3 16.3  7.1    60.5     99.9
 
-# PROEVIOUS VALUE FROM SUBMISSION 1:
+# PREVIOUS VALUE FROM SUBMISSION 1:
 #                                    Chinook Chum Coho Pink Sockeye total_rg
 # Yukon                                  0.0  0.1  0.0  0.0     0.0      0.1
 # Transboundary                          0.0  0.0  0.1  0.0     0.6      0.7
@@ -1644,8 +1782,6 @@ total_sp
 
 
 #'* Number of populations and streams per year until 1990 *
-#'
-#'
 
 # remove the NAs and 0s
 nuseds <- nuseds[!cond_NA & !cond_0,]
@@ -1660,7 +1796,7 @@ populations <- sapply(X = years, function(yr){
 })
 populations
 # 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
-# 2311 2326 2314 2319 2345 2656 2750 2462 2440 2443 2445 
+# 2326 2340 2326 2335 2358 2682 2773 2474 2449 2461 2461
 
 # PROEVIOUS VALUE FROM SUBMISSION 1:
 # 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
@@ -1680,8 +1816,28 @@ streams
 # 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
 # 1195 1224 1211 1187 1218 1363 1381 1294 1299 1346 1310
 
+#'* Proportion of populations monitored in the most recent decade *
+#'
+
+# Number population total
+n_pop_total <- length(unique(nuseds$population_id))
+n_pop_total # 6973
+
+cond_2014_2023 <- nuseds$Year > 2013
+cond_1980_1989 <- nuseds$Year > 1979 & nuseds$Year < 1990
+
+n_pop_2014 <- length(unique(nuseds$population_id[cond_2014_2023]))
+n_pop_2014 # 2602
+n_pop_2014/n_pop_total * 100 # 37.32
+
+n_pop_1980 <- length(unique(nuseds$population_id[cond_1980_1989]))
+n_pop_1980 # 4793
+n_pop_1980/n_pop_total * 100 # 68.74
+
+
 
 #'*  Average loss of populations per year since 1986 *
+#'
 
 cond_min <- 1986 <= data_total$year
 lm <- lm(data_total$count_pop[cond_min] ~ data_total$year[cond_min])
@@ -1697,34 +1853,58 @@ lm
 
 #'* Monitoring of indicator stocks *
 
-# Indicator systems and associated population_id for the Pacific Salmon Comission's Chinook Technical Committee:
-# NWVI indicators:
-# Colonial-Cayeagle, 1438
-# Tashish, 1542
-# Artlish, and 1541
-# Kaouk 1540
-# SWVI indicators:
-# Bedwell-Ursus, 2017
-# Megin,  1497
-# Moyeha 1494
-# Marble (Area 27); 1440
-# Leiner, 1518
-# Burman 1504
-# Tahsis (Area 25); 1519
-# Sarita, 1463
-# Nahmint (Area 23); 1474
-# San Juan (Area 20).1452
-# Phillips River 1948
-# Cowichan 1443
-# Nanaimo (fall) 1978
-ctc_indicators <- c(1438, 1542, 1541, 1540, 2017, 1497, 1494, 1440, 1518, 1504, 1519, 1463, 1474, 1452, 1948, 1443, 1978)
-
 # Filter NuSEDS to VIMI Chinook
 nuseds_vimiCK <- nuseds %>% 
   filter(region == "Vancouver Island & Mainland Inlets", SPECIES == "Chinook")
-length(unique(nuseds_vimiCK$population_id)) # 268 264
+length(unique(nuseds_vimiCK$population_id)) # 272 268 264
 ctc_indicators %in% nuseds_vimiCK$population_id
 # TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+
+# Indicator systems and associated population_id for the Pacific Salmon Comission's Chinook Technical Committee:
+# https://www.psc.org/publications/technical-reports/technical-committee-reports/chinook/ctc-data-sets/
+# Appendix B: Table 4, 5:
+# And in CTC 2024: section 2.3.3.3.1.
+
+# NWVI indicators:
+# Table 5:
+#- Colonial- Cayeagle, 1438
+#- Tashish *Tahsis, 1542
+#- Artlish, and 1541
+#- Kaouk 1540
+
+# SWVI indicators:
+# Table 5:
+#- Bedwell-Ursus, 2017
+#- Megin,  1497
+#- Moyeha 1494
+# Table 4:
+#- Phillips River 1948
+#- Cowichan 1443
+#- Nanaimo (fall) 1978
+# from CTC 2024: section 2.3.3.3.1:
+#- Marble (Area 27); 1440
+#- Leiner, 1518
+#- Burman 1504
+#- Tahsis (Area 25); 1519
+#- Sarita, 1463
+#- Nahmint (Area 23); 1474
+#- San Juan (Area 20).1452
+
+pop_indicators <- c("Phillips River (Campbell River Area) Chinook Run 1",
+                    "Nanaimo River Fall Chinook","Cowichan River Chinook",
+                    "San Juan River Chinook","Sarita River Chinook",
+                    "Nahmint River Chinook","Bedwell River Chinook",
+                    "Moyeha River Chinook","Megin River Chinook",
+                    "Burman River Chinook","Leiner River Chinook",
+                    "Tahsis River Chinook","Kaouk River Chinook",
+                    "Artlish River Chinook","Tahsish River Chinook",
+                    "Colonial Creek Chinook","Marble River Chinook")
+
+ctc_indicators <- sapply(pop_indicators,function(p){
+  cond <- nuseds_vimiCK$POPULATION == p
+  return(unique(nuseds_vimiCK$population_id[cond][1])) # there are two locations associated with Phillips River (Campbell River Area) Chinook Run 1
+})
+# ctc_indicators <- c(1438, 1542, 1541, 1540, 2017, 1497, 1494, 1440, 1518, 1504, 1519, 1463, 1474, 1452, 1948, 1443, 1978)
 
 # Summarize monitoring 
 summary_vimiCK <- nuseds_vimiCK %>% 
@@ -1735,7 +1915,7 @@ summary_vimiCK <- nuseds_vimiCK %>%
 
 # Visualize monitoring of each stream through time (points = monitored, red = indicator)
 layout(mat = matrix(1))
-plot(c(1926,2022), c(1,100), "n", ylab = "Population", xlab = "Year")
+plot(c(1926,2023), c(1,100), "n", ylab = "Population", xlab = "Year")
 for(i in 1: nrow(summary_vimiCK)){
   z <- nuseds_vimiCK %>% filter(population_id == summary_vimiCK$population_id[i])
   points(x = z$Year, y = rep(i, length(z$Year)), 
@@ -1745,23 +1925,33 @@ for(i in 1: nrow(summary_vimiCK)){
 abline(h = seq(0, 100, 10))
 summary_vimiCK$ctc_indicator <- summary_vimiCK$population_id %in% ctc_indicators
 
+nrow(summary_vimiCK)
 summary_vimiCK[1:30,]
 
 # How many indicator streams are in top 30 monitored
 sum(summary_vimiCK$ctc_indicator[1:30])
 # 14
 
+
 # How many years of data for indicator stocks?
 mean(summary_vimiCK$nYearsData[summary_vimiCK$ctc_indicator == TRUE])
 # 63.58824
 
-# How many streams total?
-dim(summary_vimiCK)[1]
-# 268
+# numner of indicator stocks
+sum(summary_vimiCK$ctc_indicator)
+# 17
+
+# How many population total?
+nrow(summary_vimiCK)
+# 272 268
+
+# nb of populations not indicators
+sum(!summary_vimiCK$ctc_indicator)
+# 255
 
 # Mean number of years for non indicators
 mean(summary_vimiCK$nYearsData[summary_vimiCK$ctc_indicator == FALSE])
-# 17.41434
+# 17.14118 17.41434
 
 # How many non-indicators have been monitored in the past decade?
 maxYr <- nuseds_vimiCK %>% filter(population_id %in% ctc_indicators == FALSE) %>%
@@ -1770,7 +1960,7 @@ maxYr <- nuseds_vimiCK %>% filter(population_id %in% ctc_indicators == FALSE) %>
 
 # What percent have not been monitored in the past decade?
 length(which(maxYr$`max(Year)` < 2013))/length(maxYr$`max(Year)`) * 100
-# 66.13546
+# 65.88235 66.13546
 
 #'*  Where is there a potential reporting bias? *
 
