@@ -1,0 +1,149 @@
+---
+title: "Supp_glm_analysis"
+author: "Bruno S. Carturan, TO COMPLETE"
+date: "2025-05-14"
+output:
+  html_document:
+    toc: true                  # Adds a table of contents to the document
+    toc_float: true           # Makes the table of contents float on the side as the reader scrolls.
+    toc_collapsed: true        # Starts the table of contents in a collapsed state.
+    toc_depth: 3               # Specifies the depth of headers (e.g., ##, ###) to include in the table of contents.
+    number_sections: true      # 
+    theme: journal  # lumen
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+
+rm(list = ls())
+graphics.off()
+
+wd <- gsub("code","",getwd())
+
+wd_figures <- paste0(wd,"figures")
+wd_data_input <- paste0(wd,"data_input")
+wd_data_output <- paste0(wd,"data_output")
+
+library(tidyr)
+library(dplyr)
+library(paletteer) # https://r-graph-gallery.com/color-palette-finder
+library(readxl)
+# library(here)
+library(scales)
+library(AICcmodavg) # for AICc
+library(car)
+library(MASS)
+library(psych)
+
+source("functions.R")
+source("colours.R")
+
+figures_print <- F
+
+#
+# Import files
+
+#'* Counts and proportions of populations and CUs assessed across regions and species *
+filename <- "populationAssessed_catches_data_remove_0s_NAs"
+# filename <- "populationAssessed_catches_data_remove_NAs"
+
+data_total <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                      sheet = "populations_total") |> as.data.frame()
+head(data_total)
+
+#'* Counts and proportions of populations and CUs assessed per regions
+data_rg <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                     sheet = "populations_regions") |> as.data.frame()
+
+head(data_rg)
+
+#'* Counts and proportions of populations and CUs assessed per species
+data_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                      sheet = "populations_species") |> as.data.frame()
+
+head(data_sp)
+
+#'* Counts and proportions of populations and CUs assessed per regions and species
+data_rg_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                         sheet = "populations_regions_species") |> as.data.frame()
+head(data_rg_sp)
+
+#'* Counts and proportions of populations and CUs assessed per regions and species
+data_sp_ssq <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                         sheet = "populations_species_ssq") |> as.data.frame()
+head(data_sp_ssq)
+
+
+#'* Import the catch data
+catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                     sheet = "catches_species_total") |> as.data.frame()
+head(catch)
+
+#'* Import the landing value per species per kg *
+# https://www.pac.dfo-mpo.gc.ca/analyses-econom-analysis/analyses/econ-perspective-salmon-saumon-eng.html
+
+value_sp <- read.csv(paste0(wd_data_input,"/landed-value-valeur-debarquement-eng.csv"), 
+                     header = T)
+head(value_sp)
+colnames(value_sp)[1] <- "Year"
+for(c in 2:ncol(value_sp)){
+  value_sp[,c] <- as.numeric(gsub("\\$","",value_sp[,c]))
+}
+
+#'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
+#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' /data_input folder.
+nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+                   header = T)
+
+nuseds$region[nuseds$region == "Northern Transboundary"] <- "Transboundary"
+
+# edit the field streamid --> population_id to avoid confusion
+# the field is a unique combination between a CU (cuid) and a stream location (GFE_ID)
+# = a popualation
+colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
+
+#
+```
+
+```{r, include=FALSE}
+dataset_selected <- data_sp # data_rg_sp
+
+year_min <- max(min(dataset_selected$year),min(catch$year),min(value_sp$Year))
+year_max <- min(max(dataset_selected$year),max(catch$year),max(value_sp$Year))
+years <- year_min:year_max
+
+col_selected <- c("species","year","count_pop")
+if(any(grepl("region",colnames(dataset_selected)))){
+  col_selected <- c("region","species","year","count_pop")
+}
+
+data <- dataset_selected[dataset_selected$year %in% years,col_selected]
+data$count_catch <- NA
+data$value_kg <- NA
+for(yr in years){
+  # yr <- years[1]
+  for(sp in unique(dataset_selected$species)){
+    # sp <- unique(dataset_selected$species)[1]
+    cond <- catch$species == sp & catch$year == yr
+    count_catch <- catch$count[cond]
+    
+    cond <- value_sp$Year == yr
+    value_kg <- value_sp[cond,sp]
+    
+    cond <- data$species == sp & data$year == yr
+    data$count_catch[cond] <- count_catch
+    data$value_kg[cond] <- value_kg
+  }
+}
+
+data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
+```
+
+
+
+

@@ -75,11 +75,6 @@ catch$`Catch Type` |> unique()
 cond <- catch$`Catch Type` == "Commercial"
 catch <- catch[cond,]
 
-# Only keep number of fish (discard weights)
-catch$`Data Type` |> unique()  # "Number (000's)" "Round wt (MT)" = round weight of fish, which is the weight of the whole fish before processing
-cond <- catch$`Data Type` == "Number (000's)"
-catch <- catch[cond,]
-
 # Remove Steelhead (Check values 1st --> there is no values)
 cond_SH <- catch$Species == "Steelhead"
 catch[cond_SH,]
@@ -95,12 +90,50 @@ for(yr in col_yr){
 # Replace the Total values by the sum of the salmon species (without SH)
 # (that should not change anything but it is the right way to proceed).
 cond_Total <- catch$Species == "Total"
+cond_count <- catch$`Data Type` == "Number (000's)"
+cond_mt <- catch$`Data Type` == "Round wt (MT)"
 
 # check 
-plot(x = catch[cond_Total,col_yr] |> as.numeric(), y = colSums(catch[!cond_Total,col_yr]))
+layout(matrix(1:2,ncol = 2))
+plot(x = catch[cond_Total & cond_count,col_yr] |> as.numeric(), y = colSums(catch[!cond_Total & cond_count,col_yr]))
+abline(a = 0,b = 1)
+plot(x = catch[cond_Total & cond_mt,col_yr] |> as.numeric(), y = colSums(catch[!cond_Total & cond_mt,col_yr]))
 abline(a = 0,b = 1)
 
-catch[cond_Total,col_yr][1,] <- colSums(catch[!cond_Total,col_yr])
+catch[cond_Total & cond_count,col_yr][1,] <- colSums(catch[!cond_Total & cond_count,col_yr])
+catch[cond_Total & cond_mt,col_yr][1,] <- colSums(catch[!cond_Total & cond_mt,col_yr])
+
+
+#' Make it a long format
+
+unique(catch$Species)
+
+# To long format
+dataExport <- NULL
+for(sp in unique(catch$Species)){
+  # sp <- unique(catch$Species)[1]
+  cond_sp <- catch$Species == sp
+  count <- catch[cond_sp & cond_count,col_yr,drop = T] |> unlist()
+  count <- count * 1000
+  wt_t <- catch[cond_sp & cond_mt,col_yr,drop = T] |> unlist()
+  wt_kg <- wt_t * 1000
+  
+  dataExportHere <- data.frame(species = sp,
+                               year = as.numeric(col_yr),
+                               count = count,
+                               wt_kg = wt_kg)
+  if(is.null(dataExport)){
+    dataExport <- dataExportHere
+  }else{
+    dataExport <- rbind(dataExport,dataExportHere)
+  }
+}
+
+Number_catches_species_total <- dataExport
+
+# check that fish weight make sense:
+hist(Number_catches_species_total$wt_kg/Number_catches_species_total$count)
+
 
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
@@ -848,29 +881,6 @@ for(sp in species){
 }
 
 Number_Prop_populationsAssessed_species_ssq <- dataExport
-
-
-#'* Catches per species and total *
-
-unique(catch$Species)
-
-# To long format
-dataExport <- NULL
-for(sp in unique(catch$Species)){
-  cond_sp <- catch$Species == sp
-  count <- catch[cond_sp,col_yr,drop = T] |> unlist()
-  count <- count * 1000
-  dataExportHere <- data.frame(species = sp,
-                               year = as.numeric(col_yr),
-                               count = count)
-  if(is.null(dataExport)){
-    dataExport <- dataExportHere
-  }else{
-    dataExport <- rbind(dataExport,dataExportHere)
-  }
-}
-
-Number_catches_species_total <- dataExport
 
 
 #'* Summary table for each regions *

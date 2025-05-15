@@ -16,6 +16,7 @@ figures/archives 3 before 0s
 figures/archives 4 after 0s
 figures/archives 5 0s NAs fix
 figures/archive 1st submission
+figures/GLM_catch_value_year
 figures/README.md
 figures_EMA
 
@@ -25,6 +26,7 @@ data_input/nuseds_cuid_streamid_2024-11-25.csv
 data_input/nuseds_cuid_streamid_2025-04-15.csv
 data_input/gshhg-shp-2.3.7
 
+data_output/GLM_catch_value_year
 data_output/archive 1st submission
 
 documents
