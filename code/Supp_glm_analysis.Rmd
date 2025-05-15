@@ -14,6 +14,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
 ```{r, include=FALSE}
@@ -50,34 +51,18 @@ figures_print <- F
 filename <- "populationAssessed_catches_data_remove_0s_NAs"
 # filename <- "populationAssessed_catches_data_remove_NAs"
 
-data_total <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
-                      sheet = "populations_total") |> as.data.frame()
-head(data_total)
-
-#'* Counts and proportions of populations and CUs assessed per regions
-data_rg <- read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
-                     sheet = "populations_regions") |> as.data.frame()
-
-head(data_rg)
-
 #'* Counts and proportions of populations and CUs assessed per species
 data_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                       sheet = "populations_species") |> as.data.frame()
 
 head(data_sp)
 
-#'* Counts and proportions of populations and CUs assessed per regions and species
-data_rg_sp <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
-                         sheet = "populations_regions_species") |> as.data.frame()
-head(data_rg_sp)
-
-#'* Counts and proportions of populations and CUs assessed per regions and species
-data_sp_ssq <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
-                         sheet = "populations_species_ssq") |> as.data.frame()
-head(data_sp_ssq)
-
+filename <- "populationAssessed_catches_data_remove_NAs"
+data_sp_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+                        sheet = "populations_species") |> as.data.frame()
 
 #'* Import the catch data
+#' The file is the same regardless of filename
 catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                      sheet = "catches_species_total") |> as.data.frame()
 head(catch)
@@ -92,57 +77,503 @@ colnames(value_sp)[1] <- "Year"
 for(c in 2:ncol(value_sp)){
   value_sp[,c] <- as.numeric(gsub("\\$","",value_sp[,c]))
 }
-
-#'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
-#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
-#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
-#' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
-                   header = T)
-
-nuseds$region[nuseds$region == "Northern Transboundary"] <- "Transboundary"
-
-# edit the field streamid --> population_id to avoid confusion
-# the field is a unique combination between a CU (cuid) and a stream location (GFE_ID)
-# = a popualation
-colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
-
-#
 ```
 
 ```{r, include=FALSE}
-dataset_selected <- data_sp # data_rg_sp
+species <- sort(unique(data_sp$species))
 
-year_min <- max(min(dataset_selected$year),min(catch$year),min(value_sp$Year))
-year_max <- min(max(dataset_selected$year),max(catch$year),max(value_sp$Year))
-years <- year_min:year_max
+data_sp_l <- list(data_sp,data_sp_0)
+names(data_sp_l) <- c("data_sp","data_sp_0")
 
-col_selected <- c("species","year","count_pop")
-if(any(grepl("region",colnames(dataset_selected)))){
-  col_selected <- c("region","species","year","count_pop")
-}
-
-data <- dataset_selected[dataset_selected$year %in% years,col_selected]
-data$count_catch <- NA
-data$value_kg <- NA
-for(yr in years){
-  # yr <- years[1]
-  for(sp in unique(dataset_selected$species)){
-    # sp <- unique(dataset_selected$species)[1]
-    cond <- catch$species == sp & catch$year == yr
-    count_catch <- catch$count[cond]
-    
-    cond <- value_sp$Year == yr
-    value_kg <- value_sp[cond,sp]
-    
-    cond <- data$species == sp & data$year == yr
-    data$count_catch[cond] <- count_catch
-    data$value_kg[cond] <- value_kg
+data_l <- list(NA,NA)
+names(data_l) <- c("data","data_0")
+i <- 1
+for(dataset_selected in data_sp_l){
+  year_min <- max(min(dataset_selected$year),min(catch$year),min(value_sp$Year))
+  year_max <- min(max(dataset_selected$year),max(catch$year),max(value_sp$Year))
+  years <- year_min:year_max
+  
+  col_selected <- c("species","year","count_pop")
+  if(any(grepl("region",colnames(dataset_selected)))){
+    col_selected <- c("region","species","year","count_pop")
   }
+  
+  data <- dataset_selected[dataset_selected$year %in% years,col_selected]
+  data$count_catch <- NA
+  data$wt_kg_cacth <- NA
+  data$value_kg <- NA
+  for(yr in years){
+    # yr <- years[1]
+    for(sp in unique(dataset_selected$species)){
+      # sp <- unique(dataset_selected$species)[1]
+      cond <- catch$species == sp & catch$year == yr
+      count_catch <- catch$count[cond]
+      wt_kg_cacth <- catch$wt_kg[cond]
+      
+      cond <- value_sp$Year == yr
+      value_kg <- value_sp[cond,sp]
+      
+      cond <- data$species == sp & data$year == yr
+      data$count_catch[cond] <- count_catch
+      data$wt_kg_cacth[cond] <- wt_kg_cacth
+      data$value_kg[cond] <- value_kg
+    }
+  }
+  
+  data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
+  
+  data_l[[i]] <- data
+  i <- i + 1
+}
+```
+```{r, echo=FALSE, fig.width=12, fig.height=8}
+species <- sort(unique(data_sp$species))
+
+data_here <- data_l$data
+
+value_min <- min(data_here$value_kg)
+value_max <- max(data_here$value_kg)
+catch_min <- min(data_here$wt_kg_cacth)
+catch_max <- max(data_here$wt_kg_cacth)
+count_min <- min(data_here$count_pop)
+count_max <- max(data_here$count_pop)
+year_min <- min(data_here$year)
+year_max <- max(data_here$year)
+
+layout(matrix(1:6, nrow = 2, byrow = T), heights = c(1,1.1), widths = c(1.1,1,1))
+for(sp in species){
+  # sp <- species[1]
+  cond_sp <- data_here$species == sp
+  count <- (data_here$count_pop[cond_sp] - count_min)/(count_max - count_min)
+  catch_kg <- (data_here$wt_kg_cacth[cond_sp] - catch_min)/(catch_max - catch_min)
+  value <- (data_here$value_kg[cond_sp] - value_min)/(value_max - value_min)
+  years <- data_here$year[cond_sp]
+  
+  side1 <- side2 <- 2
+  labels2 <- NA
+  xaxt <- "n"
+  if(which(sp == species) %in% c(1,4)){
+    side2 <- 4.5
+    labels2 <- c("min","max")
+  }
+  if(which(sp == species) %in% 4:5){
+    side1 <- 4.5
+    xaxt <- "s"
+  }
+  
+  par(mar = c(side1,side2,.5,.5))
+  plot(x = years, y = count, xlim = c(year_min,year_max), ylim = c(0,1), 
+       ylab = "Standardised value", xlab = "Year", yaxt = "n", xaxt = xaxt,
+       type = "l", lwd = 2)
+  axis(side = 2, at = 0:1,labels = labels2)
+  if(!which(sp == species) %in% 4:6){
+    axis(side = 1, labels = NA)
+  }
+  lines(x = years, y = value, lwd = 2, col = "#9E163C")
+  lines(x = years, y = catch_kg, lwd = 2, col = "#1962A0")
+  legend("topleft",sp,bty = "n")
+}
+plot(x = years, y = rep(1,length(years)), axes = FALSE, xlab = "", ylab = "", col = "white")
+axis(side = 3, lwd.ticks = 0, col = "white", line = -.5)
+mtext(text = "Year",side = 3, line = -1.3, cex = .7)
+legend("center",c("number of populations monitored","catch","value"),
+       col = c("black","#1962A0","#9E163C"), lwd = 2, bt = "n")
+```
+
+```{r, echo=FALSE, fig.height=10, fig.width=12}
+# panel.cor <- function(x, y){
+#     usr <- par("usr"); on.exit(par(usr))
+#     par(usr = c(0, 1, 0, 1))
+#     r <- round(cor(x, y), digits=2)
+#     txt <- paste0("R = ", r)
+#     # cex.cor <- 1.3/strwidth(txt)
+#     # text(0.5, 0.5, txt, cex = cex.cor * r)
+#     text(0.5, 0.5, txt, cex = 1)
+# }
+# 
+# upper.panel<-function(x, y){
+#   points(x,y, pch = 19, col = species_cols_light[data$species])
+# }
+# 
+# panel.hist <- function(x){
+#   usr <- par("usr")
+#   par(usr = c(usr[1:2], 0, 1.5) )
+#   h <- hist(x, plot = FALSE)
+#   breaks <- h$breaks
+#   nB <- length(breaks)
+#   y <- h$counts
+#   y_max <- max(y)
+#   y <- y/y_max
+#   rect(breaks[-nB], 0, breaks[-1], y, col = "#00AFBB")
+#   
+#   multiplier <- h$counts / h$density / y_max
+#   dens <- density(x = x)
+#   dens$y <- dens$y * multiplier[1] / max(y)
+#   lines(x = dens, col = "red")
+# }
+# 
+# pairs(data_here[,c("count_pop","wt_kg_cacth","value_kg")],
+#       upper.panel = upper.panel,
+#       lower.panel = panel.cor,
+#       diag.panel =  panel.hist)
+
+
+library(GGally)
+
+ggpairs(data_here,                 # Data frame
+        columns = which(colnames(data_here) %in% c("count_pop","wt_kg_cacth","value_kg","species")),           # Columns
+        aes(color =  species, alpha = 0.5)) +
+  theme_bw()
+```
+
+The explanatory variables cacth (`wt_kg_catch`) and value (`value_kg`) are skewed, so we transform them with the square root function:
+
+```{r, echo=FALSE, fig.height=10, fig.width=12}
+data_here$wt_kg_cacth_sqrt <- sqrt(data_here$wt_kg_cacth)
+data_here$value_kg_sqrt <- sqrt(data_here$value_kg)
+
+# panel.cor <- function(x, y){
+#     usr <- par("usr"); on.exit(par(usr))
+#     par(usr = c(0, 1, 0, 1))
+#     r <- round(cor(x, y), digits=2)
+#     txt <- paste0("R = ", r)
+#     # cex.cor <- 1.3/strwidth(txt)
+#     # text(0.5, 0.5, txt, cex = cex.cor * r)
+#     text(0.5, 0.5, txt, cex = 1)
+# }
+# 
+# upper.panel<-function(x, y){
+#   points(x,y, pch = 19, col = species_cols_light[data_here$species])
+#   if(!is.numeric(x) | !is.numeric(y)){
+#     legend("center","hello")
+#   }
+# }
+# 
+# panel.hist <- function(x){
+#   usr <- par("usr")
+#   par(usr = c(usr[1:2], 0, 1.5) )
+#   h <- hist(x, plot = FALSE)
+#   breaks <- h$breaks
+#   nB <- length(breaks)
+#   y <- h$counts
+#   y_max <- max(y)
+#   y <- y/y_max
+#   rect(breaks[-nB], 0, breaks[-1], y, col = "#00AFBB")
+#   
+#   multiplier <- h$counts / h$density / y_max
+#   dens <- density(x = x)
+#   dens$y <- dens$y * multiplier[1] / max(y)
+#   lines(x = dens, col = "red")
+# }
+# 
+# pairs(data_here[,c("count_pop","wt_kg_cacth_sqrt","value_kg_sqrt","species")],
+#       upper.panel = upper.panel,
+#       lower.panel = panel.cor,
+#       diag.panel =  panel.hist)
+
+
+ggpairs(data_here,                 # Data frame
+        columns = which(colnames(data_here) %in% c("count_pop","wt_kg_cacth_sqrt","value_kg_sqrt","species")),           # Columns
+        aes(color =  species, alpha = 0.5)) +
+  theme_bw()
+```
+
+The correlations among explanatory variables are acceptable.
+
+We fit two models where the number of populations monitored is expressed as (1) a function of landing value (i.e., the product of commercial catch in kg and commercial value per kg), and (2) as a function of commercial catch alone. For both models with include `species` as a predictor and its interaction with the other predictor.
+
+We first fit a GLM with a Poisson distribution and the log-link function:
+
+
+```{r}
+glm_cvs <- glm(count_pop ~ wt_kg_cacth_sqrt:value_kg_sqrt * species, 
+               data = data_here, family = poisson(link = "log"))
+
+glm_cs <- glm(count_pop ~ wt_kg_cacth_sqrt * species, 
+              data = data_here, family = poisson(link = "log"))
+```
+
+
+We estimate if there is overdispersion by dividing the residual deviance by the residual degrees of freedom:
+
+```{r}
+s_glm_cvs <- summary(glm_cvs)
+round(s_glm_cvs$deviance / s_glm_cvs$df.residual,2)
+
+s_glm_cs <- summary(glm_cs)
+round(s_glm_cs$deviance / s_glm_cs$df.residual,2)
+```
+The values are much larger than 1 so there is overdispersion.
+
+To solve this issue, we try fitting the same models but with a negative binomial distribution: 
+
+```{r}
+glm_cvs <- glm.nb(count_pop ~ wt_kg_cacth_sqrt:value_kg_sqrt * species, 
+               data = data_here, link = "log")
+
+glm_cs <- glm.nb(count_pop ~ wt_kg_cacth_sqrt * species, 
+              data = data_here, link = "log")
+```
+
+```{r}
+s_glm_cvs <- summary(glm_cvs)
+round(s_glm_cvs$deviance / s_glm_cvs$df.residual,2)
+
+s_glm_cs <- summary(glm_cs)
+round(s_glm_cs$deviance / s_glm_cs$df.residual,2)
+```
+
+There is no more overdispersion.
+
+We assessed collinearity among the explanatory variables using the variance inflation factor (VIF), 
+
+
+```{r}
+#https://stats.stackexchange.com/questions/559924/which-threshold-should-i-use-for-gvif1-2%E2%8B%85df-variance-inflation-factor
+
+vif_cvs <- vif(glm_cvs)
+vif_cs <- vif(glm_cs)
+
+vif_cvs[,"GVIF^(1/(2*Df))"]^2
+
+vif_cs[,"GVIF^(1/(2*Df))"]^2
+```
+
+There are issues with collinearity but that could be structural (i.e. due to the presence of interaction terms). One solution to reduce structural collinearity is to center the independent variables... (https://statisticsbyjim.com/regression/multicollinearity-in-regression-analysis/)
+
+TO DEAL WITH LATER
+
+
+We check the deviance residuals for `glm_cvs`: 
+
+```{r, echo=FALSE}
+span <- .9
+
+glm_selected <- glm_cvs
+
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+fit <- predict(glm_selected)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+x <- data_here$wt_kg_cacth/1000000
+plot(y = res, x = x, xlab = "Catch (in megatonne)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+x <- data_here$value_kg
+plot(y = res, x = x, xlab = "Value (in CAD per kg)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+boxplot(res ~ data_here$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+And for `glm_cs`: 
+
+```{r, echo=FALSE}
+span <- .9
+
+glm_selected <- glm_cs
+
+res <- resid(glm_selected, type = "deviance")
+
+layout(matrix(1:6,nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,.5,.5))
+
+fit <- predict(glm_selected)
+plot(y = res, x = fit, xlab = "Predicted values", ylab = "Deviance residuals")
+abline(a = 0,b = 0)
+smoothed <- predict(loess(res ~ fit, span = span))
+lines(x = fit[order(fit)], y = smoothed[order(fit)], col = "red")
+
+qqnorm(res, main = "")
+abline(a = 0, b = 1)
+
+x <- data_here$wt_kg_cacth/1000000
+plot(y = res, x = x, xlab = "Catch (in megatonne)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+x <- data_here$value_kg
+plot(y = res, x = x, xlab = "Value (in CAD per kg)", ylab = "Deviance residuals")
+abline(0,0)
+smoothed <- predict(loess(res ~ x, span = span))
+lines(x = x[order(x)], y = smoothed[order(x)], col = "red")
+
+#
+boxplot(res ~ data_here$species, xlab = "Species", ylab = "Deviance residuals")
+abline(0,0)
+```
+
+The residuals plots do not unvalidate both models.
+
+Comparison of the two models:
+
+```{r, echo=FALSE}
+show <- data.frame(model = c("glm_cvs","glm_cs"))
+
+show$AIC <- lapply(list(glm_cvs,glm_cs),function(m){
+    return(round(AIC(m),1))
+  }) |> unlist()
+
+# show$AICc <- lapply(list(glm_cvs,glm_cs),function(m){
+#     return(AICc(m))
+#   }) |> unlist()
+
+show$R2_pseudo <- lapply(list(glm_cvs,glm_cs),function(m){
+    sm <- summary(m)
+    out <- (sm$null.deviance - sm$deviance)/sm$null.deviance
+    return(round(out,3))
+  }) |> unlist()
+
+show
+```
+
+Parameter estimates for `glm_cvs`:
+
+```{r, echo=FALSE}
+summary_l <- list()
+count <- 1
+for(sm in list(s_glm_cvs,s_glm_cs)){
+  sm <- sm[["coefficients"]]
+  
+  out <- data.frame(parameters = rownames(sm),
+                    estimate = round(sm[,"Estimate"],3),
+                    SE = round(sm[,"Std. Error"],4),
+                    P_value = round(sm[,"Pr(>|z|)"],3))
+  
+  out$P_value <- sapply(sm[,"Pr(>|z|)"],function(pv){
+    out <- "."
+    if(pv < 0.001){
+      out <- "< 0.001"
+    }else if(pv < 0.01){
+      out <- "< 0.01"
+    }else if(pv < 0.05){
+      out <- "< 0.05"
+    }else{
+      out <- round(pv,2)
+    }
+    return(out)
+  })
+  rownames(out) <- NULL
+  summary_l[[count]] <- out
+  count <- count + 1
 }
 
-data$species <- factor(data$species,levels = c("Chinook","Chum","Coho","Pink","Sockeye"))
+names(summary_l) <- c("glm_cvs","glm_cs")
+summary_l$glm_cvs
 ```
+
+Parameter estimates for `glm_cs`:
+
+```{r,echo=FALSE}
+summary_l$glm_cs
+```
+
+
+Prediction with `glm_cvs`:
+
+```{r, echo=FALSE, fig.height=10, fig.width=12}
+
+suffix <- "WHITOUT_0s"
+count <- 1
+
+model_selected <- glm_cvs
+
+y_max <- max(data_here$count_pop)
+y_min <- min(data_here$count_pop)
+
+colfunc_yr <- colorRampPalette(c("#9E163C","#1962A0"))
+col_points <- colour_transparency_fun(colfunc_yr(length(years)),.5)
+names(col_points) <- years
+
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Predictinon_glm",suffix,".jpeg"),
+       width = 20, height = 15, units = 'cm', res = 300)
+}
+layout(mat = matrix(1:6, nrow = 2, byrow = T), widths = c(1.22,1,1), heights = c(1,1.08))
+for(sp in species){
+  # sp <- "Chum"
+  
+  cond_sp <- data_here$species == sp
+  
+  data_glm <- data_here[cond_sp,]
+  
+  data_glm$landing_value <- data_glm$wt_kg_cacth * data_glm$value_kg
+  data_glm <- data_glm[order(data_glm$landing_value),]
+  
+  x_max <- max(data_glm$landing_value)
+  x_min <- min(data_glm$landing_value)
+  
+  side1 <- 3
+  side2 <- .5
+  xlabel <- ylabel <- ""
+  yaxt <- "n"
+  if(count %in% c(1,4)){
+    side2 <- 4.5
+    yaxt <- "s"
+    ylabel <- "Number of population monitored"
+  }
+  if(count > 3){
+    side1 <- 4.5
+    xlabel <- "Landed value (CAD M)"
+  }
+  
+  par(mar = c(side1, side2, .5, .5))
+  plot(NA,xlim = c(x_min,x_max),ylim = c(y_min,y_max), xaxt = "n", yaxt = yaxt,
+       xlab = xlabel, ylab = ylabel)
+  xticks <- axTicks(1)
+  axis(side = 1, at = xticks, labels = xticks / 1000000)
+  
+  # data points
+  points(x = data_glm$landing_value,y = data_glm$count_pop, 
+         col = col_points[as.character(data_glm$year)], pch = 16 ,cex = 1.5)
+  
+  legend("topleft",legend = paste0(letters[count],") ",sp), bty = "n")
+  
+  # legend("bottomleft",paste0("n = ",sum(cond_sp)), bty = "n")
+  
+  fit_se <- predict(object = model_selected,
+                    newdata = data_glm, 
+                    type = "response", se.fit = T)
+  
+  CI_low <- fit_se$fit - 1.96 * fit_se$se.fit
+  CI_high <- fit_se$fit + 1.96 * fit_se$se.fit
+  
+  polygon(x = c(data_glm$landing_value,rev(data_glm$landing_value)), 
+          y = c(CI_low,rev(CI_high)), border = NA,
+          col = colour_transparency_fun("grey35",alpha = .2))
+  
+  lines(x = data_glm$landing_value, y = fit_se$fit, 
+        col = colour_transparency_fun("grey10",alpha = .7), lwd = 2)
+  
+  count <- count + 1
+}
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0,4))
+yrs_points <- c("1960","1980","2000","2020")
+x_points <- c(1,1.7,2.4,3.1)
+text(x = 2, y = 1.05, labels = "Years", cex = 1.5)
+points(x = x_points, y = rep(1,4), pch = 16, cex = 2, col = col_points[yrs_points])
+text(x = x_points, y = rep(.95,4), labels = yrs_points)
+```
+
 
 
 
