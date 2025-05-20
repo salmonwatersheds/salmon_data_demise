@@ -142,7 +142,7 @@ sum(is.na(nuseds$region_survey)) # No!
 
 # How many are mismatched?
 sum(nuseds_loc$region != nuseds_loc$region_survey)
-# 104
+# 126 104
 plot(st_geometry(nuseds_loc[which(nuseds_loc$region != nuseds_loc$region_survey),]))
 plot(st_geometry(regions_spat), border = pnw_palette("Bay", n = 9), 
      col = paste0(pnw_palette("Bay", n = 9), 40), add = TRUE)
@@ -165,7 +165,7 @@ write.csv(output, file = "data_output/region_survey.csv", row.names = FALSE)
 cond_NA <- is.na(nuseds$population_id)
 pop_NA <- unique(nuseds[cond_NA,c("region","SPECIES_QUALIFIED","CU_NAME","POP_ID","GFE_ID")]) # same nb rows as unique(nuseds[cond_NA,c("POP_ID","GFE_ID")])
 nrow(pop_NA)                   # corresponding to 82 populations
-sum(is.na(nuseds$cuid))        # corresponding number of data points
+sum(is.na(nuseds$cuid))        # corresponding number of data points: 2020
 
 # Give a population_id to populations without a cuid
 val_max <- max(nuseds$population_id, na.rm = T)
@@ -202,7 +202,8 @@ regions <- c("Yukon","Transboundary","Haida Gwaii","Nass","Skeena","Central Coas
 
 # What about adding open points for those monitored in the most recent decade?
 cond <- nuseds$Year > 2013 & !is.na(nuseds$MAX_ESTIMATE)
-mon_decade$population_id <- unique(nuseds$population_id[cond])
+mon_decade <- data.frame(population_id = unique(nuseds$population_id[cond]))
+# mon_decade$population_id <- unique(nuseds$population_id[cond])
 
 length(mon_decade$population_id)/length(unique(nuseds$population_id)) # 39.7% 37%
 
@@ -248,10 +249,21 @@ if(figures_print){
 
 
 # Separating monitored and not monitored in the past 10 years
-bbox_coords <- c(-133.3677,-117.6323, 48.7600,  55.2400)
-names(bbox_coords) <- c("xmin","ymin","xmax","ymax")
+# bbox_coords <- c(-133.3677,-117.6323, 48.7600,  55.2400)
+# names(bbox_coords) <- c("xmin","ymin","xmax","ymax")
+xlim_bbox <- c(-132.7,-118.2)
+ylim_bbox <- c(49.0,55.0)
+bbox_coords <- c(xlim_bbox,ylim_bbox)
+bbox_coords <- c(-133.3,-117.5, 48.7, 55.3)
+names(bbox_coords) <- c("xmin","xmax","ymin","ymax")
 bbp <- st_as_sfc(st_bbox(bbox_coords), crs = 4269)
 
+if(figures_print){
+  # jpeg("figures/map.jpeg",width = 660, height = 685, units = 'px')
+  size <- 18
+  coef <- 586 / 747  #
+  jpeg("figures/map_full.jpeg",width = size * coef, height = size, units = 'cm', res = 300)
+}
 par(bg = 'white', mar = c(4,4,1,1), oma = rep(0, 4))
 plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-140, -118), ylim = c(48.5, 66), bg = grey(0.8))
 plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
@@ -259,12 +271,41 @@ plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30
 plot(st_geometry(loc_NOTmonitored), col = colours_rg[loc_NOTmonitored$region], bg = "white", pch = 21, cex = 0.6, add = TRUE)
 plot(st_geometry(loc_monitored), col = colours_rg[loc_monitored$region], pch = 19, cex = 0.5, add = TRUE)
 plot(st_geometry(bbp), col = NA, border = 1, add = TRUE)
+if(figures_print){
+  dev.off()
+}
 
+if(figures_print){
+  # jpeg("figures/map.jpeg",width = 660, height = 685, units = 'px')
+  size <- 8
+  coef <- 586 / 747  #
+  pdf("figures/map_legend.pdf",width = size * coef, height = size)
+}
+plot.new()
+legend("topright",regions, pch = 16, col = colours_rg, bty = 'n')
+if(figures_print){
+  dev.off()
+}
+
+if(figures_print){
+  # jpeg("figures/map.jpeg",width = 660, height = 685, units = 'px')
+  size <- 18
+  coef <- 845 / 597  # .964
+  jpeg("figures/map_zoomed.jpeg",width = size * coef, height = size, units = 'cm', res = 300)
+}
 # Inset
-plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = c(-132, -119), ylim = c(49, 55), bg = grey(0.8))
+par(mar = c(3,3,.5,.5))
+plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = xlim_bbox, ylim = ylim_bbox, bg = grey(0.8))
 plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
 plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
 plot(st_geometry(loc_NOTmonitored), col = colours_rg[loc_NOTmonitored$region], bg = "white", pch = 21, cex = 0.6, add = TRUE)
 plot(st_geometry(loc_monitored), col = colours_rg[loc_monitored$region], pch = 19, cex = 0.5, add = TRUE)
-legend("topright", pch = c(21, 18), pt.cex = c(0.8, 0.8), bty = "n", legend = c("Not monitored in 2013-2022", "Monitored at least once in 2013-2022"), cex = 0.8)
+legend("topright", pch = c(21, 18), pt.cex = c(0.8, 0.8), bty = "n", legend = c("Not monitored in 2013-2022", "Monitored at least once in 2014-2023"), cex = 0.8)
+if(figures_print){
+  dev.off()
+}
+
+
+
+
 
