@@ -300,7 +300,8 @@ plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
 plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
 plot(st_geometry(loc_NOTmonitored), col = colours_rg[loc_NOTmonitored$region], bg = "white", pch = 21, cex = 0.6, add = TRUE)
 plot(st_geometry(loc_monitored), col = colours_rg[loc_monitored$region], pch = 19, cex = 0.5, add = TRUE)
-legend("topright", pch = c(21, 18), pt.cex = c(0.8, 0.8), bty = "n", legend = c("Not monitored in 2013-2022", "Monitored at least once in 2014-2023"), cex = 0.8)
+legend("topright", pch = c(21, 18), pt.cex = c(0.8, 0.8), bty = "n", 
+       legend = c("Not monitored in 2014-2023", "Monitored at least once in 2014-2023"), cex = 0.8)
 if(figures_print){
   dev.off()
 }
