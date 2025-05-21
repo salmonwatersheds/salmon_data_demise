@@ -294,7 +294,7 @@ if(figures_print){
   jpeg("figures/map_zoomed.jpeg",width = size * coef, height = size, units = 'cm', res = 300)
 }
 # Inset
-par(mar = c(3,3,.5,.5))
+par(mar = c(3,3,1,1))
 plot(st_geometry(regions_spat), col = NA, border = NA, axes = TRUE, xlim = xlim_bbox, ylim = ylim_bbox, bg = grey(0.8))
 plot(st_geometry(shoreline), add = TRUE, col = "white", lwd = 0.8)
 plot(st_geometry(regions_spat), col = paste0(colours_rg[regions_spat$region], 30), border = NA, add = TRUE)
