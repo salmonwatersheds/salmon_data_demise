@@ -1,7 +1,7 @@
 ---
 title: "Supporting_information"
 author: "Emma M Atkinson, Bruno S Carturan, Clare P Atkinson, Andrew W Bateman, Katrina Connors, Eric Hertz, Stephanie J Peacock"
-date: "2025-05-14"
+# date: "2025-05-14"
 output:
   html_document:
     toc: true                  # Adds a table of contents to the document
@@ -130,9 +130,9 @@ for(dataset_selected in data_sp_l){
 ```
 
 
-TO COMPLETE
+The is the supporting information for: *Atkinson et al. Monitoring for fisheries or for fish? Declines in monitoring of salmon spawners continue despite a conservation crisis*.
 
-The is the Supporting material for the generalized linear regression analysis conducted in: *Atkinson et al. Monitoring for fisheries or for fish? Declines in monitoring of salmon spawners continue despite a conservation crisis*.
+The document contains *(i)* the supplementary figures and tables referred to in the main text, *(ii)* the details of the generalized linear regression analysis conducted to quantify the effect of commercial catch, price on monitoring effort for each species, and *(iii)* a summary of the NuSEDS cleaning procedure.
 
 # Supplementary figures and tables
 
@@ -162,10 +162,10 @@ The is the Supporting material for the generalized linear regression analysis co
 **Figure S8.** Frequency of the different survey data quality values (ESTIMATE_CLASSIFICATION) in the cleaned NuSEDS data before filtering zeros.
 
 ![fig](`r paste0(wd_figures,"/Number_populations_monitored_species_rssq.jpeg")`)
-**Figure S10.** Frequency of the different survey data quality values per species since 1998 in the cleaned NuSEDS data after filtering zeros. The stream survey quality grouping is based on the field ESTIMATE_CLASSIFICATION: “High” for “TRUE ABUNDANCE (TYPE-1)”; “Medium-High” for “TRUE ABUNDANCE (TYPE-2)”; “Medium” for “RELATIVE ABUNDANCE (TYPE-3)”; “Medium-Low” for “RELATIVE ABUNDANCE (TYPE-4)”; “Low” for “RELATIVE ABUNDANCE (TYPE-5)”, “PRESENCE-ABSENCE (TYPE-6)”, “PRESENCE/ABSENCE (TYPE-6)”, “RELATIVE: VARYING MULTI-YEAR METHODS” and “RELATIVE: CONSTANT MULTI-YEAR METHODS”.
+**Figure S9.** Frequency of the different survey data quality values per species since 1998 in the cleaned NuSEDS data after filtering zeros. The stream survey quality grouping is based on the field ESTIMATE_CLASSIFICATION: “High” for “TRUE ABUNDANCE (TYPE-1)”; “Medium-High” for “TRUE ABUNDANCE (TYPE-2)”; “Medium” for “RELATIVE ABUNDANCE (TYPE-3)”; “Medium-Low” for “RELATIVE ABUNDANCE (TYPE-4)”; “Low” for “RELATIVE ABUNDANCE (TYPE-5)”, “PRESENCE-ABSENCE (TYPE-6)”, “PRESENCE/ABSENCE (TYPE-6)”, “RELATIVE: VARYING MULTI-YEAR METHODS” and “RELATIVE: CONSTANT MULTI-YEAR METHODS”.
 
 ![fig](`r paste0(wd_figures,"/Number_populations_monitored_species_rssq_WITH_0s.jpeg")`)
-**Figure S11.** Frequency of the different survey data quality values per species since 1998 in the cleaned NuSEDS data before filtering zeros. The stream survey quality grouping is based on the field ESTIMATE_CLASSIFICATION: “High” for “TRUE ABUNDANCE (TYPE-1)”; “Medium-High” for “TRUE ABUNDANCE (TYPE-2)”; “Medium” for “RELATIVE ABUNDANCE (TYPE-3)”; “Medium-Low” for “RELATIVE ABUNDANCE (TYPE-4)”; “Low” for “RELATIVE ABUNDANCE (TYPE-5)”, “PRESENCE-ABSENCE (TYPE-6)”, “PRESENCE/ABSENCE (TYPE-6)”, “RELATIVE: VARYING MULTI-YEAR METHODS” and “RELATIVE: CONSTANT MULTI-YEAR METHODS”.
+**Figure S10.** Frequency of the different survey data quality values per species since 1998 in the cleaned NuSEDS data before filtering zeros. The stream survey quality grouping is based on the field ESTIMATE_CLASSIFICATION: “High” for “TRUE ABUNDANCE (TYPE-1)”; “Medium-High” for “TRUE ABUNDANCE (TYPE-2)”; “Medium” for “RELATIVE ABUNDANCE (TYPE-3)”; “Medium-Low” for “RELATIVE ABUNDANCE (TYPE-4)”; “Low” for “RELATIVE ABUNDANCE (TYPE-5)”, “PRESENCE-ABSENCE (TYPE-6)”, “PRESENCE/ABSENCE (TYPE-6)”, “RELATIVE: VARYING MULTI-YEAR METHODS” and “RELATIVE: CONSTANT MULTI-YEAR METHODS”.
 
 **Table S1.** Number of Conservation Units (CUs), populations, and sites present in the NuSEDS data in each region after cleaning (NAs counts were removed, zeros were kept). Sites are unique locations where spawners from one or more CUs may be counted. Populations are unique combinations of CUs and sites.
 
@@ -175,7 +175,12 @@ data_srg_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
                         sheet = "summary_regions") |> as.data.frame()
 coln_new <- c("Region","Number of CUs","Number of populations","Number of sites")
 colnames(data_srg_0)[1:length(coln_new)] <- coln_new
-data_srg_0[,coln_new]
+
+show <- data_srg_0[,coln_new]
+rownames(show) <- NULL
+
+library(knitr)
+kable(show)
 ```
 
 
@@ -283,7 +288,7 @@ legend("center",c("number of populations monitored","catch","price"),
        col = c("black","#1962A0","#9E163C"), lwd = 2, bt = "n")
 ```
 
-**Figure S12.** Number of populations monitored, catch and price over time for each species. Each variables was normalised across all species to be displayed on the same Y axis. Zeros counts were filtered out in NuSEDS.
+**Figure S11.** Number of populations monitored, catch and price over time for each species. Each variables was normalised across all species to be displayed on the same Y axis. Zeros counts were filtered out in NuSEDS.
 
 ### Check for collinearity
 
@@ -298,7 +303,7 @@ ggpairs(data_here,                 # Data frame
   theme_bw()
 ```
 
-**Figure S13.** Pairwise plot showing the distribution, relationship and correlation among the variables.
+**Figure S12.** Pairwise plot showing the distribution, relationship and correlation among the variables.
 
 The correlations among explanatory variables are acceptable.
 
@@ -314,7 +319,7 @@ ggpairs(data_here,                 # Data frame
   theme_bw()
 ```
 
-**Figure S14.** Pairwise plot showing the distribution, relationship and correlation among the variables with `catch` and `price` transformed with the square root function.
+**Figure S13.** Pairwise plot showing the distribution, relationship and correlation among the variables with `catch` and `price` transformed with the square root function.
 
 ### Model definition
 
@@ -400,7 +405,7 @@ boxplot(res ~ data_here$species, xlab = "Species", ylab = "Deviance residuals", 
 abline(0,0)
 ```
 
-**Figure S15.** Residual diagnostic plots for the generalised linear model with a negative binomial distribution and log-link function to predict the number of populations monitored as a function of commercial catches, price and species (n = `r length(res)`).  Zero counts in NuSEDS were removed.
+**Figure S14.** Residual diagnostic plots for the generalised linear model with a negative binomial distribution and log-link function to predict the number of populations monitored as a function of commercial catches, price and species (n = `r length(res)`).  Zero counts in NuSEDS were removed.
 
 And for `glm_cs`:
 
@@ -441,7 +446,7 @@ boxplot(res ~ data_here$species, xlab = "Species", ylab = "Deviance residuals", 
 abline(0,0)
 ```
 
-**Figure S16.** Residual diagnostic plots for the generalised linear model with a negative binomial distribution and log-link function to predict the number of populations monitored as a function of commercial catches and species (n = `r length(res)`).  Zero counts in NuSEDS were removed.
+**Figure S15.** Residual diagnostic plots for the generalised linear model with a negative binomial distribution and log-link function to predict the number of populations monitored as a function of commercial catches and species (n = `r length(res)`).  Zero counts in NuSEDS were removed.
 
 The residuals plots do not invalidate both models.
 
@@ -606,7 +611,7 @@ if(figures_print){
 }
 ```
 
-**Figure S17.** Prediction of the number of populations monitored as a function of landed value (in million of CAD), which is the product between commercial catch (in kg) and price (in CAD per kg). A generalized linear model with a negative binomial distribution and log-link function was fitted with catch, price and species as predictive variables  (n = `r nrow(data_here)`). Lines and polygons represent model fits and 95% confidence intervals, respectively; circles represent the data, which span from `r min(data_here$year)` and `r max(data_here$year)`. Zero counts in NuSEDS were filtered out. This figure is the one appearing in the main text.
+**Figure S16.** Prediction of the number of populations monitored as a function of landed value (in million of CAD), which is the product between commercial catch (in kg) and price (in CAD per kg). A generalized linear model with a negative binomial distribution and log-link function was fitted with catch, price and species as predictive variables  (n = `r nrow(data_here)`). Lines and polygons represent model fits and 95% confidence intervals, respectively; circles represent the data, which span from `r min(data_here$year)` and `r max(data_here$year)`. Zero counts in NuSEDS were filtered out. This figure is the one appearing in the main text.
 
 ## Analysis including the zeros in NuSEDS
 
@@ -679,7 +684,7 @@ legend("center",c("nb. populations monitored (with 0s)","nb. populations monitor
        col = c("black","grey30","#1962A0","#9E163C"), lwd = 2, bt = "n")
 ```
 
-**Figure S18**: Number of populations monitored, catch and price over time for each species. Each variables was normalised across all species to be displayed on the same Y axis. Zeros counts were not filtered out in NuSEDS (also the figure shows the number).
+**Figure S17**: Number of populations monitored, catch and price over time for each species. Each variables was normalised across all species to be displayed on the same Y axis. Zeros counts were not filtered out in NuSEDS (also the figure shows the number).
 
 ### Check for collinearity
 
@@ -695,7 +700,7 @@ ggpairs(data_here,                 # Data frame
   theme_bw()
 ```
 
-**Figure S19**: Pairwise plot showing the distribution, relationship and correlation among the variables with `catch` and `price` transformed with the square root function.
+**Figure S18**: Pairwise plot showing the distribution, relationship and correlation among the variables with `catch` and `price` transformed with the square root function.
 
 The correlations among explanatory variables are acceptable.
 
