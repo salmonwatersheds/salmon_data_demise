@@ -956,14 +956,15 @@ nuseds_FrSE <- nuseds %>% filter(region == "Fraser", SPECIES == "Sockeye")
 n_pop <- length(unique(nuseds_FrSE$population_id)) # 351 335 populations
 yr_range <- range(nuseds_FrSE$Year)
 
-pch <- 15 
+pch <- 16
+size <- 30
 
 if(figures_print){
   jpeg(paste0(wd_figures,"/Fraser_Sockeye_NAs_0s.jpeg"),
-       width = 21.59 * .8, height = 21.59, units = 'cm', res = 300)
+       width = size * .6, height = size , units = 'cm', res = 300)
 }
 layout(mat = matrix(1))
-par(mar = c(4, 4, 4, 1))
+par(mar = c(4, 4, 1, 1))
 plot(yr_range, c(0.5, n_pop+0.5), "n", yaxs = "i", ylab = "Population", xlab = "Year", bty = "l")
 polygon(x = c(1998.5, 2023, 2023, 1998.5), y = c(0.5, 0.5, 360, 360), col = grey(0.8), border = NA, xpd = NA)
 abline(v = seq(1940, 2020, 10), lty = 3, col = grey(0.6))
@@ -974,7 +975,7 @@ for(i in 1:335){
          col = ifelse(dat.i$MAX_ESTIMATE == 0, 2, 1), cex = 0.5, xpd = NA)
 }
 text(2010, 350, "Zeroes appear starting\n in 1999", xpd = NA, cex = 0.8)
-legend(1940, 370, pch = pch, col = c(1,2), bty = "n",
+legend(1940, 350, pch = pch, col = c(1,2), bty = "n",
        title = "MAX_ESTIMATE", c("Non-zero", "Zero"), xpd = NA, cex = 0.8)
 if(figures_print){
   dev.off()
