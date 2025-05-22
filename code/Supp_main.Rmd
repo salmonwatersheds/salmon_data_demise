@@ -1011,70 +1011,69 @@ The second dataset, conservation_unit_system_sites, links each population (relat
 
 - A time series is present in all_areas_nuseds but its POP_ID and GFE_ID association is absent in conservation_unit_system_sites (there are 4428 populations in that case).
 
-- Multiple time series of thea same population (i.e. same POP_ID) are observed in multiple locations (i.e. different GFE_IDs), which should not occur because a POP_ID should be defined for a unique location.
+- Multiple time series of the same population (i.e. same `POP_ID`) are observed in multiple locations (i.e. different `GFE_IDs`), which should not occur because a POP_ID should be defined for a unique location.
 
-- Multiple populations (i.e. different POP_ID) of a same CU are observed in the same location (i.e. same GFE_ID), suggesting that these populations should form one unique population.
+- Multiple populations (i.e. different `POP_ID`) of a same CU are observed in the same location (i.e. same `GFE_ID`), suggesting that these populations should form one unique population.
 
-The observation of problematic time series revealed inconsistencies such as missing, duplicated, and conflicting data points (i.e. different counts in the same year). In order to rescue as much data as possible, we attempted to solve these issues by either *(i)* **deleting**, *(ii)* **combining** or *(iii)* **summing** a problematic series to an **alternative series** (i.e., a time series present in all_areas_nuseds that shares either the same POP_ID or GFE_ID and species), or *(iv)* **creating** a new reference to the time series in conservation_unit_system_sites. In each case, we used all the information available in the different fields and made assumptions based on our professional judgment. Below are more details about the different interventions applied to problematic time series:
+The observation of problematic time series revealed inconsistencies such as missing, duplicated, and conflicting data points (i.e. different counts in the same year). In order to rescue as much data as possible, we attempted to solve these issues by either *(i)* **deleting**, *(ii)* **combining** or *(iii)* **summing** a problematic series to an **alternative series** (i.e., a time series present in all_areas_nuseds that shares either the same `POP_ID` or `GFE_ID` and species), or *(iv)* **creating** a new reference to the time series in conservation_unit_system_sites. In each case, we used all the information available in the different fields and made assumptions based on our professional judgment. Below are more details about the different interventions applied to problematic time series:
 
 - We **deleted** a problematic time series (or a portion of it) from all_areas_nuseds when (1) it was a duplicate of another time series, (2) it had less than four data points and was not spotted during the cleaning process, or (3) the lack of information prevented to combine or merge it to an alternative series or to create a new series in conservation_unit_system_sites (e.g. if run timing was unknown).
 
 - We **combined** a problematic time series with an alternative series when data points were not in conflict (i.e. different value for a same year) and the information available in the other fields was not prescriptive (e.g. the population belong to the same CU, the locations have similar names or spatial coordinates, the runtimings are not different).
 
-- We **summed** a problematic time series to an alternative series having different POP_ID but same GFE_ID and CU_NAME and with conflicting data points.
+- We **summed** a problematic time series to an alternative series having different `POP_ID` but same `GFE_ID` and `CU_NAME` and with conflicting data points.
 
 - We **created** a new reference of the problematic time series in conservation_unit_system_sites (i.e. a new row with a unique `POP_ID` - `GFE_ID` combination) when it could not be deleted, merged or combined to an alternative series.
 
 The diverse and idiosyncratic nature of these problematic cases prevented the establishment of a systematic and simple cleaning process. Many of these cases were resolved individually by observing and comparing time series and accounting for the information available. We proceeded in consecutive steps in which we applied the different types of intervention mentioned above, either after visually inspecting individual time series or by applying a systematic procedure. These steps are detailed below:
 
-1. Remove the time series (i.e. unique `POP_ID` - `GFE_ID` associations) with only NAs values for MAX_ESTIMATE in all_areas_nuseds (corresponding to 4424 time series, 101,944 rows or 25% of all_areas_nuseds)
+1. Remove the time series (i.e. unique `POP_ID` - `GFE_ID` associations) with only NAs values for `MAX_ESTIMATE` in all_areas_nuseds (corresponding to 4424 time series, 101,944 rows or 25% of all_areas_nuseds)
 
 2. Assess all the references to time series present in conservation_unit_system_sites but absent in all_areas_nuseds (247 out of 714 time series in all_areas_nuseds are not referenced in conservation_unit_system_sites)
 
-  2.2. Cases with presence of alternative series in NUSEDS (n = 3)
+  + 2.a. Cases with presence of alternative series in all_areas_nuseds (n = 3)
   
-  - Each case was assessed visually.
+    - Each case was assessed visually.
 
-  2.3. Cases with no alternative time series in all_areas_nuseds (n = 243)
+  + 2.b. Cases with no alternative time series in all_areas_nuseds (n = 243)
   
-  - The rows corresponding to these time series are removed from conservation_unit_system_sites (242 of the 243 references correspond to time series in all_areas_nuseds removed in step 1. above because they contained only NAs).
+    - The rows corresponding to these time series are removed from conservation_unit_system_sites (242 of the 243 references correspond to time series in all_areas_nuseds removed in step 1. above because they contained only NAs).
 
-  2.4. Case with multiple `GFE_ID` for a single `POP_ID` (n = 1)
+  + 2.c. Case with multiple `GFE_ID` for a single `POP_ID` (n = 1)
   
-  - The problematic time series was simply removed from conservation_unit_system_sites.
+    - The problematic time series was simply removed from conservation_unit_system_sites.
 
 3. Case of time series with the same `POP_ID` but different `GFE_ID`s in conservation_unit_system_sites and present in all_areas_nuseds (n = 1).
 
-- Two time series had the same POP_ID but different `GFE_ID`. Both time series were kept because they are not compatible and have many and recent data points.
-
+  - Two time series had the same `POP_ID` but different `GFE_ID`. Both time series were kept because they are not compatible and have many and recent data points.
 
 4. Assess all the time series present in all_areas_nuseds but absent in conservation_unit_system_sites (n = 242)
 
-  4.1. Cases of series with alternative `POP_ID` and no alternative `GFE_ID` (n = 126)
+  + 4.a. Cases of series with alternative `POP_ID` and no alternative `GFE_ID` (n = 126)
 
-  - Each case was assessed visually.
+    - Each case was assessed visually.
 
-  4.2. Cases of series with alternative `GFE_ID` with or without alternative `POP_ID` (n = 64)
+  + 4.b. Cases of series with alternative `GFE_ID` with or without alternative `POP_ID` (n = 64)
 
-  - Problematic series with the same `POP_ID`s (e.g. series with `POP_ID` = 47925 and `GFE_ID` = 15, 31516 and 31740, respectively) having the same alternative series (e.g. series with `POP_ID` = 47925 and `GFE_ID` = 14) are assessed together, resulting in 37 groups of time series to assess separately.
+    - Problematic series with the same `POP_ID`s (e.g. series with `POP_ID` = 47925 and `GFE_ID` = 15, 31516 and 31740, respectively) having the same alternative series (e.g. series with `POP_ID` = 47925 and `GFE_ID` = 14) are assessed together, resulting in 37 groups of time series to assess separately.
 
-  4.3. Cases with no alternative series (n = 166)
+  + 4.c. Cases with no alternative series (n = 166)
   
-  - We attempted to associate these time series to a CU using the fields `X_LONGT` and `Y_LAT` to intersect them with the CUs’ shapefiles used in the PSE.
+    - We attempted to associate these time series to a CU using the fields `X_LONGT` and `Y_LAT` to intersect them with the CUs’ shapefiles used in the PSE.
 
-  - Time series without coordinates (or for which coordinates could not be found) were removed from all_areas_nuseds (n = 5).
+    - Time series without coordinates (or for which coordinates could not be found) were removed from all_areas_nuseds (n = 5).
  
-  - The reference of the rest of the time series was added to conservation_unit_system_sites
+    - The reference of the rest of the time series was added to conservation_unit_system_sites
 
 5.  Merge all_areas_nuseds and conservation_unit_system_sites using the fields `POP_ID` and `GFE_ID`.
 
 6.  Assess time series with different `POP_ID` but a same `CU_NAME` and `GFE_ID` (n = 126).
 
-- Case 1: there is only one data point in one of the series; if it is compatible, then merge to the alternative series, otherwise remove it from all_areas_nuseds.
+  - Case 1: there is only one data point in one of the series; if it is compatible, then merge to the alternative series, otherwise remove it from all_areas_nuseds.
 
-- Case 2: One of the series is 100% duplicated with the other one: to remove from all_areas_nuseds.
+  - Case 2: One of the series is 100% duplicated with the other one: to remove from all_areas_nuseds.
 
-- Case 3: the rest of the series are merged; adding the values when data points are in conflict.
+  - Case 3: the rest of the series are merged; adding the values when data points are in conflict.
 
 
 ## Attribution of the geographic regions to CUs
@@ -1083,7 +1082,7 @@ We matched the CUs in the cleaned NuSEDS data with the CUs defined in the Pacifi
 
 ## Managing NA and zero counts
 
-For the analysis presented in the main text, we excluded data points where MAX_ESTIMATE = NA (n = 156,507) or 0 (n = 3,449) and we present here in the appendix the results of the analyses done on the cleaned NuSEDS dataset where zeros are kept.
+For the analysis presented in the main text, we excluded data points where `MAX_ESTIMATE` = NA (n = 156,507) or 0 (n = 3,449) and we present here in the appendix the results of the analyses done on the cleaned NuSEDS dataset where zeros are kept.
 
 
 
