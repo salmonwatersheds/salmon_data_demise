@@ -158,6 +158,19 @@ colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
 #' The name 'streamid' is miss-leading as it seems to characterise a stream only
 #' but it characterises a unique CU & location association.
 
+cond_NA <- is.na(nuseds$MAX_ESTIMATE)
+cond_0s <- !cond_NA & nuseds$MAX_ESTIMATE == 0
+table(nuseds$ADULT_PRESENCE[cond_NA])
+#    NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+# 38         36500         99526         17067          3376 
+table(nuseds$ADULT_PRESENCE[cond_0s])
+# NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+#          3298            10           139             2 
+
+table(nuseds$ADULT_PRESENCE[!cond_0s & !cond_NA])
+# NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+#            36            10        152534             3 
+
 #
 # Remove NAs OR NAs and 0s (based on decision) ------
 #
