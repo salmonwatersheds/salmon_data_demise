@@ -1225,6 +1225,88 @@ if(figures_print){
   dev.off()
 }
 #
+# IS_INDICATOR vs data quality score -------
+#
+
+cond_NA <- !is.na(nuseds$MAX_ESTIMATE)
+
+sum(is.na(nuseds$IS_INDICATOR[cond_NA]))
+cond_II_Y <- !is.na(nuseds$IS_INDICATOR[cond_NA]) & nuseds$IS_INDICATOR[cond_NA] == "Y"
+cond_II_N <- !is.na(nuseds$IS_INDICATOR[cond_NA]) & nuseds$IS_INDICATOR[cond_NA] == "N"
+table(nuseds$stream_survey_quality[cond_NA][cond_NA][cond_II_Y])
+round(table(nuseds$stream_survey_quality[cond_NA][cond_II_Y])/sum(cond_II_Y),2)
+# High         Low      Medium Medium-High  Medium-Low     Unknown 
+#    4         966          11           4          22        4710
+# 0.00        0.24        0.00        0.00        0.01        0.75
+
+table(nuseds$stream_survey_quality[cond_NA][cond_II_N])
+round(table(nuseds$stream_survey_quality[cond_NA][cond_II_N])/sum(cond_II_N),2)
+# High         Low      Medium Medium-High  Medium-Low     Unknown 
+#   85       21108         274          52         599      118385 
+# 0.00        0.15        0.00        0.00        0.00        0.84
+
+
+years <- sort(unique(nuseds$Year[cond_NA]))
+
+counts_II <- data.frame(year = years,
+                        indicator = NA,
+                        not_indicator = NA,
+                        blank = NA,
+                        NAN = NA)
+
+counts_II_m <- matrix(data = NA, 
+                      nrow = 4, 
+                      ncol = length(years))
+
+colnames(counts_II_m) <- years
+rownames(counts_II_m) <- c("indicator","not_indicator","blank","NA")
+
+for(yr in years){
+  # yr <- 2000
+  cond_yr <- nuseds$Year[cond_NA] == yr
+  cond_NA_II <- is.na(nuseds$IS_INDICATOR[cond_NA][cond_yr])
+  cond_II_Y <- !cond_NA_II & nuseds$IS_INDICATOR[cond_NA][cond_yr] == "Y"
+  cond_II_N <- !cond_NA_II & nuseds$IS_INDICATOR[cond_NA][cond_yr] == "N"
+  cond_II_b <- !cond_NA_II & nuseds$IS_INDICATOR[cond_NA][cond_yr] == ""
+  
+  i <- which(yr == years)
+  counts_II$indicator[i] <- sum(cond_II_Y)
+  counts_II$not_indicator[i] <- sum(cond_II_N)
+  counts_II$blank[i] <- sum(cond_II_b)
+  counts_II$NAN[i] <- sum(cond_NA_II)
+  
+  counts_II_m["indicator",i] <- sum(cond_II_Y)
+  counts_II_m["not_indicator",i] <- sum(cond_II_N)
+  counts_II_m["blank",i] <- sum(cond_II_b)
+  counts_II_m["NA",i] <- sum(cond_NA_II)
+}
+
+counts_II$total <- rowSums(counts_II[,c("indicator","not_indicator","blank","NAN")])
+counts_II$not_indicator_prop <- counts_II$not_indicator / counts_II$total
+cond_1933 <- counts_II$year > 1933
+counts_II$not_indicator_prop[!cond_1933] <- NA
+
+par(mar = c(5,5,1,5))
+estCol <- colorRampPalette(c("forest green", "gold", "red", "black"))(n = 4)
+bp <- barplot(counts_II_m, col = estCol, xaxt = "n", ylim = c(0,3000))
+axis(side = 1, at = bp[seq(1, length(bp), 2)], labels = FALSE, tck = -0.01)
+axis(side = 1, at = bp[seq(1,length(bp),10)], labels = years[seq(1,length(bp),10)],
+     tck = -0.02)
+mtext(text = "Year",side = 1, line = 3)
+mtext(text = "Number of populations",side = 2, line = 3)
+legend("topleft", c("indicator","not_indicator","blank","NA"), 
+       fill = estCol,bg = "white", bty = "n")
+
+# Add proportion of indicator vs. non-indicator
+par(new=TRUE)
+# lines(x = counts_II$year, y = counts_II$ind_dividedby_nonind * 2500, lwd = 1.5)
+plot(x = bp, y = counts_II$not_indicator_prop, ylim = c(0,1), type = "l",
+     xaxt = "n", yaxt = "n", lwd = 2, xlab = "", ylab = "")
+axis(side = 4, at = c(0,0.5,1))
+mtext(text = "Proprotion of non-indicator populations",side = 4, line = 3)
+
+
+
 #
 # Figure S???: Number pop monitored per species and stream survey quality since 1998 ----
 
@@ -1655,9 +1737,23 @@ nuseds_YT <- nuseds %>% filter(region == "Yukon") %>%
 max(nuseds_YT$maxYr)
 # 2008
 
+#'* ADULT_PRESENCE for NA vs. 0s MAX_ESTIMATE *
+cond_NA <- is.na(nuseds$MAX_ESTIMATE)
+cond_0s <- !cond_NA & nuseds$MAX_ESTIMATE == 0
+table(nuseds$ADULT_PRESENCE[cond_NA])
+#    NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+# 38         36500         99526         17067          3376 
+table(nuseds$ADULT_PRESENCE[cond_0s])
+# NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+#          3298            10           139             2 
+
+table(nuseds$ADULT_PRESENCE[!cond_0s & !cond_NA])
+# NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+#            36            10        152534             3 
 
 
 
+#
 # FIGURE 5 OLD: Correlation btw Number population monitored vs. catch ---------
 #
 
