@@ -1497,7 +1497,6 @@ max(nuseds[!cond_NA,]$Year[cond]) # 2020
 nuseds[!cond_NA,][cond,c("region","SPECIES","cuid","cu_name_pse","POPULATION","Year","MAX_ESTIMATE")]
 
 
-
 # Per regions and species:
 rg_sp_0 <- matrix(NA,nrow = length(regions), ncol = length(species))
 colnames(rg_sp_0) <- species
@@ -1812,9 +1811,12 @@ for(sp in species){
 barplot(height = status_sum, col = col_status)
 legend("top",legend = status, fill = col_status, bty = "n")
 
+cond_SH <- bs_dfo_cosewic$species_name == "Steelhead"
 cond_endangered <- bs_dfo_cosewic$cosewic_status == "Endangered"
-length(unique(bs_dfo_cosewic$cosewic_source[cond_endangered]))
-unique(bs_dfo_cosewic$cosewic_source[cond_endangered])
+length(unique(bs_dfo_cosewic$cosewic_source[cond_endangered & !cond_SH]))
+unique(bs_dfo_cosewic$cosewic_source[cond_endangered & !cond_SH])
+
+
 
 #'* commercial vs. recreational catch *
 #'
