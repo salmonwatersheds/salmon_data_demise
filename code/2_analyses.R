@@ -99,12 +99,12 @@ data_sp_ssq_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
 #'* Import the landing value per species per kg *
 # https://www.pac.dfo-mpo.gc.ca/analyses-econom-analysis/analyses/econ-perspective-salmon-saumon-eng.html
 
-value_sp <- read.csv(paste0(wd_data_input,"/landed-value-valeur-debarquement-eng.csv"), 
+price_sp <- read.csv(paste0(wd_data_input,"/landed-value-valeur-debarquement-eng.csv"), 
                      header = T)
-head(value_sp)
-colnames(value_sp)[1] <- "Year"
-for(c in 2:ncol(value_sp)){
-  value_sp[,c] <- as.numeric(gsub("\\$","",value_sp[,c]))
+head(price_sp)
+colnames(price_sp)[1] <- "Year"
+for(c in 2:ncol(price_sp)){
+  price_sp[,c] <- as.numeric(gsub("\\$","",price_sp[,c]))
 }
 
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
@@ -1600,7 +1600,6 @@ n_pop_1980 # 4793
 n_pop_1980/n_pop_total * 100 # 68.74
 
 
-
 #'*  Average loss of populations per year since 1986 *
 #'
 
@@ -1751,7 +1750,188 @@ table(nuseds$ADULT_PRESENCE[!cond_0s & !cond_NA])
 # NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
 #            36            10        152534             3 
 
+#'* Price per species and time * 
 
+par(mar = c(4.5,4.5,.5,.5))
+span <- .5
+plot(NA,NA,xlim = range(price_sp$Year), ylim = c(0,max(price_sp[,species])),las = 1)
+for(sp in species){
+  lines(x = price_sp$Year, y = price_sp[,sp], col = colour_transparency_fun(colours_sp[sp],alpha = .3),
+        lwd = 2)
+  # smooth <- predict(loess(sp ~ Year, data = price_sp, span = span))
+  smooth <- predict(loess(price_sp[,sp] ~ price_sp$Year, data = price_sp, span = span))
+  lines(x = price_sp$Year, y = smooth, col = colours_sp[sp], lwd = 2)
+}
+legend("topleft",names(colours_sp),col = colours_sp, lwd = 2, bty = "n")
+
+
+#'* Compare COSEWIC status among species *
+#' File downloaded from:
+# https://data.salmonwatersheds.ca/search?search=cosewic&regions=&species=&categories=&datatypes=&page=0
+bs_dfo_cosewic <- read.csv(paste0(getwd(),"/data_input/biostatus_COSEWIC_DFO.csv"), header = T)
+for(c in colnames(bs_dfo_cosewic)){
+  bs_dfo_cosewic[,c][bs_dfo_cosewic[,c] == "-989898"] <- "NA"
+}
+
+head(bs_dfo_cosewic)
+unique(bs_dfo_cosewic$species_name)
+bs_dfo_cosewic$species <- sapply(bs_dfo_cosewic$species_name,function(sp){
+  if(sp %in% c("Lake sockeye","River sockeye")){
+    out <- "Sockeye"
+  }else if(sp %in% c("Pink (odd)","Pink (even)")){
+    out <- "Pink"
+  }else{
+    out <- sp
+  }
+  return(out)
+})
+
+unique(bs_dfo_cosewic$species)
+unique(bs_dfo_cosewic$cosewic_status)
+status <- c("Not at risk","Special Concern","Threatened","Endangered","Extinct","Data Deficient","NA")
+col_status <- c("deepskyblue3","goldenrod1","darkorange3","firebrick3","firebrick4","grey50","white")
+names(col_status) <- status
+
+cond_NA <- bs_dfo_cosewic$cosewic_status == "NA"
+bs_dfo_cosewic <- bs_dfo_cosewic[!cond_NA,]
+cond_NA <- status == "NA"
+status <- status[!cond_NA]
+col_status <- col_status[status]
+
+status_sum <- matrix(NA,nrow = length(col_status), ncol = length(species))
+colnames(status_sum) <- species
+rownames(status_sum) <- status
+for(sp in species){
+  cond_sp <- bs_dfo_cosewic$species == sp
+  for(st in status){
+    cond_st <- bs_dfo_cosewic$cosewic_status == st
+    status_sum[st,sp] <- sum(cond_sp & cond_st)
+  }
+}
+
+barplot(height = status_sum, col = col_status)
+legend("top",legend = status, fill = col_status, bty = "n")
+
+cond_endangered <- bs_dfo_cosewic$cosewic_status == "Endangered"
+length(unique(bs_dfo_cosewic$cosewic_source[cond_endangered]))
+unique(bs_dfo_cosewic$cosewic_source[cond_endangered])
+
+#'* commercial vs. recreational catch *
+#'
+catch_total <- read_xlsx(paste0(wd_data_input,"/NPAFC_Catch_Stat-1925-2023.xlsx")) |> as.data.frame()
+catch_rec <- catch_total
+colnames(catch_rec) <- catch_rec[1,]
+catch_rec <- catch_rec[-1,]
+head(catch_rec)
+
+# Only keep Canada
+catch_rec$Country |> unique()
+cond <- catch_rec$Country == "Canada"
+catch_rec <- catch_rec[cond,]
+
+# Only keep "Whole Country" (vs. BC or Yukon)
+catch_rec$`Whole Country/Province/State` |> unique()
+cond <- catch_rec$`Whole Country/Province/State` == "Whole country"
+catch_rec <- catch_rec[cond,]
+
+# Only keep Commercial
+catch_rec$`Catch Type` |> unique()
+cond <- catch_rec$`Catch Type` %in% c("Sport","Subsistence")
+catch_rec <- catch_rec[cond,]
+
+# Remove Steelhead (Check values 1st --> there is no values)
+cond_SH <- catch_rec$Species == "Steelhead"
+catch_rec[cond_SH,]
+catch_rec <- catch_rec[!cond_SH,]
+
+# Make sure all the counts are "numeric"
+col_yr <- colnames(catch_rec)[colnames(catch_rec) %in% 1900:2050]
+# apply(catch_rec[,col_yr],2,as,numeric()) # does not work... 
+for(yr in col_yr){
+  catch_rec[,yr] <- as.numeric(catch_rec[,yr])
+}
+
+# Replace the Total values by the sum of the salmon species (without SH)
+# (that should not change anything but it is the right way to proceed).
+cond_Total <- catch_rec$Species == "Total"
+cond_count <- catch_rec$`Data Type` == "Number (000's)"
+cond_mt <- catch_rec$`Data Type` == "Round wt (MT)"
+
+# check 
+layout(matrix(1:2,ncol = 2))
+plot(x = catch_rec[cond_Total & cond_count,col_yr] |> as.numeric(), y = colSums(catch_rec[!cond_Total & cond_count,col_yr]))
+abline(a = 0,b = 1)
+plot(x = catch_rec[cond_Total & cond_mt,col_yr] |> as.numeric(), y = colSums(catch_rec[!cond_Total & cond_mt,col_yr]))
+abline(a = 0,b = 1)
+
+catch_rec[cond_Total & cond_count,col_yr][1,] <- colSums(catch_rec[!cond_Total & cond_count,col_yr])
+catch_rec[cond_Total & cond_mt,col_yr][1,] <- colSums(catch_rec[!cond_Total & cond_mt,col_yr])
+
+#' Make it a long format
+unique(catch_rec$Species)
+
+
+cond_sport <- catch_rec$`Catch Type` == "Sport"
+cond_sub <- catch_rec$`Catch Type` == "Subsistence"
+
+# To long format
+dataExport <- NULL
+for(sp in unique(catch_rec$Species)){
+  # sp <- unique(catch_rec$Species)[1]
+  cond_sp <- catch_rec$Species == sp
+  count_sport <- catch_rec[cond_sp & cond_sport,col_yr,drop = T] |> unlist()
+  count_sport <- count_sport * 1000
+  count_sub <- catch_rec[cond_sp & cond_sub,col_yr,drop = T] |> unlist()
+  count_sub <- count_sub * 1000
+  
+  dataExportHere <- data.frame(species = sp,
+                               year = as.numeric(col_yr),
+                               count_sport = count_sport,
+                               count_sub = count_sub,
+                               count_rec = count_sport + count_sub)
+  if(is.null(dataExport)){
+    dataExport <- dataExportHere
+  }else{
+    dataExport <- rbind(dataExport,dataExportHere)
+  }
+}
+
+catch_rec <- dataExport
+
+span <- .5
+layout(matrix(1:3, nrow = 1))
+par(mar = c(5,5,3,.5))
+for(v in c("count_sport","count_sub","count_rec")){
+  # v <- "count_sport"
+  plot(NA,NA,xlim = c(1970,2022), ylim = c(0,1), main = v, 
+       ylab  = "Proportion of fish recreational fishing", xlab = "Year")
+  abline(a = 0.5, b = 0, lwd = 2, lty = 2)
+  if(v == "count_sport"){
+    legend("topleft",names(colours_sp), col = colours_sp, bty = "n", lwd = 2)
+  }
+  for(sp in species){
+    cond_sp <- catch$species == sp
+    com <- catch[cond_sp,c("species","year","count")]
+    cond_sp <- catch_rec$species == sp
+    rec <- catch_rec[cond_sp,c("species","year",v)]
+    merged <- merge(x = com,y = rec,by = c("species","year"),all = T)
+    merged$ratio <- merged[,v]/merged$count
+    # merged <- merged[!is.na(merged$ratio),]
+    # lines(x = merged$year, y = merged$ratio, lwd= 2, col = colours_sp[sp])
+    merged$prop_rec <- merged[,v]/(merged$count + merged[,v])
+    lines(x = merged$year, y = merged$prop_rec, lwd= 2, col = colour_transparency_fun(colours_sp[sp],.5))
+    #
+    cond_NA <- is.na(merged$prop_rec)
+    smooth <- predict(loess(prop_rec ~ year, data = merged[!cond_NA,], span = span))
+    
+    smooth <- data.frame(smooth = smooth,
+                         year = merged$year[!cond_NA])
+    merged <- merge(x = merged,
+                    y = smooth, by = "year", all = T)
+    
+    lines(x = merged$year, y = merged$smooth, col = colours_sp[sp], lwd = 2)
+  }
+}
 
 #
 # FIGURE 5 OLD: Correlation btw Number population monitored vs. catch ---------
