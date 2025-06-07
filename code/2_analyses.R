@@ -1598,6 +1598,8 @@ n_pop_1980 <- length(unique(nuseds$population_id[cond_1980_1989]))
 n_pop_1980 # 4793
 n_pop_1980/n_pop_total * 100 # 68.74
 
+n_pop_1980/n_pop_total * 100 - n_pop_2014/n_pop_total * 100
+#  31.4212
 
 #'*  Average loss of populations per year since 1986 *
 #'
@@ -1613,6 +1615,15 @@ lm
 # Coefficients:
 #   (Intercept)  data_total$year[cond_min]  
 #      86889.25                     -42.51  
+
+# In proportion:
+yr_nd <- - data_total$year[cond_min][1] + data_total$year[cond_min][sum(cond_min)] 
+(data_total$count_pop[cond_min][1] - data_total$count_pop[cond_min][sum(cond_min)])/data_total$count_pop[cond_min][1] / yr_nd * 100
+# 1.6% / year
+
+# OR
+40.7 / data_total$count_pop[cond_min][1] * 100
+# 1.467724 %
 
 #'* Monitoring of indicator stocks *
 
