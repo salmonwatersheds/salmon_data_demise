@@ -15,10 +15,10 @@
 
 - **nuseds_cuid_streamid_2025-04-15.csv**: the cleaned NuSEDS data with associated `cuid` and `cu_name_pse` used as in the PSE 
 
-- **nuseds_cuid_streamid_2024-11-25_definitions.csv**: the definitions of the fields in nuseds_cuid_streamid_2024-11-25.csv
+- **nuseds_cuid_streamid_2024-11-25_definitions.csv**: the definitions of the fields in nuseds_cuid_streamid_DATE.csv
 
 *** IMPORTANT ***
 
-The **nuseds_cuid_streamid_2024-11-25.csv** file must be downloaded from https://zenodo.org/records/14194638 and placed in the **/data_input** repository to run 1_datasets.R
+The **nuseds_cuid_streamid_2025-04-15.csv** file must be downloaded from https://zenodo.org/records/14194638 and placed in the **/data_input** repository to run the R scripts.
 
 ****************
