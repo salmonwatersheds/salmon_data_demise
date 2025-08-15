@@ -6,12 +6,18 @@
 #' Files imported:
 #' 
 #' - nuseds_cuid_streamid_2024-11-25.csv                # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
-#' - region_survey.csv                                  # the region - populations (field "streamid") associations; created in 0_assign-regions.R
-#' - populationAssessed_catches_data_remove_0s_NAs.xlsx # The summary files where both 0s and NAs counts were removed (results presented in the main text); created in 1_datasets.R
-#' - populationAssessed_catches_data_",option_NAs.xlsx  # The summary files where only NAs counts were removed (results presented in the supporting information); created in 1_datasets.R
+#' - region_survey.csv                                  # the "region" (i.e. CU-related region) and region_survey (i.e. the region where the survey was conducted); created in 0_assign-regions.R
+#' - populationAssessed_catches_data_remove_0s_NAs.xlsx # the summary file where both 0s and NAs counts were removed (results presented in the main text); created in 1_datasets.R
+#' - populationAssessed_catches_data_",option_NAs.xlsx  # the summary file where only NAs counts were removed (results presented in the supporting information); created in 1_datasets.R
+#' - landed-value-valeur-debarquement-eng.csv           # the yearly price-per-kg for each species from DFO’s Economic Analysis 
+#' - biostatus_COSEWIC_DFO.csv                          # biological status from DFO and COSEWIC; downloaded from the PSE database
+#' - NPAFC_Catch_Stat-1925-2023.xlsx                    # catch data from the NPAFC Statistics
 #' 
 #' Files produced: 
-#' - all the figures except FIGURE 1: spawner survey map
+#' - all the figures except
+#'   - FIGURE 1: spawner survey map, which id produced manually from two figures produced in 0_assign-regions.R
+#'   - all the figures related to the GLM analysis (i.e. FIGURE 6,  S22 etc.),
+#'     which are produced in 3_Supp_main.rmd
 #' 
 #'******************************************************************************
 
@@ -40,7 +46,7 @@ library(car)    # for vif()
 source("code/functions.R")
 source("code/colours.R")
 
-figures_print <- T
+figures_print <- F
 
 #
 # Import files ------
@@ -74,7 +80,7 @@ data_sp_ssq <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
                          sheet = "populations_species_ssq") |> as.data.frame()
 
 #'* Import the catch data
-catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
+catch <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                      sheet = "catches_species_total") |> as.data.frame()
 head(catch)
 
@@ -160,8 +166,7 @@ alpha_seg <- .5
 lty_seg <- 2
 
 #
-#
-# FIGURE 1: spawner survey map: produced in 0_assign-regions.R -------
+# FIGURE 1: Spawner survey map: produced in 0_assign-regions.R -------
 #
 # NA
 # 
@@ -199,7 +204,11 @@ if(figures_print){
 }
 
 #
-# FIGURE 3: Number populations monitored per years per region > species --------
+# FIGURE 3: High-level schematic illustrating the NuSEDS data flow ------
+#
+# Produced manually
+#
+# FIGURE 4: Number populations monitored per years per region > species --------
 #
 
 lwd <- .5 # for the grid segments
@@ -287,7 +296,7 @@ if(figures_print){
   dev.off()
 }
 
-# FIGURE 4: trends 1986 to 2022 per regions > species ---------
+# FIGURE 5: trends 1986 to 2022 per regions > species ---------
 #
 
 year_min <- 1986
@@ -348,8 +357,11 @@ if(figures_print){
 }
 
 #
+# FIGURE 6: GLM model with monitoring ~ landed value * species ------
 #
-# FIGURE 6: Proportion of CUs monitored (i.e. at least 1 population) --------
+# Figure generate in 3_Supp_main.rmd
+#
+# FIGURE 7: Proportion of CUs monitored (i.e. at least 1 population) --------
 #
 
 alpha <- .7
@@ -812,7 +824,320 @@ if(figures_print){
 }
 
 #
-# FIGURE S6: Correlation btw Number population monitored vs. catch WITH 0s ---------
+# FIGURE S6: Patterns in zero counts for Fraser sockeye ------
+#
+
+#' Import the cleaned NuSEDS data matched with PSF cuid and streamid
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
+#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' /data_input folder.
+# nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+#                    header = T)
+# 
+# cond <- nuseds$region == "Northern Transboundary"
+# nuseds$region[cond] <- "Transboundary"
+
+# edit the field streamid --> population_id to avoid confusion
+# the field is a unique combination between a CU (cuid) and a stream location (GFE_ID)
+# = a popualation
+# colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
+
+# select the Fraser Sockeye
+nuseds_FrSE <- nuseds %>% filter(region == "Fraser", SPECIES == "Sockeye")
+
+n_pop <- length(unique(nuseds_FrSE$population_id)) # 351 335 populations
+yr_range <- range(nuseds_FrSE$Year)
+
+pch <- 16
+size <- 30
+
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Fraser_Sockeye_NAs_0s.jpeg"),
+       width = size * .6, height = size , units = 'cm', res = 300)
+}
+layout(mat = matrix(1))
+par(mar = c(4, 4, 1, 1))
+plot(yr_range, c(0.5, n_pop+0.5), "n", yaxs = "i", ylab = "Population", xlab = "Year", bty = "l")
+polygon(x = c(1998.5, 2023, 2023, 1998.5), y = c(0.5, 0.5, 360, 360), col = grey(0.8), border = NA, xpd = NA)
+abline(v = seq(1940, 2020, 10), lty = 3, col = grey(0.6))
+abline(h = seq(20,330,20), lty = 3, col = grey(0.6))
+for(i in 1:335){
+  dat.i <- nuseds_FrSE %>% filter(population_id == unique(nuseds_FrSE$population_id)[i])
+  points(dat.i$Year, rep(i, nrow(dat.i)), pch = pch, 
+         col = ifelse(dat.i$MAX_ESTIMATE == 0, 2, 1), cex = 0.5, xpd = NA)
+}
+text(2010, 350, "Zeroes appear starting\n in 1999", xpd = NA, cex = 0.8)
+legend(1940, 350, pch = pch, col = c(1,2), bty = "n",
+       title = "MAX_ESTIMATE", c("Non-zero", "Zero"), xpd = NA, cex = 0.8)
+if(figures_print){
+  dev.off()
+}
+
+#'* check for each region and species (no figure produced) *
+
+# Attribute a population_id to the populations not associated with a cuid
+cond_popid_NA <- is.na(nuseds$population_id)
+length(unique(nuseds$CU_NAME[cond_popid_NA])) # 22
+length(unique(nuseds$POP_ID[cond_popid_NA])) # 82
+nrow(unique(nuseds[cond_popid_NA,c("IndexId","GFE_ID")])) # 82
+val <- max(nuseds$population_id,na.rm = T) + 1
+for(popid in unique(nuseds$POP_ID[cond_popid_NA])){
+  # popid <- unique(nuseds$POP_ID[cond_popid_NA])[1]
+  cond <- cond_popid_NA & nuseds$POP_ID == popid
+  nuseds$population_id[cond] <- val
+  val <- val + 1
+}
+sum(is.na(nuseds$population_id))  # 0
+
+# sum(is.na(nuseds$MAX_ESTIMATE))  # 0
+# cond_NA <- is.na(nuseds$MAX_ESTIMATE)
+# nuseds <- nuseds[!cond_NA,]
+
+for(rg in unique(nuseds$region)){
+  # rg <- unique(nuseds$region)[1]
+  cond_rg <- nuseds$region == rg
+  species_here <- unique(nuseds$SPECIES[cond_rg])
+  for(sp in species_here){
+    # sp <- species_here[1]
+    cond_rg_sp <- cond_rg & nuseds$SPECIES == sp
+    
+    n_pop <- length(unique(nuseds$population_id[cond_rg_sp])) #
+    yr_range <- range(nuseds$Year[cond_rg_sp])
+    
+    layout(mat = matrix(1))
+    par(mar = c(4, 4, 4, 1))
+    plot(yr_range, c(0.5, n_pop+0.5), "n", yaxs = "i", ylab = "Population", xlab = "Year", bty = "l", 
+         main = paste(rg,sp,sep=" - "))
+    # polygon(x = c(1998.5, 2023, 2023, 1998.5), y = c(0.5, 0.5, 360, 360), col = grey(0.8), border = NA, xpd = NA)
+    abline(v = seq(1940, 2020, 10), lty = 3, col = grey(0.6))
+    abline(h = seq(20,330,20), lty = 3, col = grey(0.6))
+    
+    
+    for(popid in unique(nuseds$population_id[cond_rg_sp])){
+      # popid <- unique(nuseds$population_id[cond_rg_sp])[1]
+      cond_popid <- cond_rg_sp & nuseds$population_id == popid
+      i <- which(popid == unique(nuseds$population_id[cond_rg_sp]))
+      
+      col_here <- sapply(nuseds$MAX_ESTIMATE[cond_popid],function(me){
+        if(is.na(me)){
+          col <- "grey"
+        }else if(me == 0){
+          col <- "red"
+        }else{
+          col <- "black"
+        }
+      })
+      
+      points(x = nuseds$Year[cond_popid],y = rep(i, sum(cond_popid)), pch = pch, 
+             col = col_here, cex = 1, xpd = NA)
+    }
+    # text(2010, 350, "Zeroes appear starting\n in 1999", xpd = NA, cex = 0.8)
+    legend("topleft", pch = pch, col = c("black","red","grey"), bty = "n",
+           title = "MAX_ESTIMATE", c("Non-zero", "Zero","NA"), xpd = NA, cex = 0.8)
+  }
+}
+
+#
+# FIGURE S7 & S8: barplot ESTIMATE_CLASSIFICATION ------
+#
+layout(matrix(1))
+
+# 
+cond_NA <- is.na(nuseds$MAX_ESTIMATE)
+cond_0 <- nuseds$MAX_ESTIMATE == 0 & !cond_NA
+
+nuseds$stream_survey_quality |> unique()
+nuseds$ENUMERATION_METHODS |> unique()
+nuseds$ESTIMATE_METHOD |> unique()
+nuseds$ESTIMATE_CLASSIFICATION[!cond_NA] |> unique()
+table(nuseds$ESTIMATE_CLASSIFICATION[!cond_NA])
+unique(nuseds[!cond_NA,c("stream_survey_quality","ESTIMATE_CLASSIFICATION")])
+unique(nuseds[!cond_NA & !cond_0,c("stream_survey_quality","ESTIMATE_CLASSIFICATION")])
+
+ec_levels <- c("TRUE ABUNDANCE (TYPE-1)",
+               "TRUE ABUNDANCE (TYPE-2)",
+               "RELATIVE ABUNDANCE (TYPE-3)",
+               "RELATIVE ABUNDANCE (TYPE-4)",
+               "RELATIVE ABUNDANCE (TYPE-5)",
+               "PRESENCE-ABSENCE (TYPE-6)",
+               "RELATIVE: CONSTANT MULTI-YEAR METHODS",
+               "RELATIVE: VARYING MULTI-YEAR METHODS",
+               "NO SURVEY THIS YEAR",
+               "UNKNOWN")
+
+years <- min(nuseds$Year):max(nuseds$Year)
+
+# without 0s:
+ec_table <- matrix(NA,ncol = length(years), nrow = length(ec_levels))
+colnames(ec_table) <- years
+rownames(ec_table) <- ec_levels
+for(yr in years){
+  # yr <- years[1]
+  cond_yr <- nuseds$Year == yr
+  vals_yr <- table(factor(nuseds$ESTIMATE_CLASSIFICATION[cond_yr & !cond_NA & !cond_0], 
+                          levels = ec_levels))
+  ec_table[,as.character(yr)] <- vals_yr
+}
+
+# With 0s:
+ec_table_0 <- matrix(NA,ncol = length(years), nrow = length(ec_levels))
+colnames(ec_table_0) <- years
+rownames(ec_table_0) <- ec_levels
+for(yr in years){
+  # yr <- years[1]
+  cond_yr <- nuseds$Year == yr
+  vals_yr <- table(factor(nuseds$ESTIMATE_CLASSIFICATION[cond_yr & !cond_NA], 
+                          levels = ec_levels))
+  ec_table_0[,as.character(yr)] <- vals_yr
+}
+
+estCol <- colorRampPalette(c("forest green", "gold", "red", "black"))(n = length(ec_levels))
+
+max_val <- max(colSums(ec_table)) * 1.15
+
+# FIGURE S7
+coef <- 1
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Barplot_EstimateClassification.jpeg"),
+       width = 25 * coef, height = 15 * coef, units = 'cm', res = 300)
+}
+par(mar = c(4.5,4.5,5,1))
+bp <- barplot(ec_table, beside = FALSE, las = 1, border = NA, xaxt = "n", col = estCol,
+              ylab = "", ylim = c(0,max_val))
+axis(side = 1, at = bp[seq(1, length(bp), 2)], labels = FALSE, tck = -0.01)
+axis(side = 1, at = bp[seq(1,length(bp),10)], labels = years[seq(1,length(bp),10)],
+     tck = -0.01, tck = -0.03)
+mtext(text = "Year",side = 1, line = 2.5)
+mtext(text = "Number of populations",side = 2, line = 3.5)
+legend(x = -1, y = max_val * 1.2, ncol = 2, fill = estCol, legend = ec_levels, 
+       bg = "white", border = NA, xpd = NA)
+if(figures_print){
+  dev.off()
+}
+
+# FIGURE S8 
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Barplot_EstimateClassification_WITH_0s.jpeg"),
+       width = 25 * coef, height = 15 * coef, units = 'cm', res = 300)
+}
+par(mar = c(4.5,4.5,5,1))
+bp <- barplot(ec_table_0, beside = FALSE, las = 1, border = NA, xaxt = "n", col = estCol,
+              ylab = "", ylim = c(0,max_val))
+axis(side = 1, at = bp[seq(1, length(bp), 2)], labels = FALSE, tck = -0.01)
+axis(side = 1, at = bp[seq(1,length(bp),10)], labels = years[seq(1,length(bp),10)],
+     tck = -0.01, tck = -0.03)
+mtext(text = "Year",side = 1, line = 2.5)
+mtext(text = "Number of populations",side = 2, line = 3.5)
+legend(x = -1, y = max_val * 1.2, ncol = 2, fill = estCol, legend = ec_levels, 
+       bg = "white", border = NA, xpd = NA)
+if(figures_print){
+  dev.off()
+}
+#
+# FIGURE S9 & S10: Number pop monitored per species and stream survey quality since 1998 ----
+#
+data_l <- list(data_sp_ssq,data_sp_ssq_0)
+names(data_l) <- c("without_0s","with_0s") 
+
+stream_survey_quality <- c("Low","Medium-Low","Medium","Medium-High","High")
+
+for(nm in c("without_0s","with_0s")){
+  # nm <- c("without_0s","with_0s")[1]
+  
+  data_here <- data_l[nm][[1]]
+  
+  data_here <- data_here[data_here$year >= 1998,]
+  data_here <- data_here[!is.na(data_here$stream_survey_quality),]
+  data_here <- data_here[data_here$stream_survey_quality != "Unknown",]
+  
+  years <- sort(unique(data_here$year))
+  
+  colfunc <- colorRampPalette(c("firebrick3", "dodgerblue3"))
+  cols_ssq <- colfunc(length(stream_survey_quality))
+  names(cols_ssq) <- stream_survey_quality
+  
+  suffix <- ""
+  if(nm == "with_0s"){
+    suffix <- "_WITH_0s"
+  }
+  
+  if(figures_print){
+    jpeg(paste0(wd_figures,"/Number_populations_monitored_species_rssq",suffix,".jpeg"),
+         width = 20, height = 15, units = 'cm', res = 300)
+  }
+  m <- matrix(c(1:(length(species) + 1)), ncol = 3, byrow = T)
+  layout(m, widths =  c(1.17,1,1), heights = c(1,1.23))
+  count <- 1
+  for(sp in species){
+    # sp <- species[1]
+    cond_sp <- data_here$species == sp
+    
+    y_max <- sapply(stream_survey_quality,function(ssq){
+      cond <- data_here$stream_survey_quality == ssq
+      out <- max(data_here$count_pop[cond_sp & cond])
+      return(out)
+    }) |> max() * 1.1
+    
+    xlab <- ylab <- ""
+    xaxt <- "n"
+    side1 <- .5
+    side2 <- 2
+    if(count %in% 3:6){
+      xlab <- "Year"
+      if(count != 3){
+        side1 <- 5
+      }
+      xaxt <- "s"
+    }
+    if(count %in% c(1,4)){
+      ylab <- "Number populations monitored"
+      side2 <- 5
+    }
+    
+    par(mar = c(side1,side2,1,.5))
+    plot(NA, xlim = range(years), ylim = c(0,y_max), xlab = xlab, ylab = ylab, 
+         xaxt = xaxt)
+    legend("topleft",sp,bty = "n")
+    
+    nb_lines <- 5
+    if(sp %in% c("Pink")){ # ,"Vancouver Island & Mainland Inlets"
+      nb_lines <- 4
+    }
+    if(sp %in% c("Chinook")){ # ,"Vancouver Island & Mainland Inlets"
+      nb_lines <- 3
+    }
+    segments_horizontal_fun(y_range = c(0,y_max), 
+                            x_range = c(1998,2030), 
+                            lty = lty_seg, lwd = lwd, 
+                            nb_lines = nb_lines,
+                            colour = colours_seg, alpha = alpha_seg)
+    
+    xs <- min(data_here$year):max(range(data_here$year))
+    segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0],
+             y0 = 0, y1 = y_max, 
+             lty = lty_seg, lwd = lwd,
+             col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
+    
+    for(ssq in stream_survey_quality){
+      # ssq <- stream_survey_quality[1]
+      cond_ssq <- data_here$stream_survey_quality == ssq
+      d <- data_here[cond_sp & cond_ssq,]
+      d <- d[order(d$year),]
+      lines(x = d$year, y = d$count_pop, col = cols_ssq[ssq], lwd = 1.5)
+    }
+    count <- count + 1
+  }
+  plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+  legend("center",legend = rev(c("Low","Medium-Low","Medium","Medium-High","High")),
+         col = rev(cols_ssq), lwd = 2, bty = "n", title = "Stream survey quality")
+  mtext("Year",side = 3,line = -2.5, cex = .7)
+  if(figures_print){
+    dev.off()
+  }
+}
+
+#
+# FIGURE OLD: Correlation btw Number population monitored vs. catch WITH 0s ---------
 #
 
 years <- min(data_total$year):max(data_total$year)
@@ -828,6 +1153,111 @@ data_yr_col <- data.frame(year =  year_cut:max(years),
                           colours = colfunc_yr(length(year_cut:max(years))))
 data_yr_col$colours_trans <- colour_transparency_fun(data_yr_col$colours, alpha = .7)
 
+# WITHOUT the 0s
+coef <- .9
+if(figures_print){
+  jpeg(paste0(wd_figures,"/Correlation_Number_surveys_vs_Catches.jpeg"),
+       width = 21.59 * coef, height = 14 * coef, units = 'cm', res = 300)
+}
+layout(matrix(1:(length(species)+1), nrow = 2, byrow = T),  
+       widths =  c(1.13,1,1), heights = c(1,1.15))
+i <- 1
+for(sp in species){
+  # sp <- species[2]
+  
+  # Catch
+  cond_sp_c <- catch$species == sp
+  data_c <- catch[cond_sp_c,c("year","count")]
+  colnames(data_c)[colnames(data_c) == "count"] <- "catch"
+  data_c$catch <- data_c$catch / 1000
+  
+  # surveys
+  cond_sp <- data_sp$species == sp
+  data_s <- data_sp[cond_sp,c("year","count_pop")]
+  
+  # merge the two
+  data <- merge(x = data_c, y = data_s, by = "year", all = T)
+  
+  # merge with data_yr_col
+  data <- merge(x = data, y = data_yr_col, by = "year", all = T)
+  
+  # Only select data points after 1960
+  cond <- data$year > year_cut
+  
+  x <- data$catch[cond]
+  y <- data$count_pop[cond]
+  
+  n <- min(c(sum(!is.na(x)),sum(!is.na(y)))) # number of data points
+  
+  side1 <- 2
+  side2 <- 2
+  xlab <- ylab <- ""
+  yaxt <- "s"
+  if(i > 3){
+    side1 <- 4.5
+    xlab <- "Catches (in thousands)"
+  }
+  if(i %in% c(1,4)){
+    side2 <- 4.5
+    ylab <- "Number of populations monitored"
+    # yaxt <- 's'
+  }
+  
+  par(mar = c(side1,side2,.5,.5))
+  plot(x = x, y = y, pch = 16, col = data$colours_trans[cond],
+       cex = 2, yaxt = yaxt, xlab = xlab, ylab = ylab, main = "")
+  #abline(a = 0, b = 1)
+  if(i == 3){
+    mtext("Catches (in thousands)",side = 1,line = 3,cex = .65)
+  }
+  
+  # regression line
+  # m <- loess(surveys ~ catch, data = data[cond,], span = .5)
+  if(show_trendline){
+    m <- lm(surveys ~ catch, data = data[cond,])
+    y_m <- predict(m, newdata = data[cond,])
+    lines(x = x, y = y_m, lwd = 2)
+  }
+  cor_spear <- cor.test(x = x, y = y, method = "spearman")
+  pval <- ""
+  if(pval_show){
+    if(cor_spear$p.value < 0.001){
+      pval <- "***"
+    }else if(cor_spear$p.value < 0.01){
+      pval <- "**"
+    }else if(cor_spear$p.value < 0.05){
+      pval <- "*"
+    }
+  }
+  if(sp == "Sockeye"){
+    legend("topright",paste0(letters[i],") ",sp),bty='n')
+  }else{
+    legend("topleft",paste0(letters[i],") ",sp),bty='n')
+  }
+  legend("bottomright",
+         legend = bquote(rho~"="~.(round(cor_spear$estimate,2))~" "~.(pval)~" "), 
+         bty = "n")
+  # legend("bottomleft", legend = paste("n =",n), bty = "n") # it is the same number for all species
+  
+  i <- i + 1
+  
+  print(paste("***",sp,"***"))
+  print(cor_spear)
+  
+}
+# plot legend
+par(mar = c(10,3,8,3))
+plot(NA, ylim = c(0,1), xlim = range(data_yr_col$year), xaxt = 's', yaxt = 'n', 
+     xlab = "Year", ylab = "", xaxs = "i", yaxs = "i")
+for(yr in data_yr_col$year){
+  cond <- data_yr_col$year == yr
+  polygon(x = c(yr,yr + 1, yr + 1, yr),y = c(0,0,1,1),border = NA, col = data_yr_col$colours_trans[cond])
+}
+if(figures_print){
+  dev.off()
+}
+
+# WITH 0s
 coef <- .9
 if(figures_print){
   jpeg(paste0(wd_figures,"/Correlation_Number_surveys_vs_Catches_WITH_0s.jpeg"),
@@ -932,124 +1362,7 @@ if(figures_print){
 }
 
 #
-# FIGURE S7: Patterns in zero counts for Fraser sockeye ------
-#
-
-#'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
-#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
-#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
-#' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
-                   header = T)
-
-cond <- nuseds$region == "Northern Transboundary"
-nuseds$region[cond] <- "Transboundary"
-
-# edit the field streamid --> population_id to avoid confusion
-# the field is a unique combination between a CU (cuid) and a stream location (GFE_ID)
-# = a popualation
-colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
-
-# select the Fraser Sockeye
-nuseds_FrSE <- nuseds %>% filter(region == "Fraser", SPECIES == "Sockeye")
-
-n_pop <- length(unique(nuseds_FrSE$population_id)) # 351 335 populations
-yr_range <- range(nuseds_FrSE$Year)
-
-pch <- 16
-size <- 30
-
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Fraser_Sockeye_NAs_0s.jpeg"),
-       width = size * .6, height = size , units = 'cm', res = 300)
-}
-layout(mat = matrix(1))
-par(mar = c(4, 4, 1, 1))
-plot(yr_range, c(0.5, n_pop+0.5), "n", yaxs = "i", ylab = "Population", xlab = "Year", bty = "l")
-polygon(x = c(1998.5, 2023, 2023, 1998.5), y = c(0.5, 0.5, 360, 360), col = grey(0.8), border = NA, xpd = NA)
-abline(v = seq(1940, 2020, 10), lty = 3, col = grey(0.6))
-abline(h = seq(20,330,20), lty = 3, col = grey(0.6))
-for(i in 1:335){
-  dat.i <- nuseds_FrSE %>% filter(population_id == unique(nuseds_FrSE$population_id)[i])
-  points(dat.i$Year, rep(i, nrow(dat.i)), pch = pch, 
-         col = ifelse(dat.i$MAX_ESTIMATE == 0, 2, 1), cex = 0.5, xpd = NA)
-}
-text(2010, 350, "Zeroes appear starting\n in 1999", xpd = NA, cex = 0.8)
-legend(1940, 350, pch = pch, col = c(1,2), bty = "n",
-       title = "MAX_ESTIMATE", c("Non-zero", "Zero"), xpd = NA, cex = 0.8)
-if(figures_print){
-  dev.off()
-}
-
-#'* check for each region and species *
-
-# Attribute a population_id to the populations not associated with a cuid
-cond_popid_NA <- is.na(nuseds$population_id)
-length(unique(nuseds$CU_NAME[cond_popid_NA])) # 22
-length(unique(nuseds$POP_ID[cond_popid_NA])) # 82
-nrow(unique(nuseds[cond_popid_NA,c("IndexId","GFE_ID")])) # 82
-val <- max(nuseds$population_id,na.rm = T) + 1
-for(popid in unique(nuseds$POP_ID[cond_popid_NA])){
-  # popid <- unique(nuseds$POP_ID[cond_popid_NA])[1]
-  cond <- cond_popid_NA & nuseds$POP_ID == popid
-  nuseds$population_id[cond] <- val
-  val <- val + 1
-}
-sum(is.na(nuseds$population_id))  # 0
-
-
-# sum(is.na(nuseds$MAX_ESTIMATE))  # 0
-# cond_NA <- is.na(nuseds$MAX_ESTIMATE)
-# nuseds <- nuseds[!cond_NA,]
-
-for(rg in unique(nuseds$region)){
-  # rg <- unique(nuseds$region)[1]
-  cond_rg <- nuseds$region == rg
-  species_here <- unique(nuseds$SPECIES[cond_rg])
-  for(sp in species_here){
-    # sp <- species_here[1]
-    cond_rg_sp <- cond_rg & nuseds$SPECIES == sp
-    
-    n_pop <- length(unique(nuseds$population_id[cond_rg_sp])) #
-    yr_range <- range(nuseds$Year[cond_rg_sp])
-    
-    layout(mat = matrix(1))
-    par(mar = c(4, 4, 4, 1))
-    plot(yr_range, c(0.5, n_pop+0.5), "n", yaxs = "i", ylab = "Population", xlab = "Year", bty = "l", 
-         main = paste(rg,sp,sep=" - "))
-    # polygon(x = c(1998.5, 2023, 2023, 1998.5), y = c(0.5, 0.5, 360, 360), col = grey(0.8), border = NA, xpd = NA)
-    abline(v = seq(1940, 2020, 10), lty = 3, col = grey(0.6))
-    abline(h = seq(20,330,20), lty = 3, col = grey(0.6))
-    
-    
-    for(popid in unique(nuseds$population_id[cond_rg_sp])){
-      # popid <- unique(nuseds$population_id[cond_rg_sp])[1]
-      cond_popid <- cond_rg_sp & nuseds$population_id == popid
-      i <- which(popid == unique(nuseds$population_id[cond_rg_sp]))
-      
-      col_here <- sapply(nuseds$MAX_ESTIMATE[cond_popid],function(me){
-        if(is.na(me)){
-          col <- "grey"
-        }else if(me == 0){
-          col <- "red"
-        }else{
-          col <- "black"
-        }
-      })
-      
-      points(x = nuseds$Year[cond_popid],y = rep(i, sum(cond_popid)), pch = pch, 
-             col = col_here, cex = 1, xpd = NA)
-    }
-    # text(2010, 350, "Zeroes appear starting\n in 1999", xpd = NA, cex = 0.8)
-    legend("topleft", pch = pch, col = c("black","red","grey"), bty = "n",
-           title = "MAX_ESTIMATE", c("Non-zero", "Zero","NA"), xpd = NA, cex = 0.8)
-  }
-}
-
-
-
-#
-# FIGURE S NOT IN PAPER: Proportion of populations monitored WITH Os ------
+# FIGURE EXTRA: Proportion of populations monitored WITH Os ------
 #
 
 alpha <- .7
@@ -1133,118 +1446,9 @@ if(figures_print){
 }
 
 #
-# FIGURE S???: barplot ESTIMATE_CLASSIFICATION ------
-
-# 
-cond_NA <- is.na(nuseds$MAX_ESTIMATE)
-cond_0 <- nuseds$MAX_ESTIMATE == 0 & !cond_NA
-
-nuseds$stream_survey_quality |> unique()
-nuseds$ENUMERATION_METHODS |> unique()
-nuseds$ESTIMATE_METHOD |> unique()
-nuseds$ESTIMATE_CLASSIFICATION[!cond_NA] |> unique()
-table(nuseds$ESTIMATE_CLASSIFICATION[!cond_NA])
-unique(nuseds[!cond_NA,c("stream_survey_quality","ESTIMATE_CLASSIFICATION")])
-unique(nuseds[!cond_NA & !cond_0,c("stream_survey_quality","ESTIMATE_CLASSIFICATION")])
-
-ec_levels <- c("TRUE ABUNDANCE (TYPE-1)",
-               "TRUE ABUNDANCE (TYPE-2)",
-               "RELATIVE ABUNDANCE (TYPE-3)",
-               "RELATIVE ABUNDANCE (TYPE-4)",
-               "RELATIVE ABUNDANCE (TYPE-5)",
-               "PRESENCE-ABSENCE (TYPE-6)",
-               "RELATIVE: CONSTANT MULTI-YEAR METHODS",
-               "RELATIVE: VARYING MULTI-YEAR METHODS",
-               "NO SURVEY THIS YEAR",
-               "UNKNOWN")
-
-years <- min(nuseds$Year):max(nuseds$Year)
-
-# without 0s:
-ec_table <- matrix(NA,ncol = length(years), nrow = length(ec_levels))
-colnames(ec_table) <- years
-rownames(ec_table) <- ec_levels
-for(yr in years){
-  # yr <- years[1]
-  cond_yr <- nuseds$Year == yr
-  vals_yr <- table(factor(nuseds$ESTIMATE_CLASSIFICATION[cond_yr & !cond_NA & !cond_0], 
-                          levels = ec_levels))
-  ec_table[,as.character(yr)] <- vals_yr
-}
-
-# With 0s:
-ec_table_0 <- matrix(NA,ncol = length(years), nrow = length(ec_levels))
-colnames(ec_table_0) <- years
-rownames(ec_table_0) <- ec_levels
-for(yr in years){
-  # yr <- years[1]
-  cond_yr <- nuseds$Year == yr
-  vals_yr <- table(factor(nuseds$ESTIMATE_CLASSIFICATION[cond_yr & !cond_NA], 
-                          levels = ec_levels))
-  ec_table_0[,as.character(yr)] <- vals_yr
-}
-
-estCol <- colorRampPalette(c("forest green", "gold", "red", "black"))(n = length(ec_levels))
-
-max_val <- max(colSums(ec_table)) * 1.15
-
-coef <- 1
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Barplot_EstimateClassification.jpeg"),
-       width = 25 * coef, height = 15 * coef, units = 'cm', res = 300)
-}
-par(mar = c(4.5,4.5,5,1))
-bp <- barplot(ec_table, beside = FALSE, las = 1, border = NA, xaxt = "n", col = estCol,
-              ylab = "", ylim = c(0,max_val))
-axis(side = 1, at = bp[seq(1, length(bp), 2)], labels = FALSE, tck = -0.01)
-axis(side = 1, at = bp[seq(1,length(bp),10)], labels = years[seq(1,length(bp),10)],
-     tck = -0.01, tck = -0.03)
-mtext(text = "Year",side = 1, line = 2.5)
-mtext(text = "Number of populations",side = 2, line = 3.5)
-legend(x = -1, y = max_val * 1.2, ncol = 2, fill = estCol, legend = ec_levels, 
-       bg = "white", border = NA, xpd = NA)
-if(figures_print){
-  dev.off()
-}
-
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Barplot_EstimateClassification_WITH_0s.jpeg"),
-       width = 25 * coef, height = 15 * coef, units = 'cm', res = 300)
-}
-par(mar = c(4.5,4.5,5,1))
-bp <- barplot(ec_table_0, beside = FALSE, las = 1, border = NA, xaxt = "n", col = estCol,
-              ylab = "", ylim = c(0,max_val))
-axis(side = 1, at = bp[seq(1, length(bp), 2)], labels = FALSE, tck = -0.01)
-axis(side = 1, at = bp[seq(1,length(bp),10)], labels = years[seq(1,length(bp),10)],
-     tck = -0.01, tck = -0.03)
-mtext(text = "Year",side = 1, line = 2.5)
-mtext(text = "Number of populations",side = 2, line = 3.5)
-legend(x = -1, y = max_val * 1.2, ncol = 2, fill = estCol, legend = ec_levels, 
-       bg = "white", border = NA, xpd = NA)
-if(figures_print){
-  dev.off()
-}
+# FIGURE EXTRA: IS_INDICATOR vs data quality score -------
 #
-# IS_INDICATOR vs data quality score -------
-#
-
 cond_NA <- !is.na(nuseds$MAX_ESTIMATE)
-
-sum(is.na(nuseds$IS_INDICATOR[cond_NA]))
-cond_II_Y <- !is.na(nuseds$IS_INDICATOR[cond_NA]) & nuseds$IS_INDICATOR[cond_NA] == "Y"
-cond_II_N <- !is.na(nuseds$IS_INDICATOR[cond_NA]) & nuseds$IS_INDICATOR[cond_NA] == "N"
-table(nuseds$stream_survey_quality[cond_NA][cond_NA][cond_II_Y])
-round(table(nuseds$stream_survey_quality[cond_NA][cond_II_Y])/sum(cond_II_Y),2)
-# High         Low      Medium Medium-High  Medium-Low     Unknown 
-#    4         966          11           4          22        4710
-# 0.00        0.24        0.00        0.00        0.01        0.75
-
-table(nuseds$stream_survey_quality[cond_NA][cond_II_N])
-round(table(nuseds$stream_survey_quality[cond_NA][cond_II_N])/sum(cond_II_N),2)
-# High         Low      Medium Medium-High  Medium-Low     Unknown 
-#   85       21108         274          52         599      118385 
-# 0.00        0.15        0.00        0.00        0.00        0.84
-
 
 years <- sort(unique(nuseds$Year[cond_NA]))
 
@@ -1305,113 +1509,8 @@ plot(x = bp, y = counts_II$not_indicator_prop, ylim = c(0,1), type = "l",
 axis(side = 4, at = c(0,0.5,1))
 mtext(text = "Proprotion of non-indicator populations",side = 4, line = 3)
 
-
-
 #
-# Figure S???: Number pop monitored per species and stream survey quality since 1998 ----
-
-data_l <- list(data_sp_ssq,data_sp_ssq_0)
-names(data_l) <- c("without_0s","with_0s") 
-
-stream_survey_quality <- c("Low","Medium-Low","Medium","Medium-High","High")
-
-for(nm in c("without_0s","with_0s")){
-  # nm <- c("without_0s","with_0s")[1]
-  
-  data_here <- data_l[nm][[1]]
-  
-  data_here <- data_here[data_here$year >= 1998,]
-  data_here <- data_here[!is.na(data_here$stream_survey_quality),]
-  data_here <- data_here[data_here$stream_survey_quality != "Unknown",]
-  
-  years <- sort(unique(data_here$year))
-  
-  colfunc <- colorRampPalette(c("firebrick3", "dodgerblue3"))
-  cols_ssq <- colfunc(length(stream_survey_quality))
-  names(cols_ssq) <- stream_survey_quality
-  
-  suffix <- ""
-  if(nm == "with_0s"){
-    suffix <- "_WITH_0s"
-  }
-  
-  if(figures_print){
-    jpeg(paste0(wd_figures,"/Number_populations_monitored_species_rssq",suffix,".jpeg"),
-         width = 20, height = 15, units = 'cm', res = 300)
-  }
-  m <- matrix(c(1:(length(species) + 1)), ncol = 3, byrow = T)
-  layout(m, widths =  c(1.17,1,1), heights = c(1,1.23))
-  count <- 1
-  for(sp in species){
-    # sp <- species[1]
-    cond_sp <- data_here$species == sp
-    
-    y_max <- sapply(stream_survey_quality,function(ssq){
-      cond <- data_here$stream_survey_quality == ssq
-      out <- max(data_here$count_pop[cond_sp & cond])
-      return(out)
-    }) |> max() * 1.1
-    
-    xlab <- ylab <- ""
-    xaxt <- "n"
-    side1 <- .5
-    side2 <- 2
-    if(count %in% 3:6){
-      xlab <- "Year"
-      if(count != 3){
-        side1 <- 5
-      }
-      xaxt <- "s"
-    }
-    if(count %in% c(1,4)){
-      ylab <- "Number populations monitored"
-      side2 <- 5
-    }
-    
-    par(mar = c(side1,side2,1,.5))
-    plot(NA, xlim = range(years), ylim = c(0,y_max), xlab = xlab, ylab = ylab, 
-         xaxt = xaxt)
-    legend("topleft",sp,bty = "n")
-    
-    nb_lines <- 5
-    if(sp %in% c("Pink")){ # ,"Vancouver Island & Mainland Inlets"
-      nb_lines <- 4
-    }
-    if(sp %in% c("Chinook")){ # ,"Vancouver Island & Mainland Inlets"
-      nb_lines <- 3
-    }
-    segments_horizontal_fun(y_range = c(0,y_max), 
-                            x_range = c(1998,2030), 
-                            lty = lty_seg, lwd = lwd, 
-                            nb_lines = nb_lines,
-                            colour = colours_seg, alpha = alpha_seg)
-    
-    xs <- min(data_here$year):max(range(data_here$year))
-    segments(x0 = xs[xs %% 10 == 0], x1 = xs[xs %% 10 == 0],
-             y0 = 0, y1 = y_max, 
-             lty = lty_seg, lwd = lwd,
-             col = colour_transparency_fun(colours = colours_seg, alpha = alpha_seg))
-    
-    for(ssq in stream_survey_quality){
-      # ssq <- stream_survey_quality[1]
-      cond_ssq <- data_here$stream_survey_quality == ssq
-      d <- data_here[cond_sp & cond_ssq,]
-      d <- d[order(d$year),]
-      lines(x = d$year, y = d$count_pop, col = cols_ssq[ssq], lwd = 1.5)
-    }
-    count <- count + 1
-  }
-  plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
-  legend("center",legend = rev(c("Low","Medium-Low","Medium","Medium-High","High")),
-         col = rev(cols_ssq), lwd = 2, bty = "n", title = "Stream survey quality")
-  mtext("Year",side = 3,line = -2.5, cex = .7)
-  if(figures_print){
-    dev.off()
-  }
-}
-
-#
-# Reported Statistics ------
+# REPORTED STATISTICS ------
 #
 
 #'* Proportion of 0s ~ region and species *
@@ -1466,9 +1565,9 @@ nuseds <- merge(x = nuseds,
 nrow(nuseds) # 312539
 
 cond_NA <- is.na(nuseds$MAX_ESTIMATE)
-sum(cond_NA) # 156507 152096
+sum(cond_NA) # 156507 
 cond_0 <- nuseds$MAX_ESTIMATE == 0 & !cond_NA
-sum(cond_0)  # 3449 2901
+sum(cond_0)  # 3449 
 
 # most recent data for Fraser Chum
 cond <- nuseds$region[!cond_NA] == "Fraser" & nuseds$SPECIES[!cond_NA] == "Chum"
@@ -1495,7 +1594,6 @@ cond <- nuseds$region[!cond_NA] == "Fraser" &
   !is.na(nuseds$cu_name_pse[!cond_NA])
 max(nuseds[!cond_NA,]$Year[cond]) # 2020
 nuseds[!cond_NA,][cond,c("region","SPECIES","cuid","cu_name_pse","POPULATION","Year","MAX_ESTIMATE")]
-
 
 # Per regions and species:
 rg_sp_0 <- matrix(NA,nrow = length(regions), ncol = length(species))
@@ -1531,30 +1629,16 @@ total_sp
 # Columbia                               0.0   NA   NA   NA     0.0      0.0
 # total_sp                               9.7  6.3 16.3  7.1    60.5     99.9
 
-# PREVIOUS VALUE FROM SUBMISSION 1:
-#                                    Chinook Chum Coho Pink Sockeye total_rg
-# Yukon                                  0.0  0.1  0.0  0.0     0.0      0.1
-# Transboundary                          0.0  0.0  0.1  0.0     0.6      0.7
-# Haida Gwaii                            0.0  0.0  0.0  0.0     0.0      0.0
-# Nass                                   0.0  0.0  0.0  0.0     0.0      0.0
-# Skeena                                 0.0  0.0  0.0  0.0     0.0      0.0
-# Central Coast                          0.0  0.2  0.1  0.1     0.0      0.4
-# Vancouver Island & Mainland Inlets     2.7  3.7  3.8  3.8     3.1     17.1
-# Fraser                                 7.6  1.0 12.8  3.3    57.1     81.8
-# Columbia                               0.0  0.0  0.0  0.0     0.0      0.0
-# total_sp                              10.3  5.0 16.8  7.2    60.8    100.1
-
-
 #'* Number of populations and streams per year until 1990 *
 
 # remove the NAs and 0s
-nuseds <- nuseds[!cond_NA & !cond_0,]
-nrow(nuseds) # 152583 150839
+nuseds_cut <- nuseds[!cond_NA & !cond_0,]
+nrow(nuseds_cut) # 152583
 
 years <- 1980:1990
 populations <- sapply(X = years, function(yr){
-  cond_y <- nuseds$Year == yr
-  out <- length(unique(nuseds$population_id[cond_y]))
+  cond_y <- nuseds_cut$Year == yr
+  out <- length(unique(nuseds_cut$population_id[cond_y]))
   names(out) <- yr
   return(out)
 })
@@ -1562,13 +1646,9 @@ populations
 # 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
 # 2326 2340 2326 2335 2358 2682 2773 2474 2449 2461 2461
 
-# PROEVIOUS VALUE FROM SUBMISSION 1:
-# 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
-# 2308 2323 2311 2316 2341 2653 2746 2460 2437 2441 2442 
-
 streams <- sapply(X = years, function(yr){
-  cond_y <- nuseds$Year == yr
-  out <- length(unique(nuseds$GFE_ID[cond_y]))
+  cond_y <- nuseds_cut$Year == yr
+  out <- length(unique(nuseds_cut$GFE_ID[cond_y]))
   names(out) <- yr
   return(out)
 })
@@ -1576,25 +1656,22 @@ streams
 # 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
 # 1198 1227 1214 1190 1222 1366 1384 1296 1302 1348 1313 
 
-# PROEVIOUS VALUE FROM SUBMISSION 1:
-# 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 
-# 1195 1224 1211 1187 1218 1363 1381 1294 1299 1346 1310
 
 #'* Proportion of populations monitored in the most recent decade *
 #'
 
 # Number population total
-n_pop_total <- length(unique(nuseds$population_id))
+n_pop_total <- length(unique(nuseds_cut$population_id))
 n_pop_total # 6973
 
-cond_2014_2023 <- nuseds$Year > 2013
-cond_1980_1989 <- nuseds$Year > 1979 & nuseds$Year < 1990
+cond_2014_2023 <- nuseds_cut$Year > 2013
+cond_1980_1989 <- nuseds_cut$Year > 1979 & nuseds_cut$Year < 1990
 
-n_pop_2014 <- length(unique(nuseds$population_id[cond_2014_2023]))
+n_pop_2014 <- length(unique(nuseds_cut$population_id[cond_2014_2023]))
 n_pop_2014 # 2602
 n_pop_2014/n_pop_total * 100 # 37.32
 
-n_pop_1980 <- length(unique(nuseds$population_id[cond_1980_1989]))
+n_pop_1980 <- length(unique(nuseds_cut$population_id[cond_1980_1989]))
 n_pop_1980 # 4793
 n_pop_1980/n_pop_total * 100 # 68.74
 
@@ -1611,11 +1688,6 @@ lm
 #   (Intercept)  data_total$year[cond_min]  
 #       83296.0                      -40.7 
 
-# PROEVIOUS VALUE FROM SUBMISSION 1:
-# Coefficients:
-#   (Intercept)  data_total$year[cond_min]  
-#      86889.25                     -42.51  
-
 # In proportion:
 yr_nd <- - data_total$year[cond_min][1] + data_total$year[cond_min][sum(cond_min)] 
 (data_total$count_pop[cond_min][1] - data_total$count_pop[cond_min][sum(cond_min)])/data_total$count_pop[cond_min][1] / yr_nd * 100
@@ -1627,14 +1699,8 @@ yr_nd <- - data_total$year[cond_min][1] + data_total$year[cond_min][sum(cond_min
 
 #'* Monitoring of indicator stocks *
 
-# Filter NuSEDS to VIMI Chinook
-nuseds_vimiCK <- nuseds %>% 
-  filter(region == "Vancouver Island & Mainland Inlets", SPECIES == "Chinook")
-length(unique(nuseds_vimiCK$population_id)) # 272 268 264
-ctc_indicators %in% nuseds_vimiCK$population_id
-# TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
-
-# Indicator systems and associated population_id for the Pacific Salmon Comission's Chinook Technical Committee:
+# Indicator systems and associated population_id for the Pacific Salmon Comission's
+# Chinook Technical Committee:
 # https://www.psc.org/publications/technical-reports/technical-committee-reports/chinook/ctc-data-sets/
 # = /document/TCCHINOOK-24-01-Appendix-B-Escapement-Detailed.xlsx
 # Appendix B: Table 4, 5:
@@ -1681,6 +1747,13 @@ ctc_indicators <- sapply(pop_indicators,function(p){
 })
 # ctc_indicators <- c(1438, 1542, 1541, 1540, 2017, 1497, 1494, 1440, 1518, 1504, 1519, 1463, 1474, 1452, 1948, 1443, 1978)
 
+# Filter NuSEDS to VIMI Chinook
+nuseds_vimiCK <- nuseds_cut %>% 
+  filter(region == "Vancouver Island & Mainland Inlets", SPECIES == "Chinook")
+length(unique(nuseds_vimiCK$population_id)) # 272
+ctc_indicators %in% nuseds_vimiCK$population_id
+# TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+
 # Summarize monitoring 
 summary_vimiCK <- nuseds_vimiCK %>% 
   group_by(population_id) %>%
@@ -1707,7 +1780,6 @@ summary_vimiCK[1:30,]
 sum(summary_vimiCK$ctc_indicator[1:30])
 # 14
 
-
 # How many years of data for indicator stocks?
 mean(summary_vimiCK$nYearsData[summary_vimiCK$ctc_indicator == TRUE])
 # 63.58824
@@ -1718,7 +1790,7 @@ sum(summary_vimiCK$ctc_indicator)
 
 # How many population total?
 nrow(summary_vimiCK)
-# 272 268
+# 272
 
 # nb of populations not indicators
 sum(!summary_vimiCK$ctc_indicator)
@@ -1726,7 +1798,7 @@ sum(!summary_vimiCK$ctc_indicator)
 
 # Mean number of years for non indicators
 mean(summary_vimiCK$nYearsData[summary_vimiCK$ctc_indicator == FALSE])
-# 17.14118 17.41434
+# 17.14118
 
 # How many non-indicators have been monitored in the past decade?
 maxYr <- nuseds_vimiCK %>% filter(population_id %in% ctc_indicators == FALSE) %>%
@@ -1735,7 +1807,7 @@ maxYr <- nuseds_vimiCK %>% filter(population_id %in% ctc_indicators == FALSE) %>
 
 # What percent have not been monitored in the past decade?
 length(which(maxYr$`max(Year)` < 2013))/length(maxYr$`max(Year)`) * 100
-# 65.88235 66.13546
+# 65.88235
 
 #'*  Where is there a potential reporting bias? *
 
@@ -1749,9 +1821,11 @@ max(nuseds_YT$maxYr)
 #'* ADULT_PRESENCE for NA vs. 0s MAX_ESTIMATE *
 cond_NA <- is.na(nuseds$MAX_ESTIMATE)
 cond_0s <- !cond_NA & nuseds$MAX_ESTIMATE == 0
+
 table(nuseds$ADULT_PRESENCE[cond_NA])
-#    NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
-# 38         36500         99526         17067          3376 
+#               NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
+#            38         36500         99526         17067          3376 
+
 table(nuseds$ADULT_PRESENCE[cond_0s])
 # NONE OBSERVED NOT INSPECTED       PRESENT       UNKNOWN 
 #          3298            10           139             2 
@@ -1828,10 +1902,10 @@ length(unique(bs_dfo_cosewic$cosewic_source[cond_endangered & !cond_SH]))
 unique(bs_dfo_cosewic$cosewic_source[cond_endangered & !cond_SH])
 
 
-
 #'* commercial vs. recreational catch *
 #'
 catch_total <- read_xlsx(paste0(wd_data_input,"/NPAFC_Catch_Stat-1925-2023.xlsx")) |> as.data.frame()
+head(catch_total)
 catch_rec <- catch_total
 colnames(catch_rec) <- catch_rec[1,]
 catch_rec <- catch_rec[-1,]
@@ -1847,7 +1921,7 @@ catch_rec$`Whole Country/Province/State` |> unique()
 cond <- catch_rec$`Whole Country/Province/State` == "Whole country"
 catch_rec <- catch_rec[cond,]
 
-# Only keep Commercial
+# Only keep non-Commercial
 catch_rec$`Catch Type` |> unique()
 cond <- catch_rec$`Catch Type` %in% c("Sport","Subsistence")
 catch_rec <- catch_rec[cond,]
@@ -1868,33 +1942,33 @@ for(yr in col_yr){
 # (that should not change anything but it is the right way to proceed).
 cond_Total <- catch_rec$Species == "Total"
 cond_count <- catch_rec$`Data Type` == "Number (000's)"
-cond_mt <- catch_rec$`Data Type` == "Round wt (MT)"
+cond_mt <- catch_rec$`Data Type` == "Round wt (MT)"     # not available for non-commercial !
+cond_sport <- catch_rec$`Catch Type` == "Sport"
+cond_sub <- catch_rec$`Catch Type` == "Subsistence"
 
-# check 
-layout(matrix(1:2,ncol = 2))
-plot(x = catch_rec[cond_Total & cond_count,col_yr] |> as.numeric(), y = colSums(catch_rec[!cond_Total & cond_count,col_yr]))
+# check that Total == sum all species
+layout(matrix(1:2,ncol = 2, byrow = T))
+plot(x = catch_rec[cond_Total & cond_count & cond_sport,col_yr] |> as.numeric(), 
+     y = colSums(catch_rec[!cond_Total & cond_count & cond_sport,col_yr]),
+     xlab = "Total catch (sport)", ylab = "Sum species catch (sport)")
 abline(a = 0,b = 1)
-plot(x = catch_rec[cond_Total & cond_mt,col_yr] |> as.numeric(), y = colSums(catch_rec[!cond_Total & cond_mt,col_yr]))
+plot(x = catch_rec[cond_Total & cond_count & cond_sub,col_yr] |> as.numeric(), 
+     y = colSums(catch_rec[!cond_Total & cond_count & cond_sub,col_yr]),
+     xlab = "Total catch (Subsistence)", ylab = "Sum species catch (Subsistence)")
 abline(a = 0,b = 1)
-
-catch_rec[cond_Total & cond_count,col_yr][1,] <- colSums(catch_rec[!cond_Total & cond_count,col_yr])
-catch_rec[cond_Total & cond_mt,col_yr][1,] <- colSums(catch_rec[!cond_Total & cond_mt,col_yr])
+#
 
 #' Make it a long format
 unique(catch_rec$Species)
-
-
-cond_sport <- catch_rec$`Catch Type` == "Sport"
-cond_sub <- catch_rec$`Catch Type` == "Subsistence"
 
 # To long format
 dataExport <- NULL
 for(sp in unique(catch_rec$Species)){
   # sp <- unique(catch_rec$Species)[1]
   cond_sp <- catch_rec$Species == sp
-  count_sport <- catch_rec[cond_sp & cond_sport,col_yr,drop = T] |> unlist()
+  count_sport <- catch_rec[cond_sp & cond_count& cond_sport,col_yr,drop = T] |> unlist()
   count_sport <- count_sport * 1000
-  count_sub <- catch_rec[cond_sp & cond_sub,col_yr,drop = T] |> unlist()
+  count_sub <- catch_rec[cond_sp & cond_count & cond_sub,col_yr,drop = T] |> unlist()
   count_sub <- count_sub * 1000
   
   dataExportHere <- data.frame(species = sp,
@@ -1947,123 +2021,4 @@ for(v in c("count_sport","count_sub","count_rec")){
 }
 
 #
-# FIGURE 5 OLD: Correlation btw Number population monitored vs. catch ---------
-#
-
-years <- min(data_total$year):max(data_total$year)
-year_cut <- 1960
-
-plot_correlation <- T
-show_trendline <- F
-pval_show <- T
-
-# colour gradient for years
-colfunc_yr <- colorRampPalette(c("#1962A0","#9E163C"))
-data_yr_col <- data.frame(year =  year_cut:max(years),
-                          colours = colfunc_yr(length(year_cut:max(years))))
-data_yr_col$colours_trans <- colour_transparency_fun(data_yr_col$colours, alpha = .7)
-
-coef <- .9
-if(figures_print){
-  jpeg(paste0(wd_figures,"/Correlation_Number_surveys_vs_Catches.jpeg"),
-       width = 21.59 * coef, height = 14 * coef, units = 'cm', res = 300)
-}
-layout(matrix(1:(length(species)+1), nrow = 2, byrow = T),  
-       widths =  c(1.13,1,1), heights = c(1,1.15))
-i <- 1
-for(sp in species){
-  # sp <- species[2]
-  
-  # Catch
-  cond_sp_c <- catch$species == sp
-  data_c <- catch[cond_sp_c,c("year","count")]
-  colnames(data_c)[colnames(data_c) == "count"] <- "catch"
-  data_c$catch <- data_c$catch / 1000
-  
-  # surveys
-  cond_sp <- data_sp$species == sp
-  data_s <- data_sp[cond_sp,c("year","count_pop")]
-  
-  # merge the two
-  data <- merge(x = data_c, y = data_s, by = "year", all = T)
-  
-  # merge with data_yr_col
-  data <- merge(x = data, y = data_yr_col, by = "year", all = T)
-  
-  # Only select data points after 1960
-  cond <- data$year > year_cut
-  
-  x <- data$catch[cond]
-  y <- data$count_pop[cond]
-  
-  n <- min(c(sum(!is.na(x)),sum(!is.na(y)))) # number of data points
-  
-  side1 <- 2
-  side2 <- 2
-  xlab <- ylab <- ""
-  yaxt <- "s"
-  if(i > 3){
-    side1 <- 4.5
-    xlab <- "Catches (in thousands)"
-  }
-  if(i %in% c(1,4)){
-    side2 <- 4.5
-    ylab <- "Number of populations monitored"
-    # yaxt <- 's'
-  }
-  
-  par(mar = c(side1,side2,.5,.5))
-  plot(x = x, y = y, pch = 16, col = data$colours_trans[cond],
-       cex = 2, yaxt = yaxt, xlab = xlab, ylab = ylab, main = "")
-  #abline(a = 0, b = 1)
-  if(i == 3){
-    mtext("Catches (in thousands)",side = 1,line = 3,cex = .65)
-  }
-  
-  # regression line
-  # m <- loess(surveys ~ catch, data = data[cond,], span = .5)
-  if(show_trendline){
-    m <- lm(surveys ~ catch, data = data[cond,])
-    y_m <- predict(m, newdata = data[cond,])
-    lines(x = x, y = y_m, lwd = 2)
-  }
-  cor_spear <- cor.test(x = x, y = y, method = "spearman")
-  pval <- ""
-  if(pval_show){
-    if(cor_spear$p.value < 0.001){
-      pval <- "***"
-    }else if(cor_spear$p.value < 0.01){
-      pval <- "**"
-    }else if(cor_spear$p.value < 0.05){
-      pval <- "*"
-    }
-  }
-  if(sp == "Sockeye"){
-    legend("topright",paste0(letters[i],") ",sp),bty='n')
-  }else{
-    legend("topleft",paste0(letters[i],") ",sp),bty='n')
-  }
-  legend("bottomright",
-         legend = bquote(rho~"="~.(round(cor_spear$estimate,2))~" "~.(pval)~" "), 
-         bty = "n")
-  # legend("bottomleft", legend = paste("n =",n), bty = "n") # it is the same number for all species
-  
-  i <- i + 1
-  
-  print(paste("***",sp,"***"))
-  print(cor_spear)
-  
-}
-# plot legend
-par(mar = c(10,3,8,3))
-plot(NA, ylim = c(0,1), xlim = range(data_yr_col$year), xaxt = 's', yaxt = 'n', 
-     xlab = "Year", ylab = "", xaxs = "i", yaxs = "i")
-for(yr in data_yr_col$year){
-  cond <- data_yr_col$year == yr
-  polygon(x = c(yr,yr + 1, yr + 1, yr),y = c(0,0,1,1),border = NA, col = data_yr_col$colours_trans[cond])
-}
-if(figures_print){
-  dev.off()
-}
-
-#
+# END

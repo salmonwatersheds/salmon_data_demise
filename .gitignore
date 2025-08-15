@@ -12,6 +12,8 @@ code/2_analysis_regression.html
 code/Supp_glm_analysis.html
 code/Supp_main.html
 code/Supp_nuseds_cleaning.html
+code/old
+code/3_analysis_regression.rmd
 
 figures/archives
 figures/archives 2
@@ -31,6 +33,10 @@ data_input/nuseds_cuid_streamid_20240419.csv
 data_input/nuseds_cuid_streamid_2024-11-21.csv
 data_input/nuseds_cuid_streamid_2024-11-25.csv
 data_input/nuseds_cuid_streamid_2025-04-15.csv
+data_input/all_areas_nuseds_noNAs_TEMP.csv
+data_input/PSF_modified_SEP_releases_2023.xlsx
+# data_input/all_areas_nuseds_2025-02-21.csv
+# DFO_All_Streams_Segments_20230408.xlsx
 data_input/gshhg-shp-2.3.7
 
 data_output/GLM_catch_value_year

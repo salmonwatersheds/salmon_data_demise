@@ -163,21 +163,58 @@ distance_Euclidean_fun <- function(x_ref,y_ref,x,y){
 }
 
 #' Function to return the last version of a file whose name contains the given
-#' pattern.
-import_mostRecent_file_fun <- function(wd,pattern){
+#' pattern. Works with .csv and .xlsx formats.
+import_mostRecent_file_fun <- function(wd,pattern,pattern_exclude = NA,second_last = F){
   
   files_c <- list.files(wd)
   files_c <- files_c[grepl(x = files_c, 
                            pattern = pattern)]
+  
+  if(!is.na(pattern_exclude[1])){
+    for(p in pattern_exclude){
+      files_c <- files_c[!grepl(x = files_c, 
+                                pattern = p)]
+    }
+  }
   
   if(length(files_c) == 0){
     print("File not found.")
     out <- NA
   }else{
     file.mtime <- file.mtime(paste(wd,files_c,sep="/"))
-    file <- files_c[file.mtime == max(file.mtime)]
-    print(paste0("File imported: ",file," ; Date modified: ", max(file.mtime)))
-    out <- read.csv(paste(wd,file,sep = "/"),header = T)
+    
+    if(second_last){ # to select the second last file
+      time_secondLast <- rev(sort(file.mtime))[2]
+      file <- files_c[file.mtime == time_secondLast]
+      print(paste0("Second last file imported: ",file," ; Date modified: ",time_secondLast))
+      file_last <- files_c[file.mtime == max(file.mtime)]
+      print(paste0("Last file is: ",file_last," ; Date modified: ", max(file.mtime)))
+      
+    }else{
+      file <- files_c[file.mtime == max(file.mtime)]
+      print(paste0("File imported: ",file," ; Date modified: ", max(file.mtime)))
+    }
+    
+    if(grepl(".xlsx",file)){
+      require(readxl)
+      sheets_n <- excel_sheets(paste(wd,file,sep = "/"))
+      out <- list()
+      for(s in sheets_n){
+        out[[which(s == sheets_n)]] <- read_excel(path = paste(wd,file,sep = "/"),
+                                                  sheet = s)
+      }
+      names(out) <- sheets_n
+      
+      if(length(out) == 1){ # return a data frame instead of a list if there is only one sheet
+        out <- out[[1]]
+      }
+      
+    }else if(grepl(".csv",file)){
+      out <- read.csv(paste(wd,file,sep = "/"),header = T)
+      
+    }else{
+      Print("File format to implement.")
+    }
   }
   return(out)
 }
@@ -317,4 +354,247 @@ AIC_R2_glm_fun <- function(list_glm,glm_null){
   return(out)
 }
 
+#' Function to return a list for the fields in all_areas_nuseds and 
+#' conservation_unit_system_sites that are associated to unique IndexId and GFE_ID,
+#' to both and to none. The assumption is based on if single or multiple values
+#' of a given field is returned for each IndexId or GDE_ID.
+fields_IndexId_GFE_ID_fun <- function(all_areas_nuseds = NA,
+                                      conservation_unit_system_sites,
+                                      runProcess = F,                # takes a while
+                                      newFieldsIncluded = T){
+  
+  #' the commented out code was used to obtained the vectors of fields. The procedure
+  #' take a bit of time so instead those vectors were copy pasted.
+  
+  #' *** conservation_unit_system_sites ***
+  CUSS_l <- list()
+  
+  # IndexId
+  if(runProcess){
+    fields_CUSS_asso <- association_twoFields_fun(fields_1 = c("IndexId","GFE_ID"),
+                                                  fields_2 = colnames(conservation_unit_system_sites),
+                                                  dataset = conservation_unit_system_sites,
+                                                  silence = T)
+    
+    cond_iid <- fields_CUSS_asso$fields_1 == "IndexId" &
+      fields_CUSS_asso$association == "single"
+    out <- as.character(fields_CUSS_asso$fields_2[cond_iid])
+    
+  }else{
+    out <- c('SPECIES_QUALIFIED','FAZ_ACRO','MAZ_ACRO','JAZ_ACRO',
+             'CU_NAME','CU_ACRO','CU_LAT','CU_LONGT','CU_TYPE','CU_INDEX','FULL_CU_IN',
+             'SBJ_ID','POP_ID','SPECIES',"IS_INDICATOR","CMNTS","EFFECTIVE_DT")
+    
+    if(newFieldsIncluded){
+      out <- c(out,'species_acronym_ncc','IndexId')
+      out <- unique(out)
+    }
+  }
+  CUSS_l[[1]] <- out
+  
+  
+  # GFE_ID
+  if(runProcess){
+    cond_gfeid <- fields_CUSS_asso$fields_1 == "GFE_ID" &
+      fields_CUSS_asso$association == "single"
+    fields_CUSS_asso[cond_gfeid,]
+    out <- as.character(fields_CUSS_asso$fields_2[cond_gfeid])
+    
+    # remove fields that are known to be CU related only
+    out <- out[!out %in% c('FAZ_ACRO','MAZ_ACRO','JAZ_ACRO')]
+    
+  }else{
+    out <- c('GFE_ID','SYSTEM_SITE','GFE_TYPE','Y_LAT','X_LONGT','WATERSHED_CDE',
+             'FWA_WATERSHED_CDE')
+    
+    if("coordinates_changed" %in% colnames(conservation_unit_system_sites)){
+      out <- c(out,"coordinates_changed")
+    }
+  }
+  CUSS_l[[2]] <- out
+  
+  # both
+  if(runProcess){
+    out <- c()
+    for(f in  unique(fields_CUSS_asso$fields_2)){
+      cond1 <- fields_CUSS_asso[fields_CUSS_asso$fields_1 == "IndexId" &
+                                  fields_CUSS_asso$fields_2 == f,]$association == "single"
+      cond2 <- fields_CUSS_asso[fields_CUSS_asso$fields_1 == "GFE_ID" &
+                                  fields_CUSS_asso$fields_2 == f,]$association == "single"
+      if(all(c(cond1,cond2))){
+        out <- c(out,f)
+      }
+    }
+    out <- out
+    
+    # remove fields that are known to be CU related only
+    out <- out[!out %in% c('FAZ_ACRO','MAZ_ACRO','JAZ_ACRO')]
+    
+  }else{
+    out <- c()
+  }
+  CUSS_l[[3]] <- out
+  
+  # none
+  if(runProcess){
+    out <- c()
+    for(f in  unique(fields_CUSS_asso$fields_2)){
+      cond1 <- fields_CUSS_asso[fields_CUSS_asso$fields_1 == "IndexId" &
+                                  fields_CUSS_asso$fields_2 == f,]$association == "single"
+      cond2 <- fields_CUSS_asso[fields_CUSS_asso$fields_1 == "GFE_ID" &
+                                  fields_CUSS_asso$fields_2 == f,]$association == "single"
+      if(all(c(!cond1,!cond2))){
+        out <- c(out,f)
+      }
+    }
+    
+  }else{
+    out <- c('MAP_LABEL')
+  }
+  CUSS_l[[4]] <- out
+  
+  # CU_NAME & species_acronym_ncc
+  # if(runProcess & newFieldsIncluded){ # species_acronym_ncc is a new field
+  #   
+  #   newVar <- apply(conservation_unit_system_sites[,c("species_acronym_ncc","CU_NAME")],
+  #                   1,paste, collapse = " ")
+  #   
+  #   CUSS_new <- conservation_unit_system_sites
+  #   CUSS_new$species_CU_NAME <- newVar
+  #   
+  #   fields_CUSS_asso <- association_twoFields_fun(fields_1 = c("species_CU_NAME"),
+  #                                                 fields_2 = colnames(CUSS_new),
+  #                                                 dataset = CUSS_new,
+  #                                                 silence = T)
+  #   out <- c()
+  #   for(f in  unique(fields_CUSS_asso$fields_2)){
+  #     cond1 <- fields_CUSS_asso[fields_CUSS_asso$fields_1 == "species_CU_NAME" &
+  #                                 fields_CUSS_asso$fields_2 == f,]$association == "single"
+  #     cond2 <- fields_CUSS_asso[fields_CUSS_asso$fields_1 == "species_CU_NAME" &
+  #                                 fields_CUSS_asso$fields_2 == f,]$association == "single"
+  #     if(all(c(cond1,cond2))){
+  #       out <- c(out,f)
+  #     }
+  #   }
+  #   
+  # }else{
+  #   out <- c('SPECIES_QUALIFIED','CU_NAME','CU_ACRO','CU_LAT','CU_LONGT','CU_TYPE',
+  #            'CU_INDEX','FULL_CU_IN','SBJ_ID','SPECIES')
+  #   
+  #   if(newFieldsIncluded){
+  #     out <- c(out,"species_acronym_ncc")
+  #   }
+  # }
+  # 
+  # CUSS_l[[5]] <- out
+  
+  #
+  names(CUSS_l) <- c('IndexId','GFE_ID','both','none')
+  
+  
+  #' *** all_areas_nuseds ***
+  NUSEDS_l <- list()
+  if(runProcess){
+    fields_NUSEDS_asso <- association_twoFields_fun(fields_1 = c("IndexId","GFE_ID"),
+                                                    fields_2 = colnames(all_areas_nuseds),
+                                                    dataset = all_areas_nuseds,
+                                                    silence = T)
+    
+    # IndexId
+    cond_iid <- fields_NUSEDS_asso$fields_1 == "IndexId" &
+      fields_NUSEDS_asso$association == "single"
+    out <- as.character(fields_NUSEDS_asso$fields_2[cond_iid])
+    
+  }else{
+    out <- c("SPECIES","POPULATION","RUN_TYPE","POP_ID")
+    
+    if(newFieldsIncluded){
+      out <- c(out,'species_acronym_ncc','IndexId')
+      out <- unique(out)
+    }
+  }
+  NUSEDS_l[[1]] <- out
+  
+  # GFE_ID
+  if(runProcess){
+    cond_gfeid <- fields_NUSEDS_asso$fields_1 == "GFE_ID" &
+      fields_NUSEDS_asso$association == "single"
+    fields_NUSEDS_asso[cond_gfeid,]
+    out <- as.character(fields_NUSEDS_asso$fields_2[cond_gfeid])
+    
+  }else{
+    out <- c('AREA','WATERBODY','GAZETTED_NAME','LOCAL_NAME_1','LOCAL_NAME_2',
+             'WATERSHED_CDE','WATERBODY_ID','GFE_ID')
+    
+    if(newFieldsIncluded){
+      # out <- c(out,'StatArea') # field not create in script 1 anymore
+      out <- unique(out)
+    }
+  }
+  NUSEDS_l[[2]] <- out
+  
+  # both
+  if(runProcess){
+    out <- c()
+    for(f in  unique(fields_NUSEDS_asso$fields_2)){
+      cond1 <- fields_NUSEDS_asso[fields_NUSEDS_asso$fields_1 == "IndexId" &
+                                    fields_NUSEDS_asso$fields_2 == f,]$association == "single"
+      cond2 <- fields_NUSEDS_asso[fields_NUSEDS_asso$fields_1 == "GFE_ID" &
+                                    fields_NUSEDS_asso$fields_2 == f,]$association == "single"
+      if(all(c(cond1,cond2))){
+        out <- c(out,f)
+      }
+    }
+    
+  }else{
+    out <- c()
+    
+  }
+  NUSEDS_l[[3]] <- out
+  
+  # none
+  if(runProcess){
+    out <- c()
+    for(f in  unique(fields_NUSEDS_asso$fields_2)){
+      cond1 <- fields_NUSEDS_asso[fields_NUSEDS_asso$fields_1 == "IndexId" &
+                                    fields_NUSEDS_asso$fields_2 == f,]$association == "single"
+      cond2 <- fields_NUSEDS_asso[fields_NUSEDS_asso$fields_1 == "GFE_ID" &
+                                    fields_NUSEDS_asso$fields_2 == f,]$association == "single"
+      if(all(c(!cond1,!cond2))){
+        out <- c(out,f)
+      }
+    }
+    
+  }else{
+    out <- c('ANALYSIS_YR','NATURAL_ADULT_SPAWNERS',
+             'NATURAL_JACK_SPAWNERS','NATURAL_SPAWNERS_TOTAL',
+             'ADULT_BROODSTOCK_REMOVALS','JACK_BROODSTOCK_REMOVALS',
+             'TOTAL_BROODSTOCK_REMOVALS','OTHER_REMOVALS','TOTAL_RETURN_TO_RIVER',
+             'ENUMERATION_METHODS','ADULT_PRESENCE','JACK_PRESENCE','START_DTT',
+             'END_DTT','NATURAL_ADULT_FEMALES','NATURAL_ADULT_MALES',
+             'EFFECTIVE_FEMALES','WEIGHTED_PCT_SPAWN',
+             'STREAM_ARRIVAL_DT_FROM','STREAM_ARRIVAL_DT_TO','START_SPAWN_DT_FROM',
+             'START_SPAWN_DT_TO','PEAK_SPAWN_DT_FROM','PEAK_SPAWN_DT_TO',
+             'END_SPAWN_DT_FROM','END_SPAWN_DT_TO','ACCURACY','PRECISION',
+             'INDEX_YN','RELIABILITY','ESTIMATE_STAGE','ESTIMATE_CLASSIFICATION',
+             'NO_INSPECTIONS_USED','ESTIMATE_METHOD','CREATED_DTT','UPDATED_DTT',
+             'ACT_ID','Source','Spawners','SpawnersSource',
+             'Broodstock','BroodstockSource','Removals','RemovalsSource')
+    
+    if(newFieldsIncluded){
+      out <- c(out,'Returns','MAX_ESTIMATE')
+      out[out == "ANALYSIS_YR"] <- 'Year'
+      out <- unique(out)
+    }
+  }
+  NUSEDS_l[[4]] <- out
+  
+  #
+  names(NUSEDS_l) <- c('IndexId','GFE_ID','both','none')
+  
+  out <- list(NUSEDS_l,CUSS_l)
+  names(out) <- c("NUSEDS","CUSS")
+  
+  return(out)
+}
 

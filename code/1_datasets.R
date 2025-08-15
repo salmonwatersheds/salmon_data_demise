@@ -1,12 +1,12 @@
 
-
 #'******************************************************************************
 #' The goal of the script is to make summary datasets from the cleaned NuSEDS
 #' dataset to be used in 2_analyses.R.
 #' 
 #' Files imported:
-#' - nuseds_cuid_streamid_2024-11-25.csv                 # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
-#' - region_survey.csv                                   # the region - populations (field "streamid") associations; created in 0_assign-regions.R
+#' - nuseds_cuid_streamid_2025-14-15.csv   # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
+#' - region_survey.csv                     # the "region" (i.e. CU-related region) and region_survey (i.e. the region where the survey was conducted); created in 0_assign-regions.R
+#' - NPAFC_Catch_Stat-1925-2023.xlsx       # catch data from the NPAFC Statistics
 #' 
 #' Files produced: 
 #' - populationAssessed_catches_data_remove_0s_NAs.xlsx  # The summary files where both 0s and NAs counts were removed (results presented in the main text)
@@ -27,6 +27,8 @@ library(xlsx) # Package doesn't work..on mac?
 library(readxl)
 source("code/functions.R")
 
+wd_data_input <- paste0(getwd(),"/data_input")
+
 #'* OPTION CONCERNING THE 0s and NAs *
 #' - option 1: remove both the NAs and Os (--> results in the main text)
 #' - option 2: remove only the NAs
@@ -37,8 +39,6 @@ option_0s_NAs <- c("remove_0s_NAs","remove_NAs","fix_0s_NAs")[i_option]
 
 # Import source files ------
 #
-
-wd_data_input <- paste0(getwd(),"/data_input")
 
 #'* Import the definition of the different fields of these two datasets *
 fields_def <- nuseds_fields_definitions_fun(wd_references = wd_data_input)
@@ -55,7 +55,6 @@ head(region_survey)
 # https://www.npafc.org/wp-content/uploads/Statistics/Statistics-Metadata-Report-June2024.pdf
 catch_total <- read_xlsx(paste0(wd_data_input,"/NPAFC_Catch_Stat-1925-2023.xlsx")) |> as.data.frame()
 catch <- catch_total
-# catch_total <- catch
 colnames(catch) <- catch[1,]
 catch <- catch[-1,]
 head(catch)
@@ -82,7 +81,6 @@ catch <- catch[!cond_SH,]
 
 # Make sure all the counts are "numeric"
 col_yr <- colnames(catch)[colnames(catch) %in% 1900:2050]
-# apply(catch[,col_yr],2,as,numeric()) # does not work... 
 for(yr in col_yr){
   catch[,yr] <- as.numeric(catch[,yr])
 }
@@ -95,20 +93,19 @@ cond_mt <- catch$`Data Type` == "Round wt (MT)"
 
 # check 
 layout(matrix(1:2,ncol = 2))
-plot(x = catch[cond_Total & cond_count,col_yr] |> as.numeric(), y = colSums(catch[!cond_Total & cond_count,col_yr]))
+plot(x = catch[cond_Total & cond_count,col_yr] |> as.numeric(), 
+     y = colSums(catch[!cond_Total & cond_count,col_yr]))
 abline(a = 0,b = 1)
-plot(x = catch[cond_Total & cond_mt,col_yr] |> as.numeric(), y = colSums(catch[!cond_Total & cond_mt,col_yr]))
+plot(x = catch[cond_Total & cond_mt,col_yr] |> as.numeric(), 
+     y = colSums(catch[!cond_Total & cond_mt,col_yr]))
 abline(a = 0,b = 1)
 
 catch[cond_Total & cond_count,col_yr][1,] <- colSums(catch[!cond_Total & cond_count,col_yr])
 catch[cond_Total & cond_mt,col_yr][1,] <- colSums(catch[!cond_Total & cond_mt,col_yr])
 
-
 #' Make it a long format
-
 unique(catch$Species)
 
-# To long format
 dataExport <- NULL
 for(sp in unique(catch$Species)){
   # sp <- unique(catch$Species)[1]
@@ -132,31 +129,27 @@ for(sp in unique(catch$Species)){
 Number_catches_species_total <- dataExport
 
 # check that fish weight make sense:
-hist(Number_catches_species_total$wt_kg/Number_catches_species_total$count)
+layout(matrix(1))
+hist(Number_catches_species_total$wt_kg/Number_catches_species_total$count, 
+     main = "")
 
 
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
-#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' TODO: to download at https://zenodo.org/records/14194639 and place it in the
 #' /data_input folder.
-
 nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
                    header = T)
-# nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_20240419.csv"), header = T)
 head(nuseds)
 nrow(nuseds) # 312539 306823
 
 cond <- nuseds$region == "Northern Transboundary"
 nuseds$region[cond] <- "Transboundary"
 
-# edit the field streamid --> population_id to avoid confusion
+# Edit the field streamid --> population_id to avoid confusion
 # the field is a unique combination between a CU (cuid) and a stream location (GFE_ID)
 # = a popualation
 colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
-
-#' IMPORTANT NOTE: streamid = unique cuid & GFE_ID combination
-#' The name 'streamid' is miss-leading as it seems to characterise a stream only
-#' but it characterises a unique CU & location association.
 
 #
 # Remove NAs OR NAs and 0s (based on decision) ------
@@ -166,23 +159,23 @@ colnames(nuseds)[colnames(nuseds) == "streamid"] <- "population_id"
 #'  
 
 cond_NA <- is.na(nuseds$MAX_ESTIMATE)
-sum(cond_NA) # 156507 152992
+sum(cond_NA) # 156507
 cond_0 <- nuseds$MAX_ESTIMATE == 0 & !cond_NA
-sum(cond_0)  # 3449 2992
+sum(cond_0)  # 3449
 
-sum(cond_0)/sum(!cond_NA) * 100
+sum(cond_0)/sum(!cond_NA) * 100 # 2.210444
 
 if(option_0s_NAs == "remove_0s_NAs"){
   
   nuseds <- nuseds[!(cond_NA | cond_0),]
-  nrow(nuseds) # 152583 150839
+  nrow(nuseds) # 152583
   
 }else if(option_0s_NAs == "remove_NAs"){
   
   nuseds <- nuseds[!cond_NA,]
-  nrow(nuseds) # 156032 153831
+  nrow(nuseds) # 156032
   
-}else if(option_0s_NAs == "fix_0s_NAs"){
+}else if(option_0s_NAs == "fix_0s_NAs"){ # not used
   
   table(nuseds$ADULT_PRESENCE[cond_0])
   # NONE OBSERVED NOT INSPECTED       PRESENT 
@@ -228,7 +221,6 @@ if(option_0s_NAs == "remove_0s_NAs"){
   sum(nuseds$MAX_ESTIMATE == 0 & !is.na(nuseds$MAX_ESTIMATE)) # 39389
   nuseds <- nuseds[!is.na(nuseds$MAX_ESTIMATE),]
   nrow(nuseds) # 190228
-  
 }
 
 # 
@@ -240,15 +232,15 @@ colToKeep <- c("region","SPECIES","SPECIES_QUALIFIED","cu_name_pse","cuid","POP_
 nuseds <- nuseds[,colToKeep] 
 
 # Some checks
-sum(is.na(nuseds$population_id)) # 1121 1347 1102 1011
-sum(is.na(nuseds$cuid))     # 1121 1347 1102 1011
-sum(is.na(nuseds$cuid)) / nrow(nuseds) * 100 # 0.718 0.708 0.716 0.67
+sum(is.na(nuseds$population_id)) # 1121
+sum(is.na(nuseds$cuid))          # 1121
+sum(is.na(nuseds$cuid)) / nrow(nuseds) * 100 # 0.718
 sum(is.na(nuseds$POP_ID))   # 0
 sum(is.na(nuseds$GFE_ID))   # 0
 
-length(unique(nuseds$cuid))     # 393 391
-length(unique(nuseds$population_id)) # 6949 6767 6767
-length(unique(nuseds$POP_ID))        # 6167 6009 6009 --> ideally should be = to nb population_id but several POP_ID are associated to multiple GFE_IDs in NuSEDS
+length(unique(nuseds$cuid))          # 393
+length(unique(nuseds$population_id)) # 6949
+length(unique(nuseds$POP_ID))        # 6167 --> ideally should be = to nb population_id but several POP_ID are associated to multiple GFE_IDs in NuSEDS
 
 # Check CU_NAMEs without a cuid
 cond <- is.na(nuseds$cuid)
@@ -258,7 +250,7 @@ length(CU_NAME_noCuid$CU_NAME)                # there are 22 CUS without a cuid
 cond_NA <- is.na(nuseds$population_id)
 pop_NA <- unique(nuseds[cond_NA,c("region","SPECIES_QUALIFIED","CU_NAME","POP_ID","GFE_ID")]) # same nb rows as unique(nuseds[cond_NA,c("POP_ID","GFE_ID")])
 nrow(pop_NA)                   # corresponding to 82 populations
-sum(is.na(nuseds$cuid))        # corresponding number of data points
+sum(is.na(nuseds$cuid))        # corresponding to 1121 data points
 
 #
 # Associate the region_survey ------
@@ -314,14 +306,14 @@ for(r in 1:nrow(pop_NA)){
   }
 }
 
-sum(is.na(nuseds$population_id))
+sum(is.na(nuseds$population_id)) # 0
 
 #
 # Produce the datasets -----
 #
 
 #'* Important notes *
-#' The calculations on the number of population surveyed consider the populations
+#' The calculations on the number of populations surveyed consider the populations
 #' without a cuid, the ones on the number of CUs, do not.
 
 cond_cuid_NA <- is.na(nuseds$cuid)
@@ -339,11 +331,6 @@ years_even <- years[years %% 2 == 0]
 
 cond_odd <- nuseds$Year %in% years_odd
 cond_even <- nuseds$Year %in% years_even
-# SP: I don't understand why these counts have to be separated for even and odd years?
-# BSC: Because of the pink odd and even CUs: the proportions of populations (population_id)
-# in each year has to account for the fact that the pink population are only 
-# assessed every two years. So we should not count the presence or absence of 
-# pink populations in their off years.
 
 count_odd <- sapply(years_odd,function(y){
   cond <- nuseds$Year == y
@@ -382,7 +369,6 @@ proportion_CU_odd <- count_CU_odd/nb_CU_total_odd
 
 nb_CU_total_even <- length(unique(nuseds$cuid[cond_even & !cond_cuid_NA]))
 proportion_CU_even <- count_CU_even/nb_CU_total_even
-
 
 dataExport <- data.frame(year = c(years_odd,years_even),
                          count_pop = c(count_odd,count_even),
@@ -481,7 +467,6 @@ for(rg in regions){
 }
 
 Number_Prop_populationsAssessed_regions <- dataExport
-
 
 #'* Count of surveys per species *
 
@@ -599,7 +584,6 @@ for(sp in species){
 }
 
 Number_Prop_populationsAssessed_species <- dataExport
-
 
 #'* Count of surveys per region > species *
 
@@ -966,10 +950,6 @@ for(sh_i in 1:length(names(files_l))){
   print(sh_i)
 }
 
-
-
-
-
-
+# END
 
 
