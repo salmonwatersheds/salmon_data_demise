@@ -598,3 +598,577 @@ fields_IndexId_GFE_ID_fun <- function(all_areas_nuseds = NA,
   return(out)
 }
 
+#' Function to plot "MAX_ESTIMATE" (or "Returns") time series from the 
+#' modified all_areas_nuseds data.
+#' Options:
+#' - show all GFE_IDs corresponding to each IndexId in IndexIds (vector).
+#' - show all IndexIds corresponding to each GFE_ID in GFE_IDs (vector)
+#'    - possibility in that later case to filter for certain species given as 
+#'      acronyms (i.e. CM, CO, CN, SX, PK, PKE, PKO)
+# IndexIds <- c("PKO_52704","SX_3302")
+# GFE_IDs <- NA
+# species_acro <- NA
+# IndexIds <- "CM_42743"
+# GFE_IDs <- c( 1829,1911)
+# species_acro <- c("PK","CM")
+plot_IndexId_GFE_ID_fun <- function(IndexIds = NA, GFE_IDs = NA, species_acro = NA,
+                                    all_areas_nuseds, 
+                                    xaxt = 's', yaxt = 's', xlab = NA, ylab = NA,
+                                    Xlim = NA, Ylim = NA, main = "",pchs = NA,ltys= NA,
+                                    y_var_name = c("MAX_ESTIMATE","Returns"),
+                                    colPalette = c("firebrick","chartreuse3","black","deepskyblue3")){
+  
+  y_var_name <- y_var_name[1]
+  
+  # in case both IndedIds and GFE_IDs are provided and have the same length
+  if(!all(is.na(IndexIds)) & !all(is.na(GFE_IDs)) & length(IndexIds) == length(GFE_IDs)){
+    
+    nusedsHere <- lapply(X = 1:length(IndexIds), FUN = function(i){
+      cond <- all_areas_nuseds$IndexId == IndexIds[i] &
+        all_areas_nuseds$GFE_ID == as.numeric(GFE_IDs[i])
+      return(all_areas_nuseds[cond,])
+    })
+    nusedsHere <- do.call(rbind,nusedsHere)
+    
+    # if only certain species are displayed:
+    if(all(!is.na(species_acro))){
+      nusedsHereSub_l <- lapply(X = species_acro, FUN = function(s){
+        out <- nusedsHere[grepl(s,nusedsHere$IndexId),]
+        return(out)
+      })
+      nusedsHere <- do.call(rbind,nusedsHereSub_l)
+    }
+    
+    if(is.na(xlab)){
+      xlab = "Years"
+    }
+    if(is.na(ylab)){
+      ylab = y_var_name
+    }
+    
+    if(nrow(nusedsHere) == 0){ # in case there is no time series anymore 
+      plot(NA, xlim = c(0,1), ylim = c(0,1), ylab = ylab, xlab = xlab, main = main, 
+           xaxt = xaxt, yaxt = yaxt)
+      
+    }else{
+      
+      yr_min <- min(nusedsHere$Year)
+      yr_max <- max(nusedsHere$Year)
+      yrs <- yr_min:yr_max
+      pop_max <- max(nusedsHere[,y_var_name], na.rm = T)
+      if(is.infinite(pop_max)){
+        pop_max <- 1
+      }
+      
+      colfunc <- colorRampPalette(colPalette)
+      cols <- colfunc(length(IndexIds))
+      if(is.na(ltys)[1]){
+        ltys <- 1:length(IndexIds)
+      }
+      if(is.na(pchs)[1]){
+        pchs <- 1:length(IndexIds)
+      }
+      
+      if(all(is.na(Xlim))){
+        xlim <- c(yr_min-(yr_max - yr_min)/5,yr_max)
+      }else{
+        xlim <- Xlim
+      }
+      if(all(is.na(Ylim))){
+        ylim <- c(0,pop_max + pop_max / 5)
+      }else{
+        ylim <- Ylim
+      }
+      
+      plot(NA, xlim = xlim, ylim = ylim, ylab = ylab, xlab = xlab, main = main, 
+           xaxt = xaxt, yaxt = yaxt)
+      
+      for(s in 1:length(IndexIds)){
+        # s <- 1
+        cond <- nusedsHere$IndexId == IndexIds[s] &
+          nusedsHere$GFE_ID == as.numeric(GFE_IDs[s])
+        dataHere <- nusedsHere[cond,]
+        dataHere <- dataHere[order(dataHere$Year),c(y_var_name,"Year")]
+        # print(dataHere)
+        lines(y = dataHere[,y_var_name], x = dataHere$Year, lwd = 2, col = cols[s], 
+              lty = ltys[s])
+        points(y = dataHere[,y_var_name], x = dataHere$Year, 
+               pch = pchs[s], col = cols[s], lwd = 2)
+      }
+      
+      series_name <- sapply(X = 1:length(IndexIds),FUN = function(i){
+        out <- paste(IndexIds[i],as.numeric(GFE_IDs[i]), sep = " - ")
+        return(out)
+      })
+      
+      legend("topleft",series_name, col = cols, lwd = 3, bty = "n", 
+             lty = ltys, pch = pchs)
+    }
+    
+  }else{
+    
+    # plot all the GFE_IDs found for each IndexId in IndexIds
+    if(!all(is.na(IndexIds)) & all(is.na(GFE_IDs))){
+      var_out <- "IndexId"
+      var_in <- "GFE_ID"
+      var_out_vals <- IndexIds
+      
+      # plot all the IndexIds for each GFE_ID in GFE_IDs 
+    }else if(all(is.na(IndexIds)) & !all(is.na(GFE_IDs))){
+      var_out <- "GFE_ID"
+      var_in <- "IndexId"
+      var_out_vals <- GFE_IDs
+    }
+    
+    # plot each IndexIds & GFE_IDs series (no hierarchy in the variables) 
+    for(var_out_val in var_out_vals){
+      # var_out_val <- var_out_vals[1]
+      nusedsHere <- all_areas_nuseds[all_areas_nuseds[,var_out] == var_out_val,]
+      
+      # if only certain species are displayed:
+      if(all(!is.na(species_acro))){
+        nusedsHereSub_l <- lapply(X = species_acro, FUN = function(s){
+          out <- nusedsHere[grepl(s,nusedsHere$IndexId),]
+          return(out)
+        })
+        nusedsHere <- do.call(rbind,nusedsHereSub_l)
+      }
+      
+      if(is.na(xlab)){
+        xlab = "Years"
+      }
+      if(is.na(ylab)){
+        ylab = y_var_name
+      }
+      
+      if(nrow(nusedsHere) == 0){ # in case there is no time series anymore 
+        plot(NA, xlim = c(0,1), ylim = c(0,1), ylab = ylab, xlab = xlab, main = main, 
+             xaxt = xaxt, yaxt = yaxt)
+        
+      }else{
+        
+        var_in_vals <- unique(nusedsHere[,var_in])
+        yr_min <- min(nusedsHere$Year)
+        yr_max <- max(nusedsHere$Year)
+        yrs <- yr_min:yr_max
+        pop_max <- max(nusedsHere[,y_var_name], na.rm = T)
+        if(is.infinite(pop_max)){
+          pop_max <- 1
+        }
+        
+        colfunc <- colorRampPalette(colPalette)
+        cols <- colfunc(length(var_in_vals))
+        if(is.na(ltys)[1]){
+          ltys <- 1:length(var_in_vals)
+        }
+        if(is.na(pchs)[1]){
+          pchs <- 1:length(var_in_vals)
+        }
+        
+        if(all(is.na(Xlim))){
+          xlim <- c(yr_min-(yr_max - yr_min)/5,yr_max)
+        }else{
+          xlim <- Xlim
+        }
+        if(all(is.na(Ylim))){
+          ylim <- c(0,pop_max + pop_max / 5)
+        }else{
+          ylim <- Ylim
+        }
+        
+        plot(NA, xlim = xlim, ylim = ylim, ylab = ylab, xlab = xlab, main = main, 
+             xaxt = xaxt, yaxt = yaxt)
+        
+        for(var_in_val in var_in_vals){
+          # var_in_val <- var_in_vals[1]
+          i <- which(var_in_val == var_in_vals)
+          dataHere <- nusedsHere[nusedsHere[,var_in] == var_in_val,]
+          dataHere <- dataHere[order(dataHere$Year),c(y_var_name,"Year")]
+          # print(dataHere)
+          lines(y = dataHere[,y_var_name], x = dataHere$Year, lwd = 2, col = cols[i], 
+                lty = ltys[i])
+          points(y = dataHere[,y_var_name], x = dataHere$Year, 
+                 pch = pchs[i], col = cols[i], lwd = 2)
+        }
+      }
+      
+      legend("topleft",c(paste(var_out,"=",var_out_val),paste(var_in,"=",var_in_vals)), 
+             col = c(NA,cols), lwd = 3, bty = "n", lty = c(NA,ltys), pch = c(NA,pchs))
+      
+    }
+  }
+}
+
+#' Function to update the fields associated to IndexId or GFE_ID in CUSS or NUSEDS.
+# edit_CUSS = F
+# edit_NUSEDS = T
+# IndexId_focal = "CO_46835"
+# IndexId_alter = "CO_46835"
+# GFE_ID_focal = 2463
+# GFE_ID_alter = 285
+fields_edit_NUSEDS_CUSS_fun <- function(IndexId_focal = NA, IndexId_alter = NA,
+                                        GFE_ID_focal = NA, GFE_ID_alter = NA,
+                                        edit_NUSEDS = F,  edit_CUSS = F, 
+                                        all_areas_nuseds = all_areas_nuseds,
+                                        conservation_unit_system_sites = conservation_unit_system_sites){
+  
+  require(dplyr)
+  
+  #' Import list for the fields in NUSEDS and CUSS that are associated to unique
+  #' IndexId and GFE_ID
+  fields_l <- fields_IndexId_GFE_ID_fun(all_areas_nuseds = all_areas_nuseds,
+                                        conservation_unit_system_sites = conservation_unit_system_sites)
+  
+  if(!edit_CUSS & !edit_NUSEDS){
+    print("Please choose a dataset to edit.")
+    
+  }else{
+    
+    varAlter_presentInSameDataset <- T # for the end in case WATERBODY is used for SYSTEM_SITE and vice versa
+    
+    # check what has to be updated: Index_ID, GFE_ID or both
+    iid_diff <- IndexId_focal != IndexId_alter
+    gfeid_diff <- GFE_ID_focal != GFE_ID_alter
+    
+    if(iid_diff & gfeid_diff){
+      print("IndexIds and GFE_IDs are the same.")
+      
+    }else{
+      
+      if(iid_diff & !gfeid_diff){       # if IndexId is to change
+        var <- "IndexId"
+        
+      }else if(!iid_diff & gfeid_diff){ # if GFE_ID is to change
+        var <- "GFE_ID"
+        
+      }else if(!iid_diff & !gfeid_diff){
+        var <- c("IndexId","GFE_ID")
+        
+      }
+      
+      # 
+      if(!edit_CUSS & edit_NUSEDS){ # edit NUSEDS
+        
+        datset_name <- "all_areas_nuseds"
+        
+        dataset_focal <- all_areas_nuseds
+        dataset_alter <- all_areas_nuseds
+        
+        # check if the alternative series is in NUSEDS
+        if(length(var) == 2){
+          cond_alter <- dataset_alter$IndexId == IndexId_alter & 
+            dataset_alter&GFE_ID == GFE_ID_alter
+          # to finish eventually but might not be needed
+          print("Write code for when the fields for both IndexId and GFE_ID have to be edited.")
+          
+        }else if(var == "IndexId"){
+          fields <- fields_l$NUSEDS$IndexId
+          cond_alter <- dataset_alter$IndexId == IndexId_alter
+          # if IndexId_alter is not in NUSEDS --> look for Index_Id - related fields in CUSS
+          if(sum(cond_alter) == 0){
+            varAlter_presentInSameDataset <- F
+            dataset_alter <- conservation_unit_system_sites
+            cond_alter <- dataset_alter$IndexId == IndexId_alter
+            # find the fields in common for IndexId in NUSEDS and CUSS
+            fields <- fields_l$NUSEDS$IndexId[fields_l$NUSEDS$IndexId %in% fields_l$CUSS$IndexId]
+          }
+          
+        }else if(var == "GFE_ID"){
+          fields <- fields_l$NUSEDS$GFE_ID
+          cond_alter <- dataset_alter$GFE_ID == GFE_ID_alter
+          # if GFE_ID_alter is not in NUSEDS --> look for GFE_ID - related fields in CUSS
+          if(sum(cond_alter) == 0){
+            varAlter_presentInSameDataset <- F
+            dataset_alter <- conservation_unit_system_sites
+            cond_alter <- dataset_alter$GFE_ID == GFE_ID_alter
+            # find the fields in common for GFE_ID in NUSEDS and CUSS
+            fields <- fields_l$NUSEDS$GFE_ID[fields_l$NUSEDS$GFE_ID %in% fields_l$CUSS$GFE_ID]
+            # add SYSTEM_SITE, which is WATERSHED in NUSEDS
+            fields <- c(fields,"SYSTEM_SITE")
+          }
+        }
+        
+      }else if(edit_CUSS & !edit_NUSEDS){ # edit CUSS
+        # print("Write code for when The fields in CUSS have to be edited.")
+        
+        datset_name <- "conservation_unit_system_sites"
+        
+        dataset_focal <- conservation_unit_system_sites
+        dataset_alter <- conservation_unit_system_sites
+        
+        # check if the alternative series is in CUSS
+        if(length(var) == 2){
+          cond_alter <- conservation_unit_system_sites$IndexId == IndexId_alter & 
+            conservation_unit_system_sites&GFE_ID == GFE_ID_alter
+          # to finish eventually but might not be needed
+          print("Write code for when the fields for both IndexId and GFE_ID have to be edited.")
+          
+        }else if(var == "IndexId"){
+          fields <- fields_l$CUSS$IndexId
+          cond_alter <- conservation_unit_system_sites$IndexId == IndexId_alter
+          
+          # if IndexId_alter is not in CUSS --> look for Index_Id - related fields in NUSEDS
+          if(sum(cond_alter) == 0){
+            varAlter_presentInSameDataset <- F
+            dataset_alter <- all_areas_nuseds
+            cond_alter <- dataset_alter$IndexId == IndexId_alter
+            # find the fields in common for IndexId in NUSEDS and CUSS
+            fields <- fields_l$CUSS$IndexId[fields_l$CUSS$IndexId %in% fields_l$NUSEDS$IndexId]
+          }
+          
+        }else if(var == "GFE_ID"){
+          fields <- fields_l$CUSS$GFE_ID
+          cond_alter <- dataset_alter$GFE_ID == GFE_ID_alter
+          # if GFE_ID_alter is not in CUSS --> look for GFE_ID - related fields in NUSEDS
+          if(sum(cond_alter) == 0){
+            varAlter_presentInSameDataset <- F
+            dataset_alter <- all_areas_nuseds
+            cond_alter <- dataset_alter$GFE_ID == GFE_ID_alter
+            # find the fields in common for GFE_ID in NUSEDS and CUSS
+            fields <- fields_l$CUSS$GFE_ID[fields_l$CUSS$GFE_ID %in% fields_l$NUSEDS$GFE_ID]
+            # add WATERSHED , which is SYSTEM_SITE in CUSS
+            fields <- c(fields,"WATERSHED")
+          }
+        }
+      }
+      
+      # update dataset_focal
+      cond_focal <- dataset_focal$IndexId == IndexId_focal & 
+        dataset_focal$GFE_ID == GFE_ID_focal
+      
+      print(paste(sum(cond_focal),"rows were edited in",datset_name,"at the following fields:",
+                  paste(fields, collapse = ", ")))
+      
+      for(f in fields){
+        f_focal <- f
+        if(f == "SYSTEM_SITE" & !varAlter_presentInSameDataset){  # add SYSTEM_SITE WATERSHED in NUSEDS
+          f_focal <- "WATERBODY"
+        }else if(f == "WATERBODY" & !varAlter_presentInSameDataset){
+          f_focal <- "SYSTEM_SITE"
+        }
+        dataset_focal[cond_focal,f_focal] <- unique(dataset_alter[cond_alter,f])
+      }
+      
+      # check there are duplicated year for a same indexId & GFE_ID series:
+      if(!edit_CUSS & edit_NUSEDS){ # edit NUSEDS
+        
+        dupli <- dataset_focal %>%
+          dplyr::group_by(IndexId, GFE_ID, Year) %>%
+          dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
+          dplyr::filter(n > 1L)
+        
+        if(nrow(dupli) > 0){
+          print("There are duplicated rows in NUSEDS:")
+          print(dupli)
+        }
+      }
+      
+      return(dataset_focal)
+    } 
+  }
+}
+
+#' Function calculating the number of data points OR % of them of a time series
+#' that are (1) complementary (i.e. not duplicated, nor conflictual), (2) duplicated
+#' (i.e. same value for same year) and (3) conflictual (i.e. different value for 
+#' same year). The series supplied are vectors of values (e.g.population size) 
+#' with the time unit (e.g. year) are names.
+compare_series_fun <- function(series_focal,series_compare,percentage = F){
+  
+  # make sure years are in the right order
+  series_focal <- series_focal[order(as.numeric(names(series_focal)))]
+  series_compare <- series_compare[order(as.numeric(names(series_compare)))]
+  
+  s_focal <- data.frame(year = as.numeric(names(series_focal)),
+                        s_focal = series_focal)
+  s_comp <- data.frame(year = as.numeric(names(series_compare)),
+                       s_comp = series_compare)
+  
+  s <- merge(x = s_focal,y = s_comp, by = "year", all = T)
+  
+  dataPoint_nb <- sum(!is.na(series_focal))
+  complementary <- dataPoint_nb - nrow(s[!is.na(s$s_focal) & !is.na(s$s_comp),])
+  duplicate <- nrow(s[!is.na(s$s_focal) & !is.na(s$s_comp) & s$s_focal == s$s_comp,])
+  conflict <- nrow(s[!is.na(s$s_focal) & !is.na(s$s_comp) & s$s_focal != s$s_comp,])
+  
+  if(percentage){
+    complementary <- round(complementary/dataPoint_nb,1) * 100
+    duplicate <- round(duplicate/dataPoint_nb,1) * 100
+    conflict <- round(conflict/dataPoint_nb,1) * 100
+  }
+  
+  out <- data.frame(nb_dataPt = dataPoint_nb,
+                    complementary = complementary,
+                    duplicate = duplicate,
+                    conflict = conflict)
+  return(out)
+}
+
+#' Function to remove rows in 'dataframe' base on the combination of values in 
+#' the fields of the other dataframe 'toRemove' (fields must macth between the two
+#' dataframes). The function returns the the dataframe without the corresponding
+#' rows.
+# dataframe <- all_areas_nuseds
+remove_rows_fields_fun <- function(dataframe,toRemove,fields = NA,silience = F){
+  
+  nrow_all <- nrow(dataframe)
+  if(all(is.na(fields))){
+    fields_here <- colnames(toRemove)
+  }else{
+    fields_here <- fields
+  }
+  
+  condition <- sapply(X = 1:nrow(toRemove), FUN = function(r){
+    
+    cond <- sapply(X = fields_here, function(f){
+      # f <- fields_here[1]
+      cond <- dataframe[,f] == toRemove[r,f]
+      return(cond)
+    })
+    cond <- apply(X = cond, MARGIN = 1, FUN = all)
+    return(cond)
+  })
+  condition <- apply(X = condition, MARGIN = 1, FUN = any)
+  
+  out <- dataframe[!condition,]
+  
+  nrow_cut <- nrow(out)
+  if(!silience){
+    print(paste0("Number of rows removed from dataframe = ",nrow_all - nrow_cut))
+  }
+  
+  return(out)
+}
+
+#' Function to return a new row for conservation_unit_system_sites (CUSS) with a
+#' series not present (but present in all_areas_nuseds (NUSEDS)), i.e. with a 
+#' IndexId/POP_ID and GFE_ID association not present in CUSS.
+#' The function fills the different fields using the information associated to 
+#' IndexId and GFE_ID in conservation_unit_system_sites and all_areas_nuseds.
+#' - In case the GFE_ID of the new series is not present in CUSS, the fields are 
+#' filled using the GFE_ID - related information that is present in NUSEDS. 
+#' - In case the IndexId is not present in CUSS: not implemented yet (not sure)
+#' if that's possible).
+# IndexId <- "CN_39983"
+# GFE_ID <- 1204
+CUSS_newRow_fun <- function(IndexId,GFE_ID,
+                            conservation_unit_system_sites,
+                            all_areas_nuseds){
+  
+  # make sure the series does not already exist in CUSS
+  cond <- conservation_unit_system_sites$IndexId == IndexId & 
+    conservation_unit_system_sites$GFE_ID == GFE_ID
+  
+  if(sum(cond) != 0){
+    print("The series is already in CUSS:")
+    print(conservation_unit_system_sites[cond,])
+    
+  }else{
+    
+    # return the fields in NUSEDS and CUSS associated to indexId and GFE_ID:
+    fields_l <- fields_IndexId_GFE_ID_fun(all_areas_nuseds = all_areas_nuseds,
+                                          conservation_unit_system_sites = conservation_unit_system_sites)
+    
+    # create an empty row and start filling it
+    cuss_new <- conservation_unit_system_sites[NA,][1,]
+    cuss_new$IndexId <- IndexId
+    cuss_new$GFE_ID <- GFE_ID
+    
+    # Fill with IndexId related fields
+    cond_cuss_iid <- conservation_unit_system_sites$IndexId == IndexId
+    if(sum(cond_cuss_iid) > 0){ # if IndexId is already present in CUSS:
+      
+      for(f in fields_l$CUSS$IndexId){
+        cuss_new[,f] <- unique(conservation_unit_system_sites[,f][cond_cuss_iid])
+      }
+      
+    }else{  # if IndexId is not already present in CUSS:
+      # use fields_l$NUSEDS$IndexId
+      
+      cond_nuseds_iid <- all_areas_nuseds$IndexId == IndexId
+      
+      field_comm <- fields_l$CUSS$IndexId[fields_l$CUSS$IndexId %in% fields_l$NUSEDS$IndexId]
+      field_comm <- field_comm[field_comm != "IndexId"]
+      
+      for(f in field_comm){
+        cuss_new[,f] <- unique(all_areas_nuseds[,f][cond_nuseds_iid])
+      }
+      
+      # add SPECIES_QUALIFIED
+      cuss_new$SPECIES_QUALIFIED <- cuss_new$species_acronym_ncc
+      if(cuss_new$species_acronym_ncc == "CN"){
+        cuss_new$SPECIES_QUALIFIED <- "CK"
+        
+      }else if(cuss_new$species_acronym_ncc %in% c("SEL","SER")){
+        cuss_new$SPECIES_QUALIFIED <- "SX"
+        
+      }
+    }
+    
+    # Fill with GFE_ID related fields
+    cond_cuss_gfeid <- conservation_unit_system_sites$GFE_ID == GFE_ID
+    if(sum(cond_cuss_gfeid) > 0){
+      
+      for(f in fields_l$CUSS$GFE_ID){
+        cuss_new[,f] <- unique(conservation_unit_system_sites[,f][cond_cuss_gfeid])
+      }
+      
+    }else{
+      # use fields_l$NUSEDS$GFE_ID
+      field_comm <- fields_l$CUSS$GFE_ID[fields_l$CUSS$GFE_ID %in% fields_l$NUSEDS$GFE_ID]
+      field_comm <- field_comm[field_comm != "GFE_ID"]
+      cond_nuseds_gfeid <- all_areas_nuseds$GFE_ID == GFE_ID
+      
+      for(f in field_comm){
+        cuss_new[,f] <- unique(all_areas_nuseds[,f][cond_nuseds_gfeid])
+      }
+      
+      cuss_new$SYSTEM_SITE <- unique(all_areas_nuseds$WATERBODY[cond_nuseds_gfeid])
+    }
+  }
+  return(cuss_new)
+}
+
+#' Function that takes the dataframe locations_duplicated with the column GFE_ID,
+#' SYSTEM_SITE, Y_LAT and X_LONGT from conservation_system_sites and returns the 
+#' same dataframe but with the rows grouped by identical coordinates. It is used
+#' to manually define new coordinates to locations having different SYSTEM_SITE
+#' but same coordinates in conservation_system_sites.
+#' Additional fields are created: X_LONGT_new and Y_LAT_new to fill after when 
+#' attributing new coordinates for certain rows. 
+locations_duplicated_group_fun <- function(locations_duplicated,return_dist = F){
+  
+  #' Sort the dataset with the distance from a unique (random) location, and create
+  #' a group column
+  locations_duplicated$dist <- distance_Euclidean_fun(x_ref = 0,y_ref = 0,
+                                                      x = locations_duplicated$X_LONGT, 
+                                                      y = locations_duplicated$Y_LAT)
+  
+  locations_duplicated <- locations_duplicated[order(locations_duplicated$dist),]
+  
+  locations_duplicated$group <- NA
+  r <- 1
+  i_l <- 1
+  while(any(is.na(locations_duplicated$group))){
+    x <- locations_duplicated$X_LONGT[r]
+    y <- locations_duplicated$Y_LAT[r]
+    cond <- locations_duplicated$X_LONGT == x & 
+      locations_duplicated$Y_LAT == y
+    locations_duplicated$group[cond] <- LETTERS[i_l]
+    i_l <- i_l + 1
+    if(any(is.na(locations_duplicated$group))){
+      r <- min(which(is.na(locations_duplicated$group)))
+    }
+  }
+  
+  locations_duplicated$X_LONGT_new <- locations_duplicated$Y_LAT_new <- NA
+  
+  cols <- colnames(locations_duplicated)
+  if(!return_dist){
+    cols <- cols[cols != "dist"]
+  }
+  
+  return(locations_duplicated[,cols])
+}
+
+
