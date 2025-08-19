@@ -26,7 +26,6 @@ The NuSEDS dataset version corresponding to this script is:
 Fisheries and Oceans Canada. 2025. NuSEDS - New Salmon Escapement Database System. Pacific Biological Station. Retrieved February 21, 2025, from <https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6>.
 
 
-
 ```{r,include=FALSE}
 
 #'******************************************************************************

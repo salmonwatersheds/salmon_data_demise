@@ -4,7 +4,7 @@
 #' latitude and longitud coordinates.
 #' 
 #' Files imported:
-#' - nuseds_cuid_streamid_2024-11-25.csv    # the cleaned NuSEDS data available at: https://zenodo.org/records/14225367
+#' - nuseds_cuid_streamid_2024-11-25.csv    # the cleaned NuSEDS data available at: https://zenodo.org/records/14225367 and https://zenodo.org/records/14248904 
 #' - se_boundary_regions.shp                # the shape files for the regions as defined in the PSE (https://www.salmonexplorer.ca/)
 #' - GSHHS_f_L1.shp                         # the shape file for the shorelines, to download from OAA, Global Self-consistent, Hierarchical, High-resolution Geography Database (GSHHG)
 #' 
@@ -38,7 +38,7 @@ regions_spat <- st_read(paste0(wd_data_input,"/se_boundary/se_boundary_regions.s
 sf_use_s2(FALSE)
 
 #'* Shoreline *
-# TODO: download the file and unzip it in /data_input:
+# TODO if not in /data_input: download the file and unzip it in /data_input:
 # NOAA, Global Self-consistent, Hierarchical, High-resolution Geography Database (GSHHG) 2.3.7., 2018-03-02,
 # https://www.ngdc.noaa.gov/mgg/shorelines/data/gshhg/latest/
 shoreline <- st_read(paste0(wd_data_input,"/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp")) %>%
@@ -47,9 +47,10 @@ shoreline <- st_read(paste0(wd_data_input,"/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_
 
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS).
-#' TODO: to download at https://zenodo.org/records/14194639 and place it in the
-#' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+#' TODO if not in data_input: to download at https://zenodo.org/records/15625993
+#' or from https://zenodo.org/records/14248904 and place it in the
+#' /data_output folder.
+nuseds <- read.csv(paste0(wd_data_output,"/nuseds_cuid_streamid_2025-04-15.csv"), # wd_data_input
                    header = T)
 
 nuseds$region[nuseds$region == "Northern Transboundary"] <- "Transboundary"

@@ -1171,4 +1171,200 @@ locations_duplicated_group_fun <- function(locations_duplicated,return_dist = F)
   return(locations_duplicated[,cols])
 }
 
+#' Function to convert the areas of the 'map of Pacific Fishery Management Areas"
+#' (https://www.pac.dfo-mpo.gc.ca/fm-gp/maps-cartes/areas-secteurs/index-eng.html)
+#' into???
+Convert2StatArea <- function(area){
+  # StatArea <- as.character(area)
+  StatArea <- area
+  StatArea[area %in% c("3A", "3B")] <- "3"
+  StatArea[area %in% c("4A", "4B", "4C", "4D")] <- "4"
+  valHere <- c("1", "2W", "3", "4", "5", "6", "7", "8", "9")
+  StatArea[area %in% valHere] <- paste0("0", StatArea[area %in% valHere])
+  return(StatArea)
+}
+
+#' Function to returns a list of FULL_CU_IN value to update certain POP_IDs
+update_for_FULL_CU_IN_l <- function(){
+  
+  out <- list()
+  i <- 1
+  # babine/onerka
+  out[[i]] <- c(45452,45462,48064,48069,48074,48094,48099,48599,48674,48684,49354,
+                49379,49384,49389,49394,49399,49404,49419,49424,49434,49439,
+                49429,48679)
+  names(out)[i] <- "SEL-21-02-EW"
+  # to Add? --> Ask Eric
+  # 49429    607 Current  SEL-21-02      SEL-21-02 WRIGHT CREEK           N     SEL
+  # BABINE      SEL-21-02          Current  48679                  PENDELTON CREEK
+  
+  # nilkitkwa
+  i <- i + 1
+  out[[i]] <- c(49359,49364,49369,49374,    # 49457, --> this one is a CM ! was supposed to be 45457: https://salmonwatersheds.slack.com/archives/CJ5RVHVCG/p1741049966220869 ; https://salmonwatersheds.ca/document_library_files/lib_384.pdf
+                45457)
+  names(out)[i] <-  "SEL-21-02-LW"
+  # TO ADD - DONE
+  # BABINE      SEL-21-02          Current  45457         BABINE RIVER - SECTION 5    --> should be 
+  
+  # tahlo/morrison NOT DO IT ANY MORE BECAUWE DFO CORRECTED IT
+  # i <- i + 1
+  # out[[i]] <- c(49409,49414)
+  # names(out)[i] <- "SEL-21-02-MW" # use SEL-21-11 so do not the change DO NOT CHANGE
+  
+  #babine enhanced
+  i <- i + 1
+  out[[i]] <-  c(3237,45467,45472,3238,45482,
+                 45477)
+  names(out)[i] <- "SEL-21-02-F"
+  # BABINE      SEL-21-02          Current  45477        PINKUT CREEK - ABOVE WEIR
+  
+  
+  ### bella coola chum
+  # Corrections in CU assignment for central coast chum from Carrie Holt
+  i <- i + 1
+  out[[i]] <- c(3119,51771,
+                # 51772,                        # in contradiction with conserv_unit_system_sites_mv.xlsx
+                3143,3122,3125,3138,3128,51778)
+  names(out)[i] <- "CM-16"
+  
+  ### bella coola river-late
+  i <- i + 1
+  out[[i]] <- c(351783)
+  names(out)[i] <- "CM-17" # instead of "CM-16" ; note that there is no data at all in NuSEDS Feb 2025
+  
+  return(out)
+}
+
+#' Function to return the SYSTEM_SITE values from NuSEDS and their corresponding 
+#' name in the PSE (i.e. in streamlocationids$sys_nm) (the list is not exhaustive)
+#' so it should not be used to match all the locations between NuSEDS and the 
+#' streamid related datasets. Also it is advised to use the function simplify_string_fun()
+#' to match these names because there are cases with double spaces that could not
+#' have been kept in the list below).
+SYSTEM_SITE_fixes_fun <- function(){
+  
+  SYSTEM_SITE_fixes <- c("FANNIE COVE LEFT HAND CREEK",
+                         "FANNIE COVE RIGHT HAND CREEK",
+                         "COOPER INLET CREEKS",
+                         "CHILLIWACK RIVER",
+                         "BABINE RIVER - SECTION 1-3",
+                         "LOST VALLEY CREEK - SHORE SPAWNERS",
+                         "ISLAND BAY RIGHT HAND CREEK",
+                         "PEEL INLET 1ST LEFT HAND CREEK", 
+                         "PEEL INLET 2ND LEFT HAND CREEK",
+                         "MARSHALL INLET RIGHT HAND CREEK",
+                         "ISLAND BAY LEFT HAND CREEK",
+                         "FAIRFAX OUTER CREEK",
+                         "INNER BASIN RIVER (RANSOM)",
+                         "UPPER AHWHICHAOLTO CREEK",
+                         "LOWER AHWHICHAOLTO CREEK",
+                         "BURNABY NARROWS FIRST R.H. CR.",
+                         "BURNABY NARROWS SECOND R.H. CR.",
+                         "GRAY BAY CREEK OTHERS (3)",
+                         "HOCHSTADER BASIN CREEKS (2)",
+                         "MIKADO CREEK",
+                         "MAMQUAM SPAWNING CHANNEL",
+                         "BOUGHEY CREEK",
+                         "ZOLZAP SLOUGH",
+                         "TSEAX SLOUGH",
+                         "NIGGER CREEK",
+                         "MOODY CHANNEL",
+                         "STEPHENS CREEK (DOWNSTREAM OF STEPHENS LAKE)",
+                         "MESACHIE RIVER",
+                         "CHONAT CREEK",
+                         "WEAVER CHANNEL",
+                         "UPPER PARADISE CHANNEL",
+                         "LOWER PARADISE CHANNEL",
+                         "TATSAMENIE RIVER",
+                         "SETON CHANNELS - UPPER AND LOWER",
+                         "LASSITER AND ROWLEY CREEKS",
+                         "BRENNAN CHANNEL",
+                         "ADAMS CHANNEL",
+                         "SWAN LAKE CREEK #2 UNNAMED",
+                         "PEACH SPAWNING CHANNEL",
+                         # "NADINA CHANNEL",                # the channel is at the opposite direction of the lake from NADINA RIVER-UPPER
+                         "JONES CREEK CHANNEL",
+                         "CROWN ZELLERBACK CREEK",
+                         "CHILKO CHANNEL",
+                         "CENTENNIAL CHANNEL",
+                         "CARRINGTON CREEK",
+                         "SLATE BAY - SHORE 1KM E",
+                         "ELYSIA - SHORE 1 KM WEST",
+                         "ROARING RIVER - DECEPTION POINT",
+                         "LIMESTONE POINT - SHORE .5KM S",
+                         "GOOSE POINT - SHORE .8KM S",
+                         "BIG SLIDE - SHORE 1KM W",
+                         "SQUEAH LAKE CREEK",
+                         "BOULDERY CREEK - SHORE 2KM E",
+                         "BILL MINER CREEK - SHORE 3KM W",
+                         "KNIGHT CREEK - SHORE",
+                         "MARTEN CREEK - SHORE",
+                         "LYNX CREEK - SHORE",
+                         "BILL MINER CREEK - SHORE",
+                         "BABINE RIVER - UNACCOUNTED")
+  
+  sys_nm_fixes <- c("COOPER INLET-FANNIE COVE LH CREEK",
+                    "COOPER INLET-FANNIE COVE RH CREEK",
+                    "COOPER INLET-FANNIE COVE CREEKS",
+                    "CHILLIWACK/VEDDER RIVER",
+                    "Babine River-Sections 1 To 3",          # "Babine-Sections 1 To 3" for cuid 215. It is handled in the code
+                    "LOST VALLEY CREEK-LAKE SHORE",
+                    "ISLAND BAY CREEKS-R/H",
+                    "PEEL INLET CREEK-L/H #1",
+                    "PEEL INLET CREEK-L/H #2",
+                    "MARSHALL INLET CREEK",
+                    "ISLAND BAY CREEKS-L/H",
+                    "FAIRFAX INLET CREEK-OUTER",
+                    "RANSOM RIVER",
+                    "AHWHICHAOLTO CREEK-UPPER",
+                    "AHWHICHAOLTO CREEK-LOWER",
+                    "BURNABY NARROWS CREEK-FIRST R/H",
+                    "BURNABY NARROWS CREEK-SECOND R/H",
+                    "GRAY BAY CREEKS-OTHERS",
+                    "HOCHSTADER BASIN CREEK",
+                    "MIKADO LAKE CREEK",
+                    "MAMQUAM RIVER SPAWNING CHANNEL",
+                    "BOUGHEY BAY UNNAMED CREEK #2",
+                    "Ksi Ts'Oohl Ts'Ap 2",
+                    "Ksi Sii Aks 2",
+                    "N. CREEK",
+                    "MOODY'S SPAWNING CHANNEL", #v"MOODY\\S SPAWNING CHANNEL",
+                    "Stephens Creek",
+                    "MESACHIE CREEK",
+                    "CHONAT LAKE CREEK",
+                    "WEAVER SPAWNING CHANNEL",
+                    "PARADISE SPAWNING CHANNEL-UPPER",
+                    "PARADISE SPAWNING CHANNEL-LOWER",
+                    "TATSAMENIE LAKE",
+                    "UPPER and  LOWER SETON CHANNELS",
+                    "LASSITER CREEK",
+                    "BRENNAN PARK SPAWNING CHANNEL",
+                    "ADAMS RIVER MOUTH-LAKE SHORE", # "ADAMS RIVER SPAWNING CHANNEL", --> actually this is the correct correction for cuid 738 ; it is wrong for cuid 739
+                    "Swan Lake Creek #2",
+                    "PEACH CREEK SIDE CHANNEL",
+                    # "NADINA RIVER-UPPER",
+                    "JONES' SPAWNING CHANNEL",
+                    "CROWN ZELLERBACH CREEK",
+                    "CHILKO SPAWNING CHANNELS",
+                    "CENTENNIAL SPAWNING CHANNEL",
+                    "CARRINGTON COVE CREEK",
+                    "SLATE BAY-LAKE SHORE 1KM E",
+                    "ELYSIA SHORE-1KM W",
+                    "ROARING RIVER TO DECEPTION POINT-LAKE SHORE",
+                    "LIMESTONE PIONT-LAKE SHORE",                    # "LIMESTONE PIONT-LAKE SHORE-S",
+                    "GOOSE POINT-LAKE SHORE",                        #  "GOOSE POINT-LAKE SHORE-5 KM S",
+                    "BIG SLIDE-LAKE SHORE-1KM W",
+                    "UNNAMED CREEK NEAR SQUEAH LAKE",
+                    "BOULDERY CREEK-E-LAKE SHORE",
+                    "BILL MINER CREEK-LAKE SHORE-3KM W",
+                    "KNIGHT CREEK-LAKE SHORE",
+                    "MARTEN CREEK-LAKE SHORE",
+                    "LYNX CREEK-LAKE SHORE",
+                    "BILL MINER CREEK-LAKE SHORE",
+                    "Babine-Unaccounted")
+  
+  out <- list(SYSTEM_SITE_fixes,sys_nm_fixes)
+  names(out) <- c("SYSTEM_SITE","sys_nm")
+  return(out)
+}
 

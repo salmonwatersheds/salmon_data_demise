@@ -114,8 +114,8 @@ for(c in 2:ncol(price_sp)){
 }
 
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
-#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
-#' must be downloaded at https://zenodo.org/records/14194639 and placed in the
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS).
+#' TODO if not in /data_input: to download at https://zenodo.org/records/15625993 and place it in the
 #' /data_input folder.
 nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
                    header = T)

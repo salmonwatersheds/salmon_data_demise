@@ -4,7 +4,7 @@
 #' dataset to be used in 2_analyses.R.
 #' 
 #' Files imported:
-#' - nuseds_cuid_streamid_2025-14-15.csv   # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
+#' - nuseds_cuid_streamid_2025-14-15.csv   # the cleaned NuSEDS data available at: https://zenodo.org/records/14225367 and https://zenodo.org/records/14248904
 #' - region_survey.csv                     # the "region" (i.e. CU-related region) and region_survey (i.e. the region where the survey was conducted); created in 0_assign-regions.R
 #' - NPAFC_Catch_Stat-1925-2023.xlsx       # catch data from the NPAFC Statistics
 #' 
@@ -135,10 +135,10 @@ hist(Number_catches_species_total$wt_kg/Number_catches_species_total$count,
 
 
 #'* Import the cleaned NuSEDS data matched with PSF cuid and streamid *
-#' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
-#' TODO: to download at https://zenodo.org/records/14194639 and place it in the
-#' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+#' This is the clean version of the New Salmon Escapement Database (NuSEDS).
+#' TODO if not in /data_input: to download at https://zenodo.org/records/15625993 and place it in the
+#' /data_output folder.
+nuseds <- read.csv(paste0(wd_data_output,"/nuseds_cuid_streamid_2025-04-15.csv"),   # wd_data_input
                    header = T)
 head(nuseds)
 nrow(nuseds) # 312539 306823

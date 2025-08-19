@@ -17,7 +17,29 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
+The is the supporting information for: [Atkinson et al., 2025. Monitoring for fisheries or for fish? Declines in monitoring of salmon spawners continue despite a conservation crisis](https://cdnsciencepub.com/doi/10.1139/cjfas-2024-0387).
+
+The document contains *(i)* the supplementary figures and tables referred to in the main text, *(ii)* the details of the generalized linear regression analysis conducted to quantify the effect of commercial catch, price on monitoring effort for each species, and *(iii)* a summary of the NuSEDS cleaning procedure. The entire NuSEDS cleaning procedure can be found at [Supplement A - Part 1](https://bookdown.org/salmonwatersheds/1_nuseds_collation_atkinson/1_nuseds_collation.html) and [Supplement A - Part 2](https://bookdown.org/salmonwatersheds/2_nuseds_cuid_pse_atkinson/2_nuseds_cuid_pse.html).
+
+
 ```{r, include=FALSE}
+
+#'******************************************************************************
+#' The goal of the script is to make summary datasets from the cleaned NuSEDS
+#' dataset to be used in 2_analyses.R.
+#' 
+#' Files imported:
+#'- populationAssessed_catches_data_remove_0s_NAs.xlsx   # The summary files where both 0s and NAs counts were removed (results presented in the main text); created in 1_datasets.R
+#'- populationAssessed_catches_data_remove_NAs.xlsx      # The summary files where only NAs counts were removed (results presented in the supporting information); created in 1_datasets.R 
+#'- landed-value-valeur-debarquement-eng.csv             # price per kg and species from DFO’s 2023 Economic analysis
+#' 
+#' Files produced: 
+#'- Predictinon_glm_WHITHOUT_0s.jpeg        # Figure 6 & S16         
+#'- Predictinon_glm_WHITH_0s.jpeg           # Figure S22
+#'
+#' 
+#'******************************************************************************
+
 rm(list = ls())
 graphics.off()
 
@@ -37,6 +59,8 @@ library(AICcmodavg) # for AICc
 library(car)
 library(MASS)
 library(psych)
+library(GGally)
+library(knitr)
 
 source("functions.R")
 source("colours.R")
@@ -60,7 +84,7 @@ filename <- "populationAssessed_catches_data_remove_NAs"
 data_sp_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                         sheet = "populations_species") |> as.data.frame()
 
-#'* Import the catch data
+#'* Import the catch data *
 #' The file is the same regardless of filename
 catch  <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"), 
                      sheet = "catches_species_total") |> as.data.frame()
@@ -68,7 +92,6 @@ head(catch)
 
 #'* Import the landing value per species per kg *
 # https://www.pac.dfo-mpo.gc.ca/analyses-econom-analysis/analyses/econ-perspective-salmon-saumon-eng.html
-
 price_sp <- read.csv(paste0(wd_data_input,"/landed-value-valeur-debarquement-eng.csv"), 
                      header = T)
 head(price_sp)
@@ -130,10 +153,6 @@ for(dataset_selected in data_sp_l){
 ```
 
 
-The is the supporting information for: *Atkinson et al. Monitoring for fisheries or for fish? Declines in monitoring of salmon spawners continue despite a conservation crisis*.
-
-The document contains *(i)* the supplementary figures and tables referred to in the main text, *(ii)* the details of the generalized linear regression analysis conducted to quantify the effect of commercial catch, price on monitoring effort for each species, and *(iii)* a summary of the NuSEDS cleaning procedure.
-
 # Supplementary figures and tables
 
 
@@ -179,7 +198,6 @@ colnames(data_srg_0)[1:length(coln_new)] <- coln_new
 show <- data_srg_0[,coln_new]
 rownames(show) <- NULL
 
-library(knitr)
 kable(show)
 ```
 
@@ -192,7 +210,7 @@ The goal of the analysis is to quantify the effect of commercial catch on monito
 
 We fit two models where the number of populations monitored (`count_pop`) is expressed as (1) a function of landing value, i.e., the product of commercial catch in kg (`catch_kg`) and commercial price per kg (`price_kg`), and (2) as a function of commercial catch alone. For both models we include `species` as a predictor and its interaction with the other predictor. We compare the two models using the Akaike information criterion (AIC).
 
-We selected the negative binomial distribution to correct the overdispersion observed when using the Poisson distribution. The overdispersion is estimated by dividing the residual deviance by the residual degrees of freedom and it is < 1.1 for all four models (two models fitted on two datasets, each reasulting from from filtering or keeping the zeros in NuSEDS, respectively). We assessed collinearity among explanatory variables using pairwise plots and correlation coefficients. We used deviance residuals to verify the models’ assumptions with diagnostic plots (i.e., homoscedasticity of the residuals). We calculated a pseudo-R^2^ as the ratio between the null deviance minus the residual deviance divided by the null deviance.
+We selected the negative binomial distribution to correct the overdispersion observed when using the Poisson distribution. The overdispersion is estimated by dividing the residual deviance by the residual degrees of freedom and it is < 1.1 for all four models (two models fitted on two datasets, each resulting from from filtering or keeping the zeros in NuSEDS, respectively). We assessed collinearity among explanatory variables using pairwise plots and correlation coefficients. We used deviance residuals to verify the models’ assumptions with diagnostic plots (i.e., homoscedasticity of the residuals). We calculated a pseudo-R^2^ as the ratio between the null deviance minus the residual deviance divided by the null deviance.
 
 ## The datasets
 
@@ -295,7 +313,6 @@ legend("center",c("number of populations monitored","catch","price"),
 We check collinearity using pairwise plots comparing covariates and correlation coefficients:
 
 ```{r, echo=FALSE, fig.height=7, fig.width=10}
-library(GGally)
 
 ggpairs(data_here,                 # Data frame
         columns = which(colnames(data_here) %in% c("catch_kg","price_kg","species")),       # "count_pop",    # Columns
@@ -999,11 +1016,13 @@ if(figures_print){
 
 # NuSEDS Data Processing
 
-Below is a summary of NuSEDS cleaning procedure and attribution of the data to Conservation Units (CUs) as defined in the Pacific Salmon Explorer ([PSE](https://www.salmonexplorer.ca/)). The complete details of the cleaning procedure can be found at [1_nuseds_collation.html]( https://bookdown.org/salmonwatersheds/1_nuseds_collation_atkinson/1_nuseds_collation.html) and the corresponding Rmd script can be accessed from [github/.../spawner-surveys/code/1_nuseds_collation.rmd](https://github.com/salmonwatersheds/population-indicators/blob/master/spawner-surveys/code/1_nuseds_collation.rmd).
+Below is a summary of NuSEDS cleaning procedure and attribution of the data to Conservation Units (CUs) as defined in the Pacific Salmon Explorer ([PSE](https://www.salmonexplorer.ca/)). The complete details of the cleaning procedure (**Supplement A - Part 1**) can be found at [a_nuseds_collation.html](https://bookdown.org/salmonwatersheds/1_nuseds_collation_atkinson/1_nuseds_collation.html) and the corresponding Rmd script can be accessed on [GitHub: a_nuseds_collation.Rmd](https://github.com/salmonwatersheds/salmon_data_demise/blob/main/code/a_nuseds_collation.Rmd) and [Zenodo: /code](https://zenodo.org/records/14248904). 
 
-The detailed procedure to match the cleaned NuSEDS data to CUs is available at [2_nuseds_cuid_pse.html](https://bookdown.org/salmonwatersheds/2_nuseds_cuid_pse_atkinson/2_nuseds_cuid_pse.html) and the corresponding Rmd script can be downloaded from [github/.../spawner-surveys/code/2_nuseds_cuid_pse.rmd](https://github.com/salmonwatersheds/population-indicators/blob/master/spawner-surveys/code/2_nuseds_cuid_pse.Rmd).
+The detailed procedure to match the cleaned NuSEDS data to CUs (**Supplement A - Part 2**) is available at [b_nuseds_cuid_pse.html](https://bookdown.org/salmonwatersheds/2_nuseds_cuid_pse_atkinson/2_nuseds_cuid_pse.html) and the corresponding Rmd script can be accessed on [GitHub: b_nuseds_cuid_pse.Rmd](https://github.com/salmonwatersheds/salmon_data_demise/blob/main/code/b_nuseds_cuid_pse.Rmd) and [Zenodo: /code](https://zenodo.org/records/14248904). 
 
-The different versions of the dataset can be downloaded from [zenodo/.../2_nuseds_cuid_streamid](https://doi.org/10.5281/zenodo.14194638); the version used for the analysis is v3 (2025-04-15).
+Note that the scripts **a_nuseds_collation.Rmd** and **b_nuseds_cuid_pse.Rmd** are permanent and specific to [Atkinson et al., 2025](https://cdnsciencepub.com/doi/10.1139/cjfas-2024-0387). The equivalent scripts updated as new NuSEDS versions are released are [1_nuseds_collation.rmd](https://github.com/salmonwatersheds/population-indicators/blob/master/spawner-surveys/code/1_nuseds_collation.rmd) and [2_nuseds_cuid_pse.rmd](https://github.com/salmonwatersheds/population-indicators/blob/master/spawner-surveys/code/2_nuseds_cuid_pse.Rmd).
+
+The different versions of the final dataset **nuseds_cuid_streamid_DATE.csv** can be downloaded from [zenodo/.../2_nuseds_cuid_streamid](https://doi.org/10.5281/zenodo.14194638); the version used for the analysis in [Atkinson et al., 2025](https://cdnsciencepub.com/doi/10.1139/cjfas-2024-0387) is v3 (2025-04-15).
 
 ## Cleaning Procedure
 
