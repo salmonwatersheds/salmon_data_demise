@@ -6,14 +6,18 @@
 code/figures.R
 code/analyses_draft.R
 code/a_nuseds_collation.html
+code/1_nuseds_collation.html
 code/a_nuseds_collation.rmd
 code/b_nuseds_cuid_streamid.r
+code/2_nuseds_cuid_pse.html
+
 code/2_analysis_regression.html
 code/Supp_glm_analysis.html
 code/Supp_main.html
 code/Supp_nuseds_cleaning.html
 code/old
 code/3_analysis_regression.rmd
+code/3_Supplement_B.html
 
 figures/archives
 figures/archives 2
@@ -38,9 +42,11 @@ data_input/PSF_modified_SEP_releases_2023.xlsx
 # data_input/all_areas_nuseds_2025-02-21.csv
 # DFO_All_Streams_Segments_20230408.xlsx
 data_input/gshhg-shp-2.3.7
+data_input/streamlocationids.csv
 
 data_output/GLM_catch_value_year
 data_output/archive 1st submission
+data_output/1_NuSEDS_escapement_data_collated_2025-04-15.csv
 
 documents
 

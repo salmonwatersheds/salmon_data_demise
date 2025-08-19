@@ -1,7 +1,7 @@
 ---
-title: "1_nuseds_collation"
+title: "a_nuseds_collation (Supplement A - Part 1)"
 author: "Bruno S. Carturan, Eric Hertz, Stephanie J. Peacock"
-date: "2025-01-24"
+date: "2025-08-19"
 output: 
   html_document:
     toc: true                  # Adds a table of contents to the document
@@ -19,34 +19,47 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 
 The goal of the script is to merge the two constituent datasets **all_areas_nuseds** (referred to as **NUSEDS**) and **conservation_unit_system_sites** (referred to as **CUSS**) so each time series in **NUSEDS** (i.e., fish counts associated to a unique populations, characterized by a unique `IndexId`/`POP_ID` & `GFE_ID` association) can be attributed to a unique conservation unit (CU) in **CUSS** (characterized by `CU_NAME` and `FULL_CU_IN`). But there are multiple inconsistencies between the two datasets that lead to discard a significant amount of data points in **NUSEDS**, unless fixes are implemented. This script is a attempt to implement such fixes.
 
-The dataset version corresponding to this script is:
+This is the first (and most intensive) part of the cleaning procedure. The cleaned merge of **NUSEDS** and **CUSS** is exported at the end as *1_NuSEDS_escapement_data_collated_2025-04-15.csv*, which is used in the next part of the cleaning procedure.  
 
-Fisheries and Oceans Canada. 2024. NuSEDS - New Salmon Escapement Database System. Pacific Biological Station. Retrieved January 22, 2024, from <https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6>.
+The second part [Supplement A - Part 2](https://bookdown.org/salmonwatersheds/2_nuseds_cuid_pse_atkinson/2_nuseds_cuid_pse.html) (script *b_nuseds_cuid_pse.rmd*) consists in attributing a CU identification number to each population (`cuid`) as defined in the Pacific Salmon Explorer ([PSE](https://www.salmonexplorer.ca/)). It is at the end of this second part that the file *nuseds_cuid_streamid_2025-04-15.csv* used for the analyses in [Atkinson et al. 2025. Monitoring for fisheries or for fish? Declines in monitoring of salmon spawners continue despite a conservation crisis](https://cdnsciencepub.com/doi/abs/10.1139/cjfas-2024-0387) is produced. The file can be accessed on Zenodo at [Cleaned spawner survey data v3](https://zenodo.org/records/15625993) and inside [salmon_data_demise/data_output](https://zenodo.org/records/14248904).
+
+The NuSEDS dataset version corresponding to this script is:
+
+Fisheries and Oceans Canada. 2025. NuSEDS - New Salmon Escapement Database System. Pacific Biological Station. Retrieved February 21, 2025, from <https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6>.
 
 ```{r, include = F}
 
 #'******************************************************************************
 #' The goal of the script is to import, clean and format NuSEDS data.
 #' Script based on Emma Atkinson's previous version (26-Mar-2019).
-#' 
-#' Files imported:
-#' - conservationunits_decoder.csv (from database)
-#' - streamlocationids.csv (from database)
-#' - all_areas_nuseds_DATE.csv (from DFO)
-#' - conservation_unit_system_sites_DATE.csv (from DFO)
-#' - nuseds_report_definitions.csv (from DFO)
-#' - conservation_unit_report_definitions.csv (from DFO)
-#' - DFO_GFE_IDs_list_1.xlsx (from Wu Zhipeng, DFO)
-#' - DFO_GFE_IDs_list_2.xlsx (from Wu Zhipeng, DFO)
-#' 
-#' Files produced: 
-#' - 1_all_areas_nuseds_cleaned_DATE.csv
-#' - 1_conservation_unit_system_sites_cleaned_DATE.csv
-#' - 1_NuSEDS_escapement_data_collated_DATE.csv         # the merged and further corrected all_areas_nuseds and conservation_unit_system_sites
-#' - 1_series_inNUSEDS_noInCUSS_DATE.csv                # series removed because no alternative series could be found in conservation_unit_system_sites; to investigate later may be
-#' - 1_series_removed_DATE.csv                          # series removed from either datasets and why
-#' - 1_series_added_DATE.csv                            # series added to either dataset and why
-#' - log_file.csv                                     # the log file containing the name of the orginak NUSEDS and CUSS files imported and the information about 0s being removed or not.
+
+#' Imported files:
+
+#'- all_areas_nuseds_2025-02-21.csv                    # "NUSEDS"
+#'- conservation_unit_system_sites_2025-02-20.csv      # "CUSS"
+#'- conservationunits_decoder.csv                      # the list of conservation units as defined in the PSE
+#'- nuseds_report_definitions.csv                      # definition of the fields in all_areas_nuseds
+#'- conservation_unit_report_definitions.csv           # definition of the fields in conservation_unit_system_sites
+#'- DFO_All_Streams_Segments_20240408.xlsx             # stream - GFE_ID data file from DFO (emailed by Wu Zhipeng, DFO, 09/04/2024)
+#'- PSF_modified_SEP_releases_2023.xlsx                # DFO's Hatchery dataset (emailed by Brock Ramshaw, DFO, 03/07/2023)
+#'- /pse_conservation_units/pse_conservation_units.gdb # shape files of the conservation unites as defined in the PSE
+#'- /se_boundary_regions/se_boundary_regions.shp       # shape files for the Region boundaries as defined in the PSE
+
+
+#' Files both imported & exported (intermediate "_TEMP" files created to save computation time):
+
+#'- all_areas_nuseds_noNA0s_TEMP.csv  # NUSEDS after removing the time series only made of NAs and/or 0s (not used in paper)
+#'- all_areas_nuseds_noNAs_TEMP.csv   # NUSEDS after removing the time series only made of NAs (used in paper)
+#'- trackRecord_noNA0s_TEMP.csv       # all the time series in CUSS not in NUSEDS using all_areas_nuseds_noNA0s_TEMP.csv (not used in paper)
+#'- trackRecord_noNAs_TEMP.csv        # all the time series in CUSS not in NUSEDS using all_areas_nuseds_noNAs_TEMP.csv (used in paper)
+
+
+#' Files exported:
+
+#'- 1_NuSEDS_escapement_data_collated_2025-04-15.csv   # the cleaned combined NUSEDS and CUSS dataset with time series containing only NAs removed
+#'- 1_series_inNUSEDS_noInCUSS_2025-04-15.csv          # Export the series in NUSEDS with IndexIds and GFE_IDs not in CUSS with info on the number of data points and POPULATION
+#'- 1_series_removed_2025-04-15.csv                    # series removed to either NUSEDS or CUSS
+#'- 1_series_added_2025-04-15.csv                      # series added to either NUSEDS or CUSS
 
 #'******************************************************************************
 
@@ -104,6 +117,7 @@ The **NUSEDS** (all_areas_nuseds) and **CUSS** (conservation_unit_system_sites) 
 
 ```{r,echo=FALSE}
 #'* Import the all_areas_nuseds data ("NUSEDS) *
+#' TODO if not in /data_input: to download at https://zenodo.org/records/14248904
 all_areas_nuseds <- import_mostRecent_file_fun(wd = wd_data_input, 
                                                pattern = "all_areas_nuseds",
                                                pattern_exclude = "noNA")
@@ -112,7 +126,6 @@ all_areas_nuseds <- import_mostRecent_file_fun(wd = wd_data_input,
 ```{r, echo=FALSE}
 #'* Import conservation_unit_system_sites ("CUSS") *
 # DFO provided files matching streams and Nuseds to full CU index 
-
 #' TODO if not in /data_input: to download at https://zenodo.org/records/14248904
 conservation_unit_system_sites <- import_mostRecent_file_fun(wd = wd_data_input, 
                                                              pattern = "conservation_unit_system_sites")
@@ -259,8 +272,8 @@ The regions and CUs shape files as defined in the PSE are imported:
 #'* Import the shape files for the Region boundaries *
 #' TODO if not in /data_input: to download at https://zenodo.org/records/14248904
 #' 
-#' Note that se_boundary/se_boundary.shp is used in 0_assign-regions.R. This is a
-#' lighter shape file but contains the same regions. The code here works with 
+#' Note that se_boundary/se_boundary.shp is used in 0_assign-regions.R, which is a
+#' lighter shape file containing the same regions. But the code here works with 
 #' se_boundary.shp.
 
 regions_shp <- st_read(paste0(wd_data_input,"/se_boundary_regions/se_boundary_regions.shp")) %>%
@@ -274,7 +287,6 @@ regions_shp <- st_simplify(x = regions_shp, dTolerance = .002) # .001 # to reduc
 
 # plot(st_geometry(regions_shp_full[1,]))
 # plot(st_geometry(regions_shp[1,]))
-
 
 #'* Import the geodatabase for the CU boundaries  *
 #' TODO if not in /data_input: to download at https://zenodo.org/records/14248904
@@ -1193,7 +1205,7 @@ cond <- conservation_unit_system_sites$IndexId == "CN_7479" &
   conservation_unit_system_sites$GFE_ID == 133
 
 conservation_unit_system_sites <- conservation_unit_system_sites[!cond,]
-nrow(conservation_unit_system_sites) # 6901 6889
+nrow(conservation_unit_system_sites) # 6901 
 
 removed <- data.frame(IndexId = "CN_7479",
                       GFE_ID = 133,
@@ -1258,22 +1270,6 @@ all_areas_nuseds[cond,c("Year","MAX_ESTIMATE")][order(all_areas_nuseds[cond,c("Y
 
 These two time series of this CU (`CU_NAME` = `r CU_NAME`) should have a different `IndexId` (i.e. `POP_ID`). We keep them as is and do not make any change to **NUSEDS** and **CUSS**.
 
-```{r, include=FALSE}
-
-BRUNO IS HERE
-
-#' TODO: check if the time series below appears on the PSE now --> IT IS
-# cond <- conservation_unit_system_sites$GFE_ID == 2444
-# SYSTEM_SITE <- conservation_unit_system_sites$SYSTEM_SITE[cond]
-# toAdd <- data.frame(IndexId = "SX_45525",
-#                     GFE_ID = 2444,
-#                     # SYSTEM_SITE = SYSTEM_SITE,
-#                     dataset = "streamlocationids",
-#                     CU_NAME = "NADINA/FRANCOIS-EARLY SUMMER TIMING",
-#                     comment = "In both CUSS and NUSEDS but not in the PSE; but series SX_45525 - 303 is.")
-# 
-# added_all <- toAdd
-```
 
 ## Fix populations in NUSEDS that are not in CUSS
 
@@ -4856,8 +4852,6 @@ Time series without coordinates or intersecting more that one CU boundary are re
 
 ```{r, echo=FALSE, fig.width=14, fig.height=6}
 
-# BRUNO IS HERE
-
 # all_areas_nuseds_copy <- all_areas_nuseds
 # conservation_unit_system_sites_copy <- conservation_unit_system_sites
 #
@@ -6087,7 +6081,7 @@ if(export_datasets){
   
   # Export the merged and cleaned NuSEDS data
   name_file <- paste0("1_NuSEDS_escapement_data_collated_",date)
-  write.csv(nuseds_final,paste0(wd_output,"/archive/",name_file,".csv"),
+  write.csv(nuseds_final,paste0(wd_output,"/",name_file,".csv"),
             row.names = F)
   
   #' Export the series in NUSEDS with IndexIds and GFE_IDs not in CUSS with 
@@ -6123,7 +6117,7 @@ if(export_datasets){
   trackRecord_toExport <- trackRecord_toExport[,c("IndexId","POP_ID","species_acro",
                                                   "GFE_ID","nb_dataPt","POPULATION")]
   
-  write.csv(trackRecord_toExport,paste0(wd_output,"/archive/1_series_inNUSEDS_noInCUSS_",date,".csv"),
+  write.csv(trackRecord_toExport,paste0(wd_output,"/1_series_inNUSEDS_noInCUSS_",date,".csv"),
             row.names = F)
   
   
@@ -6136,7 +6130,7 @@ if(export_datasets){
   
   removed_all <- removed_all[,c("IndexId","POP_ID","species_acro","GFE_ID","dataset","comment")]
   
-  write.csv(removed_all,paste0(wd_output,"/archive/1_series_removed_",date,".csv"),row.names = F)
+  write.csv(removed_all,paste0(wd_output,"/1_series_removed_",date,".csv"),row.names = F)
   
   #
   added_all$POP_ID <- sapply(X = added_all$IndexId, 
@@ -6148,7 +6142,7 @@ if(export_datasets){
   added_all <- added_all[,c("IndexId","POP_ID","species_acro","CU_NAME","GFE_ID","dataset","comment")]
   
   
-  write.csv(added_all,paste0(wd_output,"/archive/1_series_added_",date,".csv"),row.names = F)
+  write.csv(added_all,paste0(wd_output,"/1_series_added_",date,".csv"),row.names = F)
   
 }
 ```
