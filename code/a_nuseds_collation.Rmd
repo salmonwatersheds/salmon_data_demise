@@ -689,10 +689,10 @@ nrow_before <- nrow(all_areas_nuseds)
 if(import_file_locally_TEMPORARY){
   
   if(remove_timeSeries_zeros_too){
-      all_areas_nuseds <- read.csv(paste0(wd_data_input,"/all_areas_nuseds_noNA0s_TEMP.csv"),
+      all_areas_nuseds <- read.csv(paste0(wd_data_output,"/all_areas_nuseds_noNA0s_TEMP.csv"),
                                    header = T)
   }else{
-      all_areas_nuseds <- read.csv(paste0(wd_data_input,"/all_areas_nuseds_noNAs_TEMP.csv"),
+      all_areas_nuseds <- read.csv(paste0(wd_data_output,"/all_areas_nuseds_noNAs_TEMP.csv"),
                                    header = T)
   }
   
@@ -708,7 +708,7 @@ if(import_file_locally_TEMPORARY){
                                                                    zeros_too = T, # to consider time series with only NAs and/or 0s
                                                                    cores_nb = cores_nb)
       
-      write.csv(all_areas_nuseds,paste0(wd_data,"/all_areas_nuseds_noNA0s_TEMP.csv"),
+      write.csv(all_areas_nuseds,paste0(wd_data_output,"/all_areas_nuseds_noNA0s_TEMP.csv"),
                 row.names = F)
         
   }else{
@@ -716,7 +716,7 @@ if(import_file_locally_TEMPORARY){
                                                                    zeros_too = F, # only consider time series with only NAs
                                                                    cores_nb = cores_nb)
       
-      write.csv(all_areas_nuseds,paste0(wd_data,"/all_areas_nuseds_noNAs_TEMP.csv"),
+      write.csv(all_areas_nuseds,paste0(wd_data_output,"/all_areas_nuseds_noNAs_TEMP.csv"),
                 row.names = F)
   }
 }
@@ -802,11 +802,11 @@ if(import_file_locally_TEMPORARY){
   
   if(remove_timeSeries_zeros_too){
     
-    trackRecord <- read.csv(paste0(wd_data_input,"/trackRecord_noNA0s_TEMP.csv"), header = T)
+    trackRecord <- read.csv(paste0(wd_data_output,"/trackRecord_noNA0s_TEMP.csv"), header = T)
     
   }else{
     
-    trackRecord <- read.csv(paste0(wd_data_input,"/trackRecord_noNAs_TEMP.csv"), header = T)
+    trackRecord <- read.csv(paste0(wd_data_output,"/trackRecord_noNAs_TEMP.csv"), header = T)
     
   }
   
@@ -816,13 +816,13 @@ if(import_file_locally_TEMPORARY){
       trackRecord <- cuss_nuseds_match_parallel_fun(conservation_unit_system_sites = conservation_unit_system_sites,
                                                 all_areas_nuseds = all_areas_nuseds,
                                                 cores_nb = cores_nb)
-      write.csv(trackRecord,paste0(wd_data,"/trackRecord_noNA0s_TEMP.csv"), row.names = F)
+      write.csv(trackRecord,paste0(wd_data_output,"/trackRecord_noNA0s_TEMP.csv"), row.names = F)
       
   }else{
       trackRecord <- cuss_nuseds_match_parallel_fun(conservation_unit_system_sites = conservation_unit_system_sites,
                                                 all_areas_nuseds = all_areas_nuseds,
                                                 cores_nb = cores_nb)
-      write.csv(trackRecord,paste0(wd_data,"/trackRecord_noNAs_TEMP.csv"), row.names = F)
+      write.csv(trackRecord,paste0(wd_data_output,"/trackRecord_noNAs_TEMP.csv"), row.names = F)
   }
 }
 

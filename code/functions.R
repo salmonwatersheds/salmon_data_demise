@@ -1368,3 +1368,140 @@ SYSTEM_SITE_fixes_fun <- function(){
   return(out)
 }
 
+#' Function that calls cuss_nuseds_match_single_fun() for faster execution (cf. the
+#' latter's description for further details).
+# detectCores()
+# detectCores(logical = FALSE)
+# cores_nb <- 10
+cuss_nuseds_match_parallel_fun <- function(conservation_unit_system_sites,
+                                           all_areas_nuseds,
+                                           cores_nb = 1){
+  
+  require(parallel)
+  
+  # IndexIds <- unique(conservation_unit_system_sites$IndexId)
+  
+  # Documentation
+  # https://dept.stat.lsa.umich.edu/~jerrick/courses/stat701/notes/parallel.html
+  
+  if(Sys.info()["sysname"] == "Windows"){
+    
+    cl <- makeCluster(cores_nb)
+    
+    # export the different object to the cluster
+    clusterExport(cl, "conservation_unit_system_sites")
+    clusterExport(cl, "all_areas_nuseds")
+    # lusterExport(cl, "prog_steps")
+    # clusterExport(cl, "IndexIds")
+    clusterExport(cl, "cuss_nuseds_match_single_fun")
+    
+    trackRecord_l <- parLapply(cl = cl, X = unique(conservation_unit_system_sites$IndexId), 
+                               fun = function(iid){
+                                 # iid <- unique(conservation_unit_system_sites$IndexId)[174]
+                                 # i <- which(IndexIds == iid)
+                                 i <- which(unique(conservation_unit_system_sites$IndexId) == iid)
+                                 trackRecord <- cuss_nuseds_match_single_fun(IndexId = iid,
+                                                                             i = i, 
+                                                                             #prog_steps = prog_steps,
+                                                                             conservation_unit_system_sites = conservation_unit_system_sites,
+                                                                             all_areas_nuseds = all_areas_nuseds)
+                                 return(trackRecord)
+                               })
+    
+  }else{
+    
+    #' NOT TESTED
+    trackRecord_l <- mclapply(cl = cl, X = IndexIds, fun = function(iid){
+      # iid <- unique(conservation_unit_system_sites$IndexId)[174]
+      i <- which(IndexIds == iid)
+      trackRecord <- cuss_nuseds_match_single_fun(IndexId = iid,
+                                                  i = i,
+                                                  #prog_steps = prog_steps,
+                                                  conservation_unit_system_sites = conservation_unit_system_sites,
+                                                  all_areas_nuseds = all_areas_nuseds)
+      return(trackRecord)
+    })
+  }
+  stopCluster(cl)
+  trackRecord <- do.call(rbind,trackRecord_l)
+  return(trackRecord)
+}
+
+#' Function taking the dataframe all_areas_nuseds and removes the 
+#' IndexId & GFE_ID time series that only have NAs for MAX_ESTIMATE. 
+#' The function uses parallel computing.
+remove_series_nodata_nuseds_parallel_fun <- function(all_areas_nuseds,
+                                                     zeros_too = T,
+                                                     cores_nb = 1){
+  require(parallel)
+  
+  # Documentation
+  # https://dept.stat.lsa.umich.edu/~jerrick/courses/stat701/notes/parallel.html
+  
+  indexId_GFE_ID <- unique(all_areas_nuseds[,c("IndexId","GFE_ID")])
+  
+  if(Sys.info()["sysname"] == "Windows"){
+    
+    cl <- makeCluster(cores_nb)
+    
+    clusterExport(cl,"all_areas_nuseds")
+    # clusterExport(cl,"zeros_too")
+    
+    #clusterExport(cl,"indexId_GFE_ID")
+    #clusterExport(cl,"toremove")
+    
+    aan <- parLapply(cl = cl, X = 1:nrow(indexId_GFE_ID), fun = function(r){
+      iid <- indexId_GFE_ID$IndexId[r]
+      gfeid <- indexId_GFE_ID$GFE_ID[r]
+      cond <- all_areas_nuseds$IndexId == iid & 
+        all_areas_nuseds$GFE_ID == gfeid
+      maxEstim <- all_areas_nuseds$MAX_ESTIMATE[cond]
+      
+      if(zeros_too){
+        toremove <- all(is.na(maxEstim) | maxEstim == 0)
+      }else{
+        toremove <- all(is.na(maxEstim))
+      }
+      
+      # return an empty slice of all_areas_nuseds
+      if(toremove){
+        aan <- all_areas_nuseds[F,]
+      }else{
+        aan <- all_areas_nuseds[cond,]
+      }
+      return(aan)
+    })
+    
+  }else{
+    
+    #' TODO: need to be tested with Mac and Linux OS
+    aan <- mclapply(X = 1:nrow(indexId_GFE_ID),FUN = function(r){
+      iid <- indexId_GFE_ID$IndexId[r]
+      gfeid <- indexId_GFE_ID$GFE_ID[r]
+      cond <- all_areas_nuseds$IndexId == iid & 
+        all_areas_nuseds$GFE_ID == gfeid
+      maxEstim <- all_areas_nuseds$MAX_ESTIMATE[cond]
+      
+      if(zeros_too){
+        toremove <- all(is.na(maxEstim) | maxEstim == 0)
+      }else{
+        toremove <- all(is.na(maxEstim))
+      }
+      
+      # return an empty slice of all_areas_nuseds
+      if(toremove){
+        aan <- all_areas_nuseds[F,]
+      }else{
+        aan <- all_areas_nuseds[cond,]
+      }
+      return(aan)
+    },mc.cores = cores_nb)
+  }
+  
+  stopCluster(cl)
+  aan <- do.call(rbind,aan)
+  return(aan)
+}
+
+
+
