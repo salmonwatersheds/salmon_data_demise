@@ -16,24 +16,34 @@ This is the second part of the NuSEDS cleaning procedure. The goal of the script
 
 ## Analyses of salmon monitoring
 
-- script: *0_assign-regions.R*
+- *0_assign-regions.R*
 
 The goal is to assign regions to populations based on survey locations (`region_survey`) (in addition to CU-related `region`).
 
 
-- script: *1_datasets.R*
+- *1_datasets.R*
 
 The goal is to make species and region summary datasets from the cleaned NuSEDS dataset and the catch data to be used in *2_analyses.R*.
 
 
-- script: *2_analyses.R*
+- *2_analyses.R*
 
 The goal is to generate the figures and extra summary statistics.
 
 
-- script: *3_Supplement_B.Rmd*; [Supplement_B](https://cdnsciencepub.com/doi/abs/10.1139/cjfas-2024-0387)
+- *3_Supplement_B.Rmd*; [Supplement_B](https://cdnsciencepub.com/doi/abs/10.1139/cjfas-2024-0387)
 
-The goal is to present the supplementary figures, and conduct the GLM analyses as well as a summary of the NuSEDS cleaning procedure (presented in details in Supplement A).
+The goal is to present the supplementary figures, and conduct the GLM analyses as well as to provide a summary of the NuSEDS cleaning procedure (presented in details in Supplement A).
+
+
+- *function.R*
+
+The script contains all the custom-made functions used in the other scripts.
+
+
+- *colours.R*
+
+The script contains the colours used for the figures.
 
 
 ****************
