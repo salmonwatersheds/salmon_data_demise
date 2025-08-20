@@ -13,7 +13,7 @@ Emma M Atkinson, Bruno S Carturan, Clare P Atkinson, Andrew W Bateman, Katrina C
 
 This repository does not contain all the input datasets needed to fully reproduce the analyses. The entire repository containing all the files is available on [Zenodo](https://doi.org/10.5281/zenodo.14248904). By downloading the latter, one does not have to bring the input files in the correct subfolders.
 
-We provide below a detail of the input files needed to complete the different steps of the analyses.
+We provide below the detail of the input files needed to complete the different steps of the analyses that are not present in the subfolder on this Github repository.
 
 ## NuSEDS cleaning procedure (Supplement A - Part 1)
 
@@ -21,9 +21,9 @@ We provide below a detail of the input files needed to complete the different st
 
 - Files to place in the `/data_input` folder:
 
-  - *all_areas_nuseds_2025-02-21.csv*                    : the downloaded *all_areas_nuseds.csv* from DFO
-  
-  - *conservation_unit_system_sites_2025-02-20.csv*      : the downloaded *conservation_unit_system_sites.csv* from DFO
+  - *all_areas_nuseds_2025-02-21.csv*                    : the downloaded *all_areas_nuseds.csv* from [DFO](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6)
+
+  - *conservation_unit_system_sites_2025-02-20.csv*      : the downloaded *conservation_unit_system_sites.csv* from [DFO](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6)
 
   - *DFO_All_Streams_Segments_20240408.xlsx*             : stream - GFE_ID data file from DFO (emailed by Wu Zhipeng, DFO, 09/04/2024)
   
@@ -65,7 +65,7 @@ We provide below a detail of the input files needed to complete the different st
 
 - Files to place in the `/data_input` folder:
 
-  - */gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp* : the shape files for the shorelines, to download from OAA, Global Self-consistent, Hierarchical, High-resolution Geography Database (GSHHG)
+  - */gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp* : the shape files for the shorelines, to download from OAA, Global Self-consistent, Hierarchical, High-resolution Geography Database (GSHHG) [access](https://www.ngdc.noaa.gov/mgg/shorelines/data/gshhg/latest/)
 
 - Files to place in the `/data_output` folder:
 
@@ -99,7 +99,7 @@ We provide below a detail of the input files needed to complete the different st
   - *nuseds_cuid_streamid_2024-11-25.csv*    : the cleaned NuSEDS data available [here](https://zenodo.org/records/14225367) and [here: /data_output](https://zenodo.org/records/14248904)
 
 
-## Analyses, figures and summary statistics
+## Supplementary figures, details of the GLM analyses and summary of the NuSEDS cleaning procedure (Supplement B)
 
 - script: *3_Supplement_B.Rmd*; [Supplement_B](https://cdnsciencepub.com/doi/abs/10.1139/cjfas-2024-0387)
 
@@ -111,3 +111,4 @@ We provide below a detail of the input files needed to complete the different st
 
   - All the needed files are present in the folder
 
+****************

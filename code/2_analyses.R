@@ -103,8 +103,7 @@ data_sp_ssq_0 <-  read_xlsx(paste0(wd_data_output,"/",filename,".xlsx"),
                           sheet = "populations_species_ssq") |> as.data.frame()
 
 #'* Import the landing value per species per kg *
-# https://www.pac.dfo-mpo.gc.ca/analyses-econom-analysis/analyses/econ-perspective-salmon-saumon-eng.html
-
+# https://www.pac.dfo-mpo.gc.ca/analyses-econom-analysis/fisheries-peches/comm/econ-perspective-salmon-saumon-eng.html 
 price_sp <- read.csv(paste0(wd_data_input,"/landed-value-valeur-debarquement-eng.csv"), 
                      header = T)
 head(price_sp)
