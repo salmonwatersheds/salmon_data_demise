@@ -30,8 +30,8 @@ Fisheries and Oceans Canada. 2025. NuSEDS - New Salmon Escapement Database Syste
 ```{r, include = F}
 
 #'******************************************************************************
-#' The goal of the script is to import, clean and format NuSEDS data.
-#' Script based on Emma Atkinson's previous version (26-Mar-2019).
+#' The goal of the script is to import, clean and format NuSEDS data into one unique 
+#' dataset by merging all_area_nuseds (NUSEDS) and conservation_unit_system_sites (CUSS).
 
 #' Imported files:
 
