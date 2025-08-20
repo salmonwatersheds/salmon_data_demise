@@ -21,9 +21,9 @@ We provide below the detail of the input files needed to complete the different 
 
 - Files to place in the `/data_input` folder:
 
-  - *all_areas_nuseds_2025-02-21.csv*                    : the downloaded *all_areas_nuseds.csv* from [DFO](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6)
+  - *all_areas_nuseds_2025-02-21.csv*                    : the downloaded *all_areas_nuseds.csv* (**NUSEDS**) from [DFO](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6)
 
-  - *conservation_unit_system_sites_2025-02-20.csv*      : the downloaded *conservation_unit_system_sites.csv* from [DFO](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6)
+  - *conservation_unit_system_sites_2025-02-20.csv*      : the downloaded *conservation_unit_system_sites.csv* (**CUSS**) from [DFO](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6)
 
   - *DFO_All_Streams_Segments_20240408.xlsx*             : stream - GFE_ID data file from DFO (emailed by Wu Zhipeng, DFO, 09/04/2024)
   
@@ -44,7 +44,7 @@ We provide below the detail of the input files needed to complete the different 
   
   - *trackRecord_noNA0s_TEMP.csv*       # all the time series in CUSS not in NUSEDS using *all_areas_nuseds_noNA0s_TEMP.csv* (not used in paper)
 
-Note: these four files are intermediate files to save computation time. The option is provided at the start of the script to use those intermediate files or not. 
+**Note:** these four files are intermediate files to save computation time. The option is provided at the start of the script to use those intermediate files or not. 
 
 ## NuSEDS cleaning procedure (Supplement A - Part 2)
 
