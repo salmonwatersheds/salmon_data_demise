@@ -34,10 +34,6 @@ figures/map_combined_old.jpg
 figures/README.md
 figures_EMA
 
-data_input/nuseds_cuid_streamid_20240419.csv
-data_input/nuseds_cuid_streamid_2024-11-21.csv
-data_input/nuseds_cuid_streamid_2024-11-25.csv
-data_input/nuseds_cuid_streamid_2025-04-15.csv
 data_input/PSF_modified_SEP_releases_2023.xlsx
 data_input/streamlocationids.csv
 data_input/DFO_All_Streams_Segments_20240408.xlsx
@@ -54,6 +50,7 @@ data_output/trackRecord_noNAs_TEMP.csv
 data_output/trackRecord_noNA0s_TEMP.csv
 data_output/all_areas_nuseds_noNAs_TEMP.csv
 data_output/all_areas_nuseds_noNA0s_TEMP.csv
+data_output/nuseds_cuid_streamid_2025-04-15.csv
 
 documents
 

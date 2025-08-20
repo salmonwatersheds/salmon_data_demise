@@ -51,6 +51,7 @@ region_survey <- read.csv("data_output/region_survey.csv")
 head(region_survey)
 
 #'* Import the catch data from the NPAFC Statistics *
+#' https://www.npafc.org/statistics/
 # Metadata: 
 # https://www.npafc.org/wp-content/uploads/Statistics/Statistics-Metadata-Report-June2024.pdf
 catch_total <- read_xlsx(paste0(wd_data_input,"/NPAFC_Catch_Stat-1925-2023.xlsx")) |> as.data.frame()

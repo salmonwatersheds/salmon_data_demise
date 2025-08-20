@@ -5,7 +5,7 @@
 #' 
 #' Files imported:
 #' 
-#' - nuseds_cuid_streamid_2024-11-25.csv                # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
+#' - nuseds_cuid_streamid_2025-04-15.csv                # the cleaned NuSEDS data avaiable at: https://zenodo.org/records/14225367
 #' - region_survey.csv                                  # the "region" (i.e. CU-related region) and region_survey (i.e. the region where the survey was conducted); created in 0_assign-regions.R
 #' - populationAssessed_catches_data_remove_0s_NAs.xlsx # the summary file where both 0s and NAs counts were removed (results presented in the main text); created in 1_datasets.R
 #' - populationAssessed_catches_data_",option_NAs.xlsx  # the summary file where only NAs counts were removed (results presented in the supporting information); created in 1_datasets.R
@@ -116,7 +116,7 @@ for(c in 2:ncol(price_sp)){
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS).
 #' TODO if not in /data_input: to download at https://zenodo.org/records/15625993 and place it in the
 #' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+nuseds <- read.csv(paste0(wd_data_output,"/nuseds_cuid_streamid_2025-04-15.csv"), 
                    header = T)
 
 nuseds$region[nuseds$region == "Northern Transboundary"] <- "Transboundary"
@@ -830,7 +830,7 @@ if(figures_print){
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
 #' must be downloaded at https://zenodo.org/records/14194639 and placed in the
 #' /data_input folder.
-# nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+# nuseds <- read.csv(paste0(wd_data_output,"/nuseds_cuid_streamid_2025-04-15.csv"), 
 #                    header = T)
 # 
 # cond <- nuseds$region == "Northern Transboundary"
@@ -1518,7 +1518,7 @@ mtext(text = "Proprotion of non-indicator populations",side = 4, line = 3)
 #' This is the clean version of the New Salmon Escapement Database (NuSEDS). It 
 #' must be downloaded at https://zenodo.org/records/14194639 and placed in the
 #' /data_input folder.
-nuseds <- read.csv(paste0(wd_data_input,"/nuseds_cuid_streamid_2025-04-15.csv"), 
+nuseds <- read.csv(paste0(wd_data_output,"/nuseds_cuid_streamid_2025-04-15.csv"), 
                    header = T)
 
 nrow(nuseds) # 312539

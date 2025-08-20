@@ -40,10 +40,11 @@ We provide below the detail of the input files needed to complete the different 
 
   - *all_areas_nuseds_noNA0s_TEMP.csv*  # NUSEDS after removing the time series only made of NAs and/or 0s (not used in paper)
   
-  - *trackRecord_noNAs_TEMP.csv*        # all the time series in CUSS not in NUSEDS using all_areas_nuseds_noNAs_TEMP.csv (used in paper)
+  - *trackRecord_noNAs_TEMP.csv*        # all the time series in CUSS not in NUSEDS using *all_areas_nuseds_noNAs_TEMP.csv* (used in paper)
   
-  - *trackRecord_noNA0s_TEMP.csv*       # all the time series in CUSS not in NUSEDS using all_areas_nuseds_noNA0s_TEMP.csv (not used in paper)
+  - *trackRecord_noNA0s_TEMP.csv*       # all the time series in CUSS not in NUSEDS using *all_areas_nuseds_noNA0s_TEMP.csv* (not used in paper)
 
+Note: these four files are intermediate files to save computation time. The option is provided at the start of the script to use those intermediate files or not. 
 
 ## NuSEDS cleaning procedure (Supplement A - Part 2)
 
@@ -69,7 +70,7 @@ We provide below the detail of the input files needed to complete the different 
 
 - Files to place in the `/data_output` folder:
 
-  - *nuseds_cuid_streamid_2024-11-25.csv*    : the cleaned NuSEDS data available [here](https://zenodo.org/records/14225367) and [here: /data_output](https://zenodo.org/records/14248904)
+  - *nuseds_cuid_streamid_2025-04-15.csv*    : the cleaned NuSEDS data available [here](https://zenodo.org/records/14225367) and [here: /data_output](https://zenodo.org/records/14248904)
 
 
 ## Preparing the region and species summary datasets
@@ -83,7 +84,7 @@ We provide below the detail of the input files needed to complete the different 
 
 - Files to place in the `/data_output` folder:
 
-  - *nuseds_cuid_streamid_2024-11-25.csv*    : the cleaned NuSEDS data available [here](https://zenodo.org/records/14225367) and [here: /data_output](https://zenodo.org/records/14248904)
+  - *nuseds_cuid_streamid_2025-04-15.csv*    : the cleaned NuSEDS data available [here](https://zenodo.org/records/14225367) and [here: /data_output](https://zenodo.org/records/14248904)
   
   
 ## Analyses, figures and summary statistics
@@ -96,7 +97,7 @@ We provide below the detail of the input files needed to complete the different 
 
 - Files to place in the `/data_output` folder:
 
-  - *nuseds_cuid_streamid_2024-11-25.csv*    : the cleaned NuSEDS data available [here](https://zenodo.org/records/14225367) and [here: /data_output](https://zenodo.org/records/14248904)
+  - *nuseds_cuid_streamid_2025-04-15.csv*    : the cleaned NuSEDS data available [here](https://zenodo.org/records/14225367) and [here: /data_output](https://zenodo.org/records/14248904)
 
 
 ## Supplementary figures, details of the GLM analyses and summary of the NuSEDS cleaning procedure (Supplement B)

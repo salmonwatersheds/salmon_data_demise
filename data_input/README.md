@@ -38,26 +38,3 @@ In case the following files are not present in the repository, they must be impo
 
 
 ****************
-
-
-
-
-
-
-
-
-
-[DFO](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6)
-
-
-- **NuSEDS_escapement_data_collated_2025-04-15.csv**: the cleaned version of the New Salmon Escapement Database (NuSEDS) with 0s kept
-
-- **nuseds_cuid_streamid_2025-04-15.csv**: the cleaned NuSEDS data with associated `cuid` and `cu_name_pse` used as in the PSE 
-
-- **nuseds_cuid_streamid_2024-11-25_definitions.csv**: the definitions of the fields in nuseds_cuid_streamid_DATE.csv
-
-*** IMPORTANT ***
-
-The sub-repository does not contain all the files needed to fully reproduce the workflow. See [the main README file](https://github.com/salmonwatersheds/salmon_data_demise/blob/main/README.md) for complete details.
-
-****************

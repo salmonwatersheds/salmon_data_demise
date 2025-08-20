@@ -4,7 +4,7 @@
 #' latitude and longitude coordinates.
 #' 
 #' Files imported:
-#' - nuseds_cuid_streamid_2024-11-25.csv    # the cleaned NuSEDS data available at: https://zenodo.org/records/14225367 and https://zenodo.org/records/14248904 
+#' - nuseds_cuid_streamid_2025-04-15.csv    # the cleaned NuSEDS data available at: https://zenodo.org/records/14225367 and https://zenodo.org/records/14248904 
 #' - se_boundary_regions.shp                # the shape files for the regions as defined in the PSE (https://www.salmonexplorer.ca/)
 #' - GSHHS_f_L1.shp                         # the shape file for the shorelines, to download from OAA, Global Self-consistent, Hierarchical, High-resolution Geography Database (GSHHG)
 #' 
