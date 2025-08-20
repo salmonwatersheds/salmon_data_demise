@@ -1,7 +1,7 @@
 
 #'******************************************************************************
 #' The goal of the script is to make summary datasets from the cleaned NuSEDS
-#' dataset to be used in 2_analyses.R.
+#' dataset and the catch data to be used in 2_analyses.R.
 #' 
 #' Files imported:
 #' - nuseds_cuid_streamid_2025-14-15.csv   # the cleaned NuSEDS data available at: https://zenodo.org/records/14225367 and https://zenodo.org/records/14248904

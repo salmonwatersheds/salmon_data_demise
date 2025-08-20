@@ -1,7 +1,7 @@
 
 #'******************************************************************************
 #' The goal of the script is assign NuSEDS populations to PSE regions based on 
-#' latitude and longitud coordinates.
+#' latitude and longitude coordinates.
 #' 
 #' Files imported:
 #' - nuseds_cuid_streamid_2024-11-25.csv    # the cleaned NuSEDS data available at: https://zenodo.org/records/14225367 and https://zenodo.org/records/14248904 
