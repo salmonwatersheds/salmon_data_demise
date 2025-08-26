@@ -7,7 +7,7 @@
 
 - *biostatus_COSEWIC_DFO.csv*                : biological status from DFO and COSEWIC; downloaded from the PSE database [access](https://data.salmonwatersheds.ca/search?search=cosewic&regions=&species=&categories=&datatypes=&page=0)
 
-- **nuseds_report_definitions.csv**         : the definition of the fields of the original *all_areas_nuseds.csv* [access](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6/resource/60c2827f-c439-3b37-ab84-42515eb1b521)
+- *nuseds_report_definitions.csv*            : the definition of the fields of the original *all_areas_nuseds.csv* [access](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6/resource/60c2827f-c439-3b37-ab84-42515eb1b521)
 
 - *conservation_unit_report_definitions.csv* : the definition of the fields of the original *conservation_unit_system_sites.csv* [access](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6/resource/894ba9df-8931-3cf1-bf4c-ba8876bcf515)
 
